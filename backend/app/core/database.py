@@ -16,14 +16,15 @@ class Base(DeclarativeBase):
 
 
 def create_engine(settings: Settings) -> Any:
-    """Create an async SQLAlchemy engine with connection pooling."""
-    return create_async_engine(
-        settings.DATABASE_URL,
-        pool_size=5,
-        max_overflow=15,
-        pool_pre_ping=True,
-        echo=False,
-    )
+    """Create an async SQLAlchemy engine with connection pooling.
+
+    Pool arguments are omitted for SQLite backends because aiosqlite
+    does not support them.
+    """
+    kwargs: dict[str, Any] = {"echo": False}
+    if not settings.DATABASE_URL.startswith("sqlite"):
+        kwargs.update({"pool_size": 5, "max_overflow": 15, "pool_pre_ping": True})
+    return create_async_engine(settings.DATABASE_URL, **kwargs)
 
 
 def create_session_factory(engine: Any) -> async_sessionmaker[AsyncSession]:

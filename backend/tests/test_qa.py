@@ -17,6 +17,7 @@ from collections.abc import AsyncGenerator
 from typing import Any
 from unittest.mock import AsyncMock, MagicMock, patch
 
+import httpx
 import pytest
 from httpx import ASGITransport, AsyncClient, Response
 
@@ -364,6 +365,51 @@ class TestAnswerAgentAnswer:
         payload = call_args[1]["json"]
         assert payload["model"] == "llama3.2"
         assert payload["stream"] is False
+
+    @pytest.mark.asyncio
+    async def test_deepseek_failure_falls_back_to_ollama(self) -> None:
+        """When DEEPSEEK_API_KEY is set but DeepSeek fails, Ollama is called as fallback."""
+        mock_client = MagicMock(spec=AsyncClient)
+
+        # First call (DeepSeek) raises, second call (Ollama) succeeds
+        deepseek_fail = _mock_httpx_response({}, status_code=500)
+        deepseek_fail.raise_for_status.side_effect = httpx.HTTPStatusError(
+            "Server error", request=MagicMock(), response=deepseek_fail
+        )
+        ollama_ok = _mock_httpx_response(
+            {
+                "choices": [
+                    {
+                        "message": {
+                            "content": json.dumps(SAMPLE_LLM_JSON_RESPONSE),
+                        }
+                    }
+                ]
+            }
+        )
+        mock_client.post = AsyncMock(side_effect=[deepseek_fail, ollama_ok])
+
+        settings = MagicMock()
+        settings.DEEPSEEK_API_KEY = "sk-test-key"  # set → try DeepSeek
+        settings.DEEPSEEK_BASE_URL = "https://api.deepseek.com"
+        settings.OLLAMA_BASE_URL = "http://localhost:11434"
+        settings.LLM_TEMPERATURE = 0.0
+
+        agent = AnswerAgent(settings=settings, http_client=mock_client)
+
+        result = await agent.answer(query="What is RAG?", chunks=SAMPLE_CHUNKS, top_k=10)
+
+        # Should still get a valid answer via Ollama
+        assert result.answer_text == SAMPLE_LLM_JSON_RESPONSE["answer_text"]
+
+        # Both DeepSeek and Ollama should have been called
+        assert mock_client.post.call_count == 2
+        calls = mock_client.post.call_args_list
+        # First call → DeepSeek
+        assert "api.deepseek.com" in calls[0][0][0]
+        # Second call → Ollama
+        assert "localhost:11434" in calls[1][0][0]
+        assert calls[1][1]["json"]["model"] == "llama3.2"
 
     @pytest.mark.asyncio
     async def test_top_k_limits_chunks(self) -> None:

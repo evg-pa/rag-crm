@@ -165,7 +165,10 @@ class AnswerAgent:
 
         # Try DeepSeek API if configured
         if self._settings.DEEPSEEK_API_KEY:
-            return await self._call_deepseek(messages)
+            try:
+                return await self._call_deepseek(messages)
+            except Exception:
+                pass  # Fall through to Ollama on any DeepSeek failure
 
         # Fall back to Ollama
         return await self._call_ollama(messages)

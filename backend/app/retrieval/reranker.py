@@ -49,11 +49,15 @@ class Reranker:
             AutoTokenizer,
         )
 
+        import torch  # type: ignore[import-not-found]
+
         settings = get_settings()
         model_name = settings.RERANKER_MODEL
 
         cls._tokenizer = AutoTokenizer.from_pretrained(model_name)
-        cls._model = AutoModelForSequenceClassification.from_pretrained(model_name)
+        cls._model = AutoModelForSequenceClassification.from_pretrained(
+            model_name, torch_dtype=torch.float32
+        )
         cls._loaded = True
 
     async def _load(self) -> None:

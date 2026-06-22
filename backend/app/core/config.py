@@ -35,7 +35,7 @@ class Settings(BaseSettings):
     EMBEDDING_DIM: int = 384
 
     # Reranker
-    RERANKER_MODEL: str = "BAAI/bge-reranker-v2-m3"
+    RERANKER_MODEL: str = "cross-encoder/ms-marco-MiniLM-L-6-v2"
 
     # LLM defaults
     LLM_TEMPERATURE: float = 0.0

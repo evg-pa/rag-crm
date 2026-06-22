@@ -104,9 +104,9 @@ class AnswerAgent:
 
     @property
     def http_client(self) -> httpx.AsyncClient:
-        """Return (and lazily create) the httpx async client."""
+        """Return (and lazily create) the httpx async client with short timeout."""
         if self._http_client is None:
-            self._http_client = httpx.AsyncClient(timeout=60.0)
+            self._http_client = httpx.AsyncClient(timeout=httpx.Timeout(8.0, connect=3.0))
         return self._http_client
 
     async def answer(
@@ -166,8 +166,9 @@ class AnswerAgent:
     async def _call_llm(self, query: str, context: str) -> str:
         """Call the LLM API and return the raw response text.
 
-        Tries DeepSeek first; falls back to Ollama if DeepSeek is not
-        configured. Returns a graceful fallback if no LLM is reachable.
+        Tries DeepSeek first; falls back to Ollama. Returns a graceful
+        fallback if neither is reachable. Uses httpx built-in timeout
+        (8s total, 3s connect) so no nested wait_for needed.
         """
         user_prompt = f"Context:\n{context}\n\nQuestion: {query}"
 
@@ -176,20 +177,16 @@ class AnswerAgent:
             {"role": "user", "content": user_prompt},
         ]
 
-        # Try DeepSeek API if configured
+        # Try DeepSeek API (httpx timeout handles the deadline)
         if self._settings.DEEPSEEK_API_KEY:
             try:
-                return await asyncio.wait_for(
-                    self._call_deepseek(messages), timeout=10.0
-                )
+                return await self._call_deepseek(messages)
             except Exception:
-                pass  # Fall through to Ollama on any DeepSeek failure
+                pass
 
-        # Try Ollama (with short timeout for connection check)
+        # Try Ollama
         try:
-            return await asyncio.wait_for(
-                self._call_ollama(messages), timeout=5.0
-            )
+            return await self._call_ollama(messages)
         except Exception:
             pass
 

@@ -19,6 +19,7 @@ from app.ingestion import ingest_document
 from app.ingestion.parsers.text_parser import TextParser
 from app.models.chunk import Chunk
 from app.models.document import Document
+from app.retrieval.keyword import BM25Index
 
 router = APIRouter(prefix="/documents", tags=["documents"])
 
@@ -188,6 +189,9 @@ async def upload_document(
         db.add(chunk)
 
     await db.commit()
+
+    # Rebuild BM25 index so new chunks are searchable immediately
+    await BM25Index.rebuild(db)
 
     # Refresh so relationship children are loaded
     await db.refresh(document, attribute_names=["chunks"])

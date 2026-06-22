@@ -17,7 +17,10 @@ RUN pip install --no-cache-dir \
     httpx>=0.27.0 \
     python-multipart>=0.0.7 \
     "optimum[onnxruntime]>=1.24.0" \
-    pgvector>=0.4.0
+    pgvector>=0.4.0 \
+    "rank-bm25>=0.2.2" \
+    "transformers>=4.46.0" \
+    "torch>=2.0.0"
 
 # --- Runner stage ---
 FROM python:3.12-slim AS runner

@@ -28,6 +28,18 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     )
     # Auto-create tables on startup (dev mode)
     await init_db(settings)
+
+    # Pre-build BM25 index from existing chunks
+    from app.core.dependencies import _session_factory
+    from app.retrieval.keyword import BM25Index
+
+    async with _session_factory() as session:
+        try:
+            await BM25Index._ensure_loaded(session)
+            logger.info("BM25 index built on startup")
+        except Exception as exc:
+            logger.warning("BM25 index build failed on startup: %s", exc)
+
     yield
     logger.info("shutting down application")
 

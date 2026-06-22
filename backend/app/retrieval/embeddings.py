@@ -45,8 +45,10 @@ class EmbeddingModel:
         if cls._loaded:
             return
 
-        from optimum.onnxruntime import ORTModelForFeatureExtraction  # type: ignore[import-not-found]
-        from transformers import AutoTokenizer  # type: ignore[import-not-found]
+        from optimum.onnxruntime import (  # type: ignore[import-not-found,unused-ignore]
+            ORTModelForFeatureExtraction,
+        )
+        from transformers import AutoTokenizer  # type: ignore[import-not-found,unused-ignore]
 
         settings = get_settings()
 

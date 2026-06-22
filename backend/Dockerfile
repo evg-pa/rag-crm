@@ -34,11 +34,17 @@ COPY --from=builder /usr/local/bin /usr/local/bin
 # Copy application code
 COPY app/ ./app/
 
-# Create non-root user
+# Create non-root user with writable home for HuggingFace cache
 RUN groupadd -r appuser && useradd -r -g appuser appuser && \
-    chmod -R o+rX /app/app
+    chmod -R o+rX /app/app && \
+    mkdir -p /app/.cache && chown appuser:appuser /app/.cache && \
+    mkdir -p /app/.cache/huggingface && chown appuser:appuser /app/.cache/huggingface
+ENV HF_HOME=/app/.cache/huggingface
 USER appuser
 
 EXPOSE 8000
+
+ENV OPENAI_API_KEY=""
+ENV DEEPSEEK_API_KEY=""
 
 CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]

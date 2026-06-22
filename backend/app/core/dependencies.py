@@ -30,7 +30,7 @@ async def get_db_session() -> AsyncGenerator[AsyncSession, None]:
 
 async def get_redis() -> AsyncGenerator[aioredis.Redis, None]:
     """FastAPI dependency: yields a Redis connection."""
-    redis_client: aioredis.Redis = aioredis.from_url(  # type: ignore[no-untyped-call]
+    redis_client: aioredis.Redis = aioredis.from_url(
         _settings.REDIS_URL,
         encoding="utf-8",
         decode_responses=True,

@@ -16,7 +16,24 @@
   - DeepSeek API primary LLM, Ollama local LLM as fallback from day 1
   - Streamlit MVP (Iteration 11), Next.js final (Iteration 12+)
   - Temperature 0 for all factual/retrieval steps
-- **Files:** MAP.md, CLAUDE.md, infrastructure/docker-compose.yml
+- **Files:** MAP.md, docs/architecture.md, infrastructure/docker-compose.yml
+
+---
+
+## 2026-06-18: Iteration 1 ACCEPTED — Core Infrastructure
+
+- **Completed by:** Paperclip agents (CEO → CTO → Coder)
+- **Verification:**
+  - ruff: 0 errors ✅
+  - ruff format: 11 files formatted ✅
+  - mypy --strict: 0 errors ✅
+  - pytest: 4/4 passed ✅
+  - `docker compose up --build`: all 3 services healthy ✅
+  - `GET /health`: `{"status":"ok","version":"0.1.0","database":"connected"}` ✅
+  - `GET /health/live`: `{"status":"alive"}` ✅
+  - `GET /`: redirect to `/docs` ✅
+- **Fixes applied by Hermes:** Dockerfile → multi-stage, mypy strict fixes (test type annotations, unused type:ignore removed)
+- **Status:** ACCEPT ✅ — proceed to Iteration 2
 
 ---
 

@@ -34,12 +34,8 @@ COPY --from=builder /usr/local/bin /usr/local/bin
 # Copy application code
 COPY app/ ./app/
 
-# Pre-download embedding model and reranker for faster first-request
-RUN python3 -c "\
-from huggingface_hub import snapshot_download;\
-snapshot_download(repo_id='BAAI/bge-small-en-v1.5', ignore_patterns=['*.h5','*.msgpack']);\
-snapshot_download(repo_id='cross-encoder/ms-marco-MiniLM-L-6-v2', ignore_patterns=['*.h5','*.msgpack','*.safetensors']);\
-" 2>&1 | tail -3 || echo "pre-download skipped (will download on first use)"
+# Pre-download embedding model and reranker
+RUN python3 /app/app/scripts/preload_models.py 2>&1 || echo "preload failed (will download on first use)"
 
 # Create non-root user with writable home for HuggingFace cache
 RUN groupadd -r appuser && useradd -r -g appuser appuser && \

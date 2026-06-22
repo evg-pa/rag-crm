@@ -148,7 +148,7 @@ class AnswerAgent:
         # Call LLM with overall timeout
         try:
             llm_response = await asyncio.wait_for(
-                self._call_llm(query, context), timeout=15.0
+                self._call_llm(query, context), timeout=45.0
             )
         except asyncio.TimeoutError:
             llm_response = json.dumps({

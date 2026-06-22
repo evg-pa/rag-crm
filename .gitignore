@@ -1,0 +1,41 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+dist/
+build/
+
+# Environment
+.env
+*.local
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Docker
+pgdata/
+
+# Generated
+raw/
+wiki/*
+!wiki/.gitkeep
+memory/*
+!memory/.gitkeep
+artifacts/*
+!artifacts/.gitkeep
+
+# Logs
+*.log
+
+# Node
+node_modules/
+.next/

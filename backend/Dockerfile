@@ -14,7 +14,8 @@ RUN pip install --no-cache-dir \
     pydantic-settings>=2.3.0 \
     redis>=5.0.0 \
     structlog>=24.0.0 \
-    httpx>=0.27.0
+    httpx>=0.27.0 \
+    python-multipart>=0.0.7
 
 # --- Runner stage ---
 FROM python:3.12-slim AS runner

@@ -45,3 +45,13 @@ async def get_db(
             yield session
         finally:
             await session.close()
+
+
+async def init_db(settings: Settings) -> None:
+    """Create all tables (dev/auto-migrate mode)."""
+    engine = create_engine(settings)
+    async with engine.begin() as conn:
+        from app.models.chunk import Chunk  # noqa: F401
+        from app.models.document import Document  # noqa: F401
+        await conn.run_sync(Base.metadata.create_all)
+    await engine.dispose()

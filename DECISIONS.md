@@ -20,9 +20,25 @@
 
 ---
 
-## 2026-06-18: Iteration 1 ACCEPTED — Core Infrastructure
+## 2026-06-18: Iteration 2 ACCEPTED — Document Ingestion
 
-- **Completed by:** Paperclip agents (CEO → CTO → Coder)
+- **Completed by:** Paperclip agents (CEO → CTO → Coder 2)
+- **Sub-tasks:** APP-114 (models + migration + API), APP-116 (tests), APP-117 (fixes)
+- **Files created:** models (Document/Chunk), ingestion pipeline (parsers/chunkers), API endpoints, alembic migration, 5 tests
+- **Verification:**
+  - ruff: 0 errors ✅
+  - mypy --strict: 0 errors ✅
+  - pytest: 9/9 passed ✅
+  - Docker build + run ✅
+  - `POST /documents/upload` (md+txt) → stored with chunks ✅
+  - `GET /documents` → paginated list ✅
+  - `GET /documents/{id}` → document with chunks ✅
+- **Fixes applied by Hermes:** aiosqlite + python-multipart in pyproject.toml & Dockerfile, auto-create tables on startup (init_db)
+- **Status:** ACCEPT ✅ — proceed to Iteration 3
+
+---
+
+## 2026-06-18: Iteration 1 ACCEPTED — Core Infrastructure
 - **Verification:**
   - ruff: 0 errors ✅
   - ruff format: 11 files formatted ✅

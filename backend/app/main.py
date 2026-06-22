@@ -9,6 +9,7 @@ from starlette.responses import RedirectResponse
 
 from app.api import api_router
 from app.core.config import Settings
+from app.core.database import init_db
 from app.core.dependencies import get_settings
 from app.core.logging import get_logger, setup_logging
 
@@ -25,6 +26,8 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         app_name=settings.APP_NAME,
         version=settings.APP_VERSION,
     )
+    # Auto-create tables on startup (dev mode)
+    await init_db(settings)
     yield
     logger.info("shutting down application")
 

@@ -46,6 +46,7 @@ async def semantic_search(
             Chunk.chunk_index,
             distance,
         )
+        .where(Chunk.embedding.isnot(None))
         .order_by(distance)
         .limit(top_k)
     )

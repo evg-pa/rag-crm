@@ -5,6 +5,7 @@ GET  /documents          — list all documents
 GET  /documents/{id}     — get a single document with its chunks
 """
 
+import asyncio
 import uuid
 from typing import Any
 
@@ -19,6 +20,7 @@ from app.ingestion import ingest_document
 from app.ingestion.parsers.text_parser import TextParser
 from app.models.chunk import Chunk
 from app.models.document import Document
+from app.retrieval.embeddings import get_embedding_model
 from app.retrieval.keyword import BM25Index
 
 router = APIRouter(prefix="/documents", tags=["documents"])
@@ -172,6 +174,9 @@ async def upload_document(
         )
 
     # Persist: document + chunks in a single transaction
+    # Capture chunk contents for embedding (before DB operations complete)
+    chunk_texts = [chunk_result.content for chunk_result in chunk_results]
+
     document = Document(
         filename=file.filename,
         content_type=content_type,
@@ -189,6 +194,23 @@ async def upload_document(
         db.add(chunk)
 
     await db.commit()
+
+    # Generate embeddings outside the DB session (no greenlet conflict)
+    try:
+        model = get_embedding_model()
+        embeddings = await asyncio.gather(*[model.embed(t) for t in chunk_texts])
+        # Update chunks in a new transaction
+        for (chunk_result, emb) in zip(chunk_results, embeddings):
+            await db.execute(
+                Chunk.__table__.update()
+                .where(Chunk.document_id == document.id)
+                .where(Chunk.chunk_index == chunk_result.index)
+                .values(embedding=emb)
+            )
+        await db.commit()
+    except Exception as exc:
+        import logging
+        logging.getLogger(__name__).warning("Embedding generation failed: %s", exc)
 
     # Rebuild BM25 index so new chunks are searchable immediately
     await BM25Index.rebuild(db)

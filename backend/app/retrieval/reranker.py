@@ -57,11 +57,17 @@ class Reranker:
         cls._loaded = True
 
     async def _load(self) -> None:
-        """Async-safe lazy loader."""
+        """Async-safe lazy loader with timeout."""
         lock = self._get_lock()
         async with lock:
             if not self._loaded:
-                await asyncio.to_thread(self._ensure_loaded)
+                try:
+                    await asyncio.wait_for(
+                        asyncio.to_thread(self._ensure_loaded), timeout=60.0
+                    )
+                except asyncio.TimeoutError:
+                    # Model not loaded — will fall back to un-reranked results
+                    pass
 
     async def rerank(
         self,
@@ -95,6 +101,10 @@ class Reranker:
 
         if not self._loaded:
             await self._load()
+
+        if not self._loaded:
+            # Model failed to load — return candidates un-reranked
+            return candidates[:top_k]
 
         scores = await asyncio.to_thread(self._rerank_sync, query, limited)
 

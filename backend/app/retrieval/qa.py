@@ -9,6 +9,7 @@ Pipeline:
 
 from __future__ import annotations
 
+import asyncio
 import json
 import re
 from typing import Any
@@ -144,8 +145,20 @@ class AnswerAgent:
         # Build context prompt
         context = build_context_prompt(selected)
 
-        # Call LLM
-        llm_response = await self._call_llm(query, context)
+        # Call LLM with overall timeout
+        try:
+            llm_response = await asyncio.wait_for(
+                self._call_llm(query, context), timeout=15.0
+            )
+        except asyncio.TimeoutError:
+            llm_response = json.dumps({
+                "answer_text": (
+                    f"Based on the retrieved documents, here is the relevant information:\n\n"
+                    f"{context[:500]}"
+                ),
+                "citations": [],
+                "confidence_score": 0.3,
+            })
 
         # Parse LLM response
         return self._parse_llm_response(llm_response, selected)
@@ -154,7 +167,7 @@ class AnswerAgent:
         """Call the LLM API and return the raw response text.
 
         Tries DeepSeek first; falls back to Ollama if DeepSeek is not
-        configured.
+        configured. Returns a graceful fallback if no LLM is reachable.
         """
         user_prompt = f"Context:\n{context}\n\nQuestion: {query}"
 
@@ -166,12 +179,29 @@ class AnswerAgent:
         # Try DeepSeek API if configured
         if self._settings.DEEPSEEK_API_KEY:
             try:
-                return await self._call_deepseek(messages)
+                return await asyncio.wait_for(
+                    self._call_deepseek(messages), timeout=10.0
+                )
             except Exception:
                 pass  # Fall through to Ollama on any DeepSeek failure
 
-        # Fall back to Ollama
-        return await self._call_ollama(messages)
+        # Try Ollama (with short timeout for connection check)
+        try:
+            return await asyncio.wait_for(
+                self._call_ollama(messages), timeout=5.0
+            )
+        except Exception:
+            pass
+
+        # Neither LLM is reachable — return context-based fallback
+        return json.dumps({
+            "answer_text": (
+                f"Based on the retrieved documents, here is the relevant information:\n\n"
+                f"{context[:500]}"
+            ),
+            "citations": [],
+            "confidence_score": 0.3,
+        })
 
     async def _call_deepseek(self, messages: list[dict[str, str]]) -> str:
         """Call the DeepSeek chat completions API."""

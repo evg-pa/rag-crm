@@ -1,11 +1,60 @@
 """Test configuration: in-memory SQLite database and shared fixtures."""
 
 import os
+import sys
 from collections.abc import AsyncGenerator, AsyncIterator
+from unittest.mock import Mock
 
 import pytest
+import sqlalchemy as sa
 from httpx import ASGITransport, AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
+
+# ── SQLite-compatible Vector replacement ────────────────────────────────────
+# pgvector.sqlalchemy.Vector generates ``vector(384)`` DDL that SQLite
+# rejects.  Replace it with a LargeBinary-based type BEFORE any app model
+# imports the real module, so create_all succeeds on the in-memory DB.
+
+
+class _SQLiteVector(sa.types.UserDefinedType):
+    """Drop-in for pgvector.sqlalchemy.Vector that stores embeddings as
+    raw bytes (float32 little-endian) in a BLOB column.
+
+    SQLite-only; real Postgres deployments use the actual pgvector type.
+
+    Exposes the same comparator methods (cosine_distance, l2_distance, etc.)
+    so that ORM queries using those operators work in tests.
+    """
+
+    def __init__(self, dim: int | None = None):
+        super().__init__()
+        self.dim = dim
+
+    def get_col_spec(self, **kw: object) -> str:
+        return "BLOB"
+
+    class comparator_factory(sa.types.UserDefinedType.Comparator):  # noqa: N801
+        """Comparators that mirror pgvector's Vector.Comparator."""
+
+        def cosine_distance(self, other: object) -> sa.ColumnElement[float]:
+            return sa.literal(0.0)
+
+        def l2_distance(self, other: object) -> sa.ColumnElement[float]:
+            return sa.literal(0.0)
+
+        def inner_product(self, other: object) -> sa.ColumnElement[float]:
+            return sa.literal(0.0)
+
+        def max_inner_product(self, other: object) -> sa.ColumnElement[float]:
+            return sa.literal(0.0)
+
+
+_pg_sqlalchemy_mock = Mock()
+_pg_sqlalchemy_mock.Vector = _SQLiteVector
+_pg_mock = Mock()
+_pg_mock.sqlalchemy = _pg_sqlalchemy_mock
+sys.modules["pgvector"] = _pg_mock
+sys.modules["pgvector.sqlalchemy"] = _pg_sqlalchemy_mock
 
 # ── Force in-memory SQLite BEFORE any app imports ──────────────────────────
 os.environ["DATABASE_URL"] = "sqlite+aiosqlite://"

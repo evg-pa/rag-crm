@@ -1,4 +1,4 @@
-"""Chunk model: text segment with an optional embedding vector."""
+"""Chunk model: text segment with an embedding vector for semantic search."""
 
 from __future__ import annotations
 
@@ -6,6 +6,7 @@ import uuid
 from datetime import UTC, datetime
 from typing import TYPE_CHECKING
 
+from pgvector.sqlalchemy import Vector  # type: ignore[import-untyped]
 from sqlalchemy import DateTime, ForeignKey, Integer, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -34,10 +35,7 @@ class Chunk(Base):
     )
     chunk_index: Mapped[int] = mapped_column(Integer, nullable=False)
     content: Mapped[str] = mapped_column(Text, nullable=False)
-    # embedding is declared as a raw pgvector column in the migration;
-    # the column is present on the table but only mapped here when
-    # pgvector.sqlalchemy.Vector is available.
-    # Future work (Iteration 3) will wire it via a type annotation.
+    embedding: Mapped[list[float] | None] = mapped_column(Vector(384), nullable=True, default=None)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, default=utcnow
     )

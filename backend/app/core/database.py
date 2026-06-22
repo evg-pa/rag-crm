@@ -53,5 +53,6 @@ async def init_db(settings: Settings) -> None:
     async with engine.begin() as conn:
         from app.models.chunk import Chunk  # noqa: F401
         from app.models.document import Document  # noqa: F401
+
         await conn.run_sync(Base.metadata.create_all)
     await engine.dispose()

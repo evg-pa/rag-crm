@@ -11,11 +11,11 @@
 |---|---|
 | **Name** | RAG-CRM |
 | **Path** | `/media/sf_VM_Share/Projects/AI/rag-crm/` |
-| **Status** | DEV (Phase 0 — Infrastructure) |
+| **Status** | DEV (Phase 5 — Full Features) |
 | **Goal** | Hybrid RAG platform integrating with existing CRM |
-| **Stack** | Python 3.12+, FastAPI, PostgreSQL + pgvector, LangGraph, Next.js |
-| **LLM** | DeepSeek API (primary), Ollama (local fallback) |
-| **Embeddings** | BGE-Small ONNX → BGE-M3 ONNX (later) |
+| **Stack** | Python 3.12+, FastAPI, PostgreSQL + pgvector, LangGraph |
+| **LLM** | DeepSeek API (primary, no Ollama) |
+| **Embeddings** | BGE-Small ONNX, rank_bm25, BGE-Reranker (80MB) |
 | **Deployment** | Docker Compose (local) |
 
 ---
@@ -33,17 +33,27 @@
 
 | Component | Port | Container | Notes |
 |---|---|---|---|
-| Backend API | 8000 | `rag-backend` | FastAPI |
-| Frontend | 3000 | `rag-frontend` | Next.js |
-| PostgreSQL + pgvector | 5432 | `rag-db` | Primary + vector storage |
-| Redis | 6379 | `rag-redis` | Cache / rate limiting |
-| Ollama | 11434 | `rag-ollama` | Local LLM (future) |
+| Backend API | 8000 | `rag-backend` | FastAPI, healthy |
+| PostgreSQL + pgvector | 5432 | `rag-db` | Primary + vector storage, healthy |
+| Redis | 6379 | `rag-redis` | Cache / rate limiting, healthy |
 
 ---
 
-## Feature Chain (Iterations)
+## Iteration Status
 
-Active: Iteration 0 (Infrastructure)
-Next: Iteration 1 (Docker Compose + /health)
+| # | Name | Paperclip | Code | Status |
+|---|---|---|---|---|
+| 1 | Core Infrastructure (Docker + FastAPI) | ✅ | ✅ | Done |
+| 2 | Document Ingestion | ✅ | ✅ | Done |
+| 3 | Embeddings + Semantic Search | ✅ | ✅ | Done |
+| 4 | Hybrid Search (BM25 + Reranker) | ✅ | ✅ | Done |
+| 5 | DeepSeek Q&A | ✅ | ✅ | Done |
+| 6 | Multi-Agent LangGraph Pipeline | ✅ | ✅ | Done |
+| 7 | Knowledge Agent | APP-134 | ✅ | Done |
+| 8 | LLM Wiki | APP-137 | ✅ | Done |
+| 9 | Memory System | APP-138 | ✅ | Done |
+| **10** | **Full Ingestion Pipeline** | **APP-136** | **⬅️ backlog** | **Next** |
+| 11 | Frontend (Streamlit MVP) | — | — | Future |
+| 12 | Observability & Scale | — | — | Future |
 
-See `docs/roadmap.md` for full feature chain.
+See `docs/roadmap.md` for full feature chain and acceptance criteria.

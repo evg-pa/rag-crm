@@ -43,10 +43,10 @@ COPY app/ ./app/
 RUN python3 /app/app/scripts/preload_models.py 2>&1 || echo "preload failed (will download on first use)"
 
 # Create non-root user with writable home for HuggingFace cache
-RUN groupadd -r appuser && useradd -r -g appuser appuser && \
-    chmod -R o+rX /app/app && \
-    mkdir -p /app/.cache && chown appuser:appuser /app/.cache && \
-    mkdir -p /app/.cache/huggingface && chown appuser:appuser /app/.cache/huggingface
+RUN groupadd -r appuser 2>/dev/null || true; useradd -r -g appuser appuser 2>/dev/null || true; \
+    chmod -R o+rX /app/app 2>/dev/null || true; \
+    mkdir -p /app/.cache && chown appuser:appuser /app/.cache 2>/dev/null || true; \
+    mkdir -p /app/.cache/huggingface && chown appuser:appuser /app/.cache/huggingface 2>/dev/null || true
 ENV HF_HOME=/app/.cache/huggingface
 USER appuser
 

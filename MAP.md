@@ -11,7 +11,7 @@
 |---|---|
 | **Name** | RAG-CRM |
 | **Path** | `/media/sf_VM_Share/Projects/AI/rag-crm/` |
-| **Status** | DEV (Phase 5 — Full Features) |
+| **Status** | DEV (Phase 12 — Observability & Scale ⏳) |
 | **Goal** | Hybrid RAG platform integrating with existing CRM |
 | **Stack** | Python 3.12+, FastAPI, PostgreSQL + pgvector, LangGraph |
 | **LLM** | DeepSeek API (primary, no Ollama) |
@@ -52,8 +52,8 @@
 | 7 | Knowledge Agent | APP-134 | ✅ | Done |
 | 8 | LLM Wiki | APP-137 | ✅ | Done |
 | 9 | Memory System | APP-138 | ✅ | Done |
-| **10** | **Full Ingestion Pipeline** | **APP-136** | **⬅️ backlog** | **Next** |
-| 11 | Frontend (Streamlit MVP) | — | — | Future |
-| 12 | Observability & Scale | — | — | Future |
+| **10** | **Full Ingestion Pipeline** | **APP-136/139** | **✅** | **Done** |
+| **11** | **Streamlit Frontend** | **APP-144** | **✅** | **Done** |
+| **12** | **Observability & Scale** | **—** | **—** | **⏳ Not started** |
 
 See `docs/roadmap.md` for full feature chain and acceptance criteria.

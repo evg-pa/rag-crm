@@ -26,6 +26,11 @@ MIN_CLAIM_SUPPORT_RATIO: float = 0.3
 # ── Helpers ─────────────────────────────────────────────────────────────────
 
 
+def _has_citations(citations: list) -> bool:
+    """Return True if citations list is non-empty."""
+    return len(citations) > 0
+
+
 def _validate_citations(
     citations: list[dict[str, Any]],
     chunks: list[dict[str, Any]],

@@ -65,6 +65,7 @@ from app.main import app  # noqa: E402
 # Ensure all models are imported so create_all sees them
 from app.models.chunk import Chunk  # noqa: E402, F401
 from app.models.document import Document  # noqa: E402, F401
+from app.knowledge.models import WikiEntry  # noqa: E402, F401
 
 TEST_ENGINE = create_async_engine("sqlite+aiosqlite://", echo=False)
 TEST_SESSION_FACTORY = async_sessionmaker(TEST_ENGINE, class_=AsyncSession, expire_on_commit=False)

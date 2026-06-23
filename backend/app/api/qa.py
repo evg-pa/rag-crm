@@ -92,7 +92,25 @@ async def ask_question(
     }
 
     graph = _get_graph()
-    result_state: AgentState = await graph.ainvoke(initial_state)  # type: ignore[assignment]
+
+    # FIX 6: wrap graph.ainvoke() in try/except for meaningful error responses
+    try:
+        raw_state: dict[str, Any] = await graph.ainvoke(initial_state)  # type: ignore[assignment]
+    except Exception as exc:
+        return QAResponse(
+            answer_text=f"Pipeline error: {exc}",
+            citations=[],
+            confidence_score=0.0,
+            final_response=f"An error occurred while processing your question: {exc}",
+            query_type="",
+        )
+
+    # FIX 4: strip DI-injected private fields before any serialization
+    raw_state.pop("_db_session", None)
+    raw_state.pop("_embedding_model", None)
+    raw_state.pop("_settings", None)
+
+    result_state: AgentState = raw_state  # type: ignore[assignment]
 
     # Extract fields from the final state
     answer_text: str = result_state.get("answer_text", "")

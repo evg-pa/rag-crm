@@ -215,6 +215,29 @@ async def upload_document(
     # Rebuild BM25 index so new chunks are searchable immediately
     await BM25Index.rebuild(db)
 
+    # Trigger wiki generation as a background task (fire and forget —
+    # do not block the upload response).
+    import asyncio
+    from app.knowledge.wiki_service import WikiService
+
+    async def _generate_wiki(doc_id: uuid.UUID) -> None:
+        """Background task: generate a wiki entry for the uploaded document."""
+        from app.core.dependencies import _session_factory
+
+        async with _session_factory() as wiki_db:
+            service = WikiService(wiki_db)
+            try:
+                await service.create_or_update_wiki(doc_id)
+            except Exception as exc:
+                import logging
+                logging.getLogger(__name__).warning(
+                    "Background wiki generation failed for document %s: %s", doc_id, exc
+                )
+            finally:
+                await service.close()
+
+    asyncio.create_task(_generate_wiki(document.id))
+
     # Refresh so relationship children are loaded
     await db.refresh(document, attribute_names=["chunks"])
 

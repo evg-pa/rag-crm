@@ -81,7 +81,22 @@ async def synthesizer_agent(state: AgentState) -> dict:
     history: list[dict[str, str]] = state.get("history", [])
     critic_feedback: str = state.get("critic_feedback", "")
 
-    # ── Early-exit types ─────────────────────────────────────────────────
+    # ── Error state ────────────────────────────────────────────────────
+    error: str = state.get("error", "")
+    if error:
+        final = (
+            f"I'm sorry, but I encountered an error processing your question: "
+            f"{error}\n\nPlease try again or rephrase your question."
+        )
+        return {
+            "final_response": final,
+            "agent_states": {
+                **(state.get("agent_states") or {}),
+                "synthesizer": "completed",
+            },
+        }
+
+    # ── Early-exit types ───────────────────────────────────────────────
     if query_type == "greeting":
         final = _GREETING_RESPONSES["greeting"]
     elif query_type == "irrelevant":

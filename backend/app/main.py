@@ -40,6 +40,26 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         except Exception as exc:
             logger.warning("BM25 index build failed on startup: %s", exc)
 
+    # Backfill wiki entries for existing documents (fire and forget)
+    async def _backfill_wiki() -> None:
+        """Background task: generate wiki entries for all documents that lack them."""
+        from app.knowledge.wiki_service import WikiService
+
+        async with _session_factory() as wiki_db:
+            service = WikiService(wiki_db)
+            try:
+                count = await service.backfill_all()
+                if count > 0:
+                    logger.info("Wiki backfill complete: %d entries generated", count)
+                else:
+                    logger.info("Wiki backfill: all documents already have entries")
+            except Exception as exc:
+                logger.warning("Wiki backfill failed: %s", exc)
+            finally:
+                await service.close()
+
+    asyncio.create_task(_backfill_wiki())
+
     # Pre-load embedding model and reranker in background (don't block startup)
     async def _preload_models() -> None:
         try:

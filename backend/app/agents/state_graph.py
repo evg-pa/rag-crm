@@ -30,8 +30,12 @@ def _route_after_router(state: AgentState) -> str:
     -------
     str
         ``"retriever"`` for search-based queries, ``"synthesizer"`` for
-        greeting/irrelevant (canned response path).
+        greeting/irrelevant (canned response path) or errors.
     """
+    error: str = state.get("error", "")
+    if error:
+        return "synthesizer"
+
     query_type: str = state.get("query_type", "hybrid")
 
     if query_type in ("greeting", "irrelevant"):
@@ -45,9 +49,13 @@ def _route_after_critic(state: AgentState) -> str:
     Returns
     -------
     str
-        ``"memory"`` if the answer passes critcism or max retries are
-        exhausted; ``"answer"`` to retry generation.
+        ``"memory"`` if the answer passes critcism, max retries are
+        exhausted, or an error occurred; ``"answer"`` to retry generation.
     """
+    error: str = state.get("error", "")
+    if error:
+        return "memory"
+
     critic_passed: bool = state.get("critic_passed", False)
     retries: int = state.get("critic_retries", 0)
 
@@ -109,4 +117,4 @@ def build_qa_graph() -> StateGraph:
     graph.add_edge("memory", "synthesizer")
     graph.add_edge("synthesizer", END)
 
-    return graph.compile()
+    return graph.compile()  # default recursion_limit=25 is safe for our 14-node max path

@@ -39,3 +39,4 @@ artifacts/*
 # Node
 node_modules/
 .next/
+

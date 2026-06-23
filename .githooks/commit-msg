@@ -1,0 +1,20 @@
+#!/bin/bash
+# Git hook: require Paperclip issue reference in every commit message
+# Installed as .git/hooks/commit-msg
+
+commit_msg_file="$1"
+commit_msg=$(cat "$commit_msg_file")
+
+if ! echo "$commit_msg" | grep -qE '(APP-[0-9]+|[Rr]etroactively|[Mm]erge|[Ii]nitial)'; then
+    echo ""
+    echo "❌ ERROR: Commit must reference a Paperclip issue (APP-XXX)."
+    echo "   Every code change must be tracked in Paperclip first."
+    echo ""
+    echo "   Examples: APP-136: implement PDF parser"
+    echo "             APP-136, APP-137: fix OCR findings"
+    echo ""
+    echo "   Exceptions: merge commits, retroactive tracking, initial commit"
+    exit 1
+fi
+
+exit 0

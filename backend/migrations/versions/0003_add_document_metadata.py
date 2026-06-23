@@ -7,7 +7,6 @@ Create Date: 2026-06-23
 
 from collections.abc import Sequence
 
-import sqlalchemy as sa
 from alembic import op
 
 # revision identifiers, used by Alembic.
@@ -18,11 +17,19 @@ depends_on: str | Sequence[str] | None = None
 
 
 def upgrade() -> None:
-    op.add_column(
-        "documents",
-        sa.Column("metadata", sa.JSON(), nullable=True),
-    )
+    # Add doc_metadata column if it doesn't already exist (idempotent)
+    op.execute("""
+        DO $$
+        BEGIN
+            IF NOT EXISTS (
+                SELECT 1 FROM information_schema.columns
+                WHERE table_name = 'documents' AND column_name = 'doc_metadata'
+            ) THEN
+                ALTER TABLE documents ADD COLUMN doc_metadata jsonb;
+            END IF;
+        END $$;
+    """)
 
 
 def downgrade() -> None:
-    op.drop_column("documents", "metadata")
+    op.drop_column("documents", "doc_metadata")

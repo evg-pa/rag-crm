@@ -7,7 +7,6 @@ Create Date: 2026-06-22
 
 from collections.abc import Sequence
 
-import sqlalchemy as sa
 from alembic import op
 
 # revision identifiers, used by Alembic.
@@ -18,55 +17,70 @@ depends_on: str | Sequence[str] | None = None
 
 
 def upgrade() -> None:
-    # ── Documents table ──────────────────────────────────────────────────
-    op.create_table(
-        "documents",
-        sa.Column("id", sa.Uuid(), nullable=False),
-        sa.Column("filename", sa.String(255), nullable=False),
-        sa.Column("content_type", sa.String(50), nullable=False),
-        sa.Column("file_size", sa.Integer(), nullable=False),
-        sa.Column(
-            "created_at",
-            sa.DateTime(timezone=True),
-            nullable=False,
-            server_default=sa.text("now()"),
-        ),
-        sa.Column(
-            "updated_at",
-            sa.DateTime(timezone=True),
-            nullable=False,
-            server_default=sa.text("now()"),
-        ),
-        sa.PrimaryKeyConstraint("id"),
-    )
+    # ── Documents table (idempotent) ─────────────────────────────────────
+    op.execute("""
+        DO $$
+        BEGIN
+            IF NOT EXISTS (
+                SELECT 1 FROM information_schema.tables
+                WHERE table_name = 'documents'
+            ) THEN
+                CREATE TABLE documents (
+                    id UUID PRIMARY KEY,
+                    filename VARCHAR(255) NOT NULL,
+                    content_type VARCHAR(50) NOT NULL,
+                    file_size INTEGER NOT NULL,
+                    created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+                    updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+                );
+            END IF;
+        END $$;
+    """)
 
-    # ── Chunks table ─────────────────────────────────────────────────────
-    op.create_table(
-        "chunks",
-        sa.Column("id", sa.Uuid(), nullable=False),
-        sa.Column(
-            "document_id",
-            sa.Uuid(),
-            sa.ForeignKey("documents.id", ondelete="CASCADE"),
-            nullable=False,
-        ),
-        sa.Column("chunk_index", sa.Integer(), nullable=False),
-        sa.Column("content", sa.Text(), nullable=False),
-        sa.Column(
-            "created_at",
-            sa.DateTime(timezone=True),
-            nullable=False,
-            server_default=sa.text("now()"),
-        ),
-        sa.PrimaryKeyConstraint("id"),
-    )
+    # ── Chunks table (idempotent) ────────────────────────────────────────
+    op.execute("""
+        DO $$
+        BEGIN
+            IF NOT EXISTS (
+                SELECT 1 FROM information_schema.tables
+                WHERE table_name = 'chunks'
+            ) THEN
+                CREATE TABLE chunks (
+                    id UUID PRIMARY KEY,
+                    document_id UUID NOT NULL REFERENCES documents(id) ON DELETE CASCADE,
+                    chunk_index INTEGER NOT NULL,
+                    content TEXT NOT NULL,
+                    created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+                );
+            END IF;
+        END $$;
+    """)
 
-    # Create index on document_id for fast chunk lookups
-    op.create_index("ix_chunks_document_id", "chunks", ["document_id"])
+    # Create index on document_id if it doesn't exist
+    op.execute("""
+        DO $$
+        BEGIN
+            IF NOT EXISTS (
+                SELECT 1 FROM pg_indexes WHERE indexname = 'ix_chunks_document_id'
+            ) THEN
+                CREATE INDEX ix_chunks_document_id ON chunks (document_id);
+            END IF;
+        END $$;
+    """)
 
-    # Add pgvector extension and the embedding column via raw SQL
+    # Add pgvector extension and the embedding column (idempotent)
     op.execute("CREATE EXTENSION IF NOT EXISTS vector")
-    op.execute("ALTER TABLE chunks ADD COLUMN embedding vector(384)")
+    op.execute("""
+        DO $$
+        BEGIN
+            IF NOT EXISTS (
+                SELECT 1 FROM information_schema.columns
+                WHERE table_name = 'chunks' AND column_name = 'embedding'
+            ) THEN
+                ALTER TABLE chunks ADD COLUMN embedding vector(384);
+            END IF;
+        END $$;
+    """)
 
 
 def downgrade() -> None:

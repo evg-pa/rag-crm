@@ -1,0 +1,177 @@
+/* RAG-CRM Streamlit Frontend — Global Styles */
+
+:root {
+  /* ── Light palette ── */
+  --light-bg-primary: #FFFFFF;
+  --light-bg-secondary: #F5F5F5;
+  --light-bg-tertiary: #EBEBEB;
+  --light-text-primary: #1A1A2E;
+  --light-text-secondary: #666680;
+  --light-accent: #4F46E5;
+  --light-accent-hover: #4338CA;
+  --light-success: #10B981;
+  --light-warning: #F59E0B;
+  --light-error: #EF4444;
+  --light-border: #E5E7EB;
+
+  /* ── Dark palette ── */
+  --dark-bg-primary: #0E1117;
+  --dark-bg-secondary: #1A1C23;
+  --dark-bg-tertiary: #262730;
+  --dark-text-primary: #E0E0E0;
+  --dark-text-secondary: #9E9EB0;
+  --dark-accent: #7C73FF;
+  --dark-accent-hover: #6D63F0;
+  --dark-success: #34D399;
+  --dark-warning: #FBBF24;
+  --dark-error: #F87171;
+  --dark-border: #333540;
+}
+
+/* ── Card component ── */
+.rag-card {
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 16px;
+  margin-bottom: 12px;
+  background: var(--bg-secondary);
+  transition: box-shadow 0.2s ease;
+}
+.rag-card:hover {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+}
+
+/* ── KPI card ── */
+.rag-kpi {
+  text-align: center;
+  padding: 20px 16px;
+}
+.rag-kpi .kpi-value {
+  font-size: 2rem;
+  font-weight: 700;
+  color: var(--accent);
+  line-height: 1.2;
+}
+.rag-kpi .kpi-label {
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+  margin-top: 4px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+/* ── Document card ── */
+.rag-doc-card {
+  cursor: pointer;
+}
+.rag-doc-card .doc-icon {
+  font-size: 1.5rem;
+}
+.rag-doc-card .doc-filename {
+  font-weight: 600;
+  font-size: 0.95rem;
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.rag-doc-card .doc-meta {
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+  margin-top: 2px;
+}
+
+/* ── Search result card ── */
+.rag-result-card {
+  border-left: 4px solid var(--accent);
+}
+.rag-result-card .result-score {
+  font-weight: 700;
+  font-size: 0.9rem;
+}
+
+/* ── Chat messages ── */
+.rag-chat-user {
+  background: var(--accent);
+  color: white;
+  padding: 12px 16px;
+  border-radius: 12px 12px 4px 12px;
+  margin: 8px 0;
+  max-width: 80%;
+  margin-left: auto;
+}
+.rag-chat-assistant {
+  background: var(--bg-secondary);
+  padding: 12px 16px;
+  border-radius: 12px 12px 12px 4px;
+  margin: 8px 0;
+  max-width: 80%;
+}
+
+/* ── Pipeline flow ── */
+.rag-pipeline-flow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+  justify-content: center;
+  padding: 20px 0;
+}
+.rag-pipeline-agent {
+  padding: 10px 16px;
+  border-radius: 8px;
+  font-weight: 600;
+  font-size: 0.85rem;
+  text-align: center;
+  min-width: 100px;
+}
+.rag-pipeline-agent.idle {
+  background: rgba(16, 185, 129, 0.15);
+  color: var(--success);
+  border: 1px solid var(--success);
+}
+.rag-pipeline-agent.active {
+  background: rgba(245, 158, 11, 0.15);
+  color: var(--warning);
+  border: 1px solid var(--warning);
+}
+.rag-pipeline-agent.error {
+  background: rgba(239, 68, 68, 0.15);
+  color: var(--error);
+  border: 1px solid var(--error);
+}
+.rag-pipeline-arrow {
+  font-size: 1.2rem;
+  color: var(--text-secondary);
+}
+
+/* ── Status dots ── */
+.rag-dot-ok { color: var(--success); }
+.rag-dot-warn { color: var(--warning); }
+.rag-dot-err { color: var(--error); }
+
+/* ── Wiki entry ── */
+.rag-wiki-card .wiki-topics {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 8px;
+}
+.rag-wiki-tag {
+  font-size: 0.75rem;
+  padding: 2px 8px;
+  border-radius: 12px;
+  background: var(--bg-tertiary);
+  color: var(--text-secondary);
+}
+
+/* ── Utility: hide Streamlit default header/footer ── */
+header[data-testid="stHeader"] {
+  background: transparent;
+}
+footer { visibility: hidden; }
+
+/* ── Responsive tweaks ── */
+@media (max-width: 768px) {
+  .rag-chat-user, .rag-chat-assistant { max-width: 95%; }
+}

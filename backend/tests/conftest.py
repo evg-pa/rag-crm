@@ -33,6 +33,29 @@ class _SQLiteVector(sa.types.UserDefinedType):
     def get_col_spec(self, **kw: object) -> str:
         return "BLOB"
 
+    def bind_processor(self, dialect):
+        """Convert list[float] to bytes for SQLite binding."""
+        def process(value):
+            if value is None:
+                return None
+            if isinstance(value, bytes):
+                return value
+            import struct
+            return struct.pack(f"<{len(value)}f", *value)
+        return process
+
+    def result_processor(self, dialect, coltype):
+        """Convert bytes back to list[float]."""
+        def process(value):
+            if value is None:
+                return None
+            if isinstance(value, list):
+                return value
+            import struct
+            n = len(value) // 4
+            return list(struct.unpack(f"<{n}f", value))
+        return process
+
     class comparator_factory(sa.types.UserDefinedType.Comparator):  # noqa: N801
         """Comparators that mirror pgvector's Vector.Comparator."""
 
@@ -92,10 +115,8 @@ async def _setup_database() -> AsyncIterator[None]:
         await conn.run_sync(Base.metadata.create_all)
 
     yield
-
-    async with TEST_ENGINE.begin() as conn:
-        await conn.run_sync(Base.metadata.drop_all)
-    await TEST_ENGINE.dispose()
+    # No teardown — let _clean_db handle data isolation between tests.
+    # drop_all here would destroy tables for other tests in the same session.
 
 
 @pytest.fixture
@@ -136,8 +157,8 @@ app.dependency_overrides[get_embedding_model] = _get_mock_embedding_model
 
 
 @pytest.fixture
-async def client() -> AsyncIterator[AsyncClient]:
-    """Return an async HTTP client for the test app."""
+async def client(_setup_database, _clean_db) -> AsyncIterator[AsyncClient]:
+    """Return an async HTTP client for the test app with tables created and clean state."""
     transport = ASGITransport(app=app)
     async with AsyncClient(transport=transport, base_url="http://test") as ac:
         yield ac

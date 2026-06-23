@@ -266,9 +266,14 @@ class TestMemoryAPI:
             async with TEST_SESSION_FACTORY() as s:
                 yield s
 
+        _prev = app.dependency_overrides.get(get_db_session)
         app.dependency_overrides[get_db_session] = _test_db
         yield
-        app.dependency_overrides.clear()
+        # Restore the previous override (don't clear() — that removes conftest's override)
+        if _prev is not None:
+            app.dependency_overrides[get_db_session] = _prev
+        else:
+            app.dependency_overrides.pop(get_db_session, None)
 
     async def test_working_empty(self):
         await _setup_db()

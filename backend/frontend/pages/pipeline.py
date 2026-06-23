@@ -1,0 +1,98 @@
+"""Page 6: Pipeline — LangGraph agent status and monitoring."""
+
+from __future__ import annotations
+
+import streamlit as st
+from streamlit_autorefresh import st_autorefresh
+
+from components.pipeline_diagram import pipeline_diagram, pipeline_table
+from utils import api
+
+
+def render() -> None:
+    """Render the Pipeline Dashboard page."""
+    st.title("⚙️ Pipeline Dashboard")
+    st.caption("Monitor the 7-agent LangGraph pipeline status.")
+
+    # ── Auto-refresh controls ───────────────────────────────────────────
+    col_auto, col_refresh = st.columns(2)
+    with col_auto:
+        auto_refresh = st.checkbox(
+            "Auto-refresh (10s)",
+            value=False,
+            key="pipeline_auto_refresh",
+        )
+        if auto_refresh:
+            st_autorefresh(interval=10000, key="pipeline_autorefresh")
+    with col_refresh:
+        if st.button("🔄 Refresh now", key="pipeline_refresh_btn", use_container_width=True):
+            pass  # Will refresh below
+
+    # ── Fetch pipeline status ───────────────────────────────────────────
+    try:
+        status = api.pipeline_status()
+        agents = status.get("agents", {})
+        pipeline_state = status.get("pipeline", "unknown")
+    except Exception as exc:
+        st.error(f"❌ Cannot connect to backend: {exc}")
+        return
+
+    # ── Flow Diagram ────────────────────────────────────────────────────
+    st.subheader("Agent Flow")
+    pipeline_diagram(agents)
+
+    st.divider()
+
+    # ── Agent Stats Table ───────────────────────────────────────────────
+    st.subheader("Agent Details")
+
+    agent_stats = [
+        {
+            "name": name,
+            "status": agent_status,
+            "avg_latency_ms": "—",
+            "total_calls": "—",
+        }
+        for name, agent_status in agents.items()
+    ]
+    pipeline_table(agent_stats)
+
+    # ── System info ─────────────────────────────────────────────────────
+    st.divider()
+
+    col1, col2, col3 = st.columns(3)
+    with col1:
+        health = None
+        try:
+            health = api.health_check()
+        except Exception:
+            pass
+
+        db_status = health.get("database", "?") if health else "offline"
+        app_version = health.get("version", "?") if health else "?"
+        st.metric(
+            "Pipeline State",
+            pipeline_state.capitalize(),
+            delta=None,
+        )
+    with col2:
+        st.metric("Database", db_status.capitalize())
+    with col3:
+        st.metric("Backend Version", app_version)
+
+    # ── Notes ───────────────────────────────────────────────────────────
+    with st.expander("ℹ️ About the Pipeline", expanded=False):
+        st.markdown("""
+        **LangGraph 7-Agent Pipeline:**
+        
+        1. **RouterAgent** — Classifies the query type and selects retrieval strategy
+        2. **RetrieverAgent** — Runs semantic (pgvector) + BM25 keyword hybrid search
+        3. **RerankerAgent** — Re-ranks top results with BGE-Reranker cross-encoder
+        4. **AnswerAgent** — Generates the answer via DeepSeek or Ollama LLM
+        5. **CriticAgent** — Validates answer quality (up to 2 retries)
+        6. **MemoryAgent** — Stores the exchange in session history
+        7. **SynthesizerAgent** — Produces the final polished response
+        
+        Each agent has a status: 🟢 **idle** (ready), 🟡 **active** (processing), 
+        or 🔴 **error** (failed).
+        """)

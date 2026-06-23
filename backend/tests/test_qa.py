@@ -108,6 +108,7 @@ def mock_embedding_model() -> MagicMock:
 @pytest.fixture
 async def qa_client(
     mock_embedding_model: MagicMock,
+    _setup_database,
 ) -> AsyncGenerator[AsyncClient, None]:
     """Return an async HTTP client with embedding, BM25, and reranker mocked."""
     from app.main import app

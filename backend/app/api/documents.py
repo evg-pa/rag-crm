@@ -413,3 +413,34 @@ async def get_document(
         )
 
     return document
+
+
+@router.delete("/{document_id}", status_code=status.HTTP_200_OK)
+async def delete_document(
+    document_id: uuid.UUID,
+    db: AsyncSession = Depends(get_db_session),
+) -> dict[str, str]:
+    """Delete a document, its chunks (ORM cascade), and wiki entry (DB cascade).
+
+    Rebuilds the BM25 index after deletion so removed chunks are no longer searchable.
+    """
+    result = await db.execute(
+        select(Document).where(Document.id == document_id)
+    )
+    document = result.scalar_one_or_none()
+    if document is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Document {document_id} not found.",
+        )
+
+    await db.delete(document)
+    await db.commit()
+
+    # Rebuild BM25 index so deleted chunks are removed
+    try:
+        await BM25Index.rebuild(db)
+    except Exception:
+        pass
+
+    return {"status": "deleted", "document_id": str(document_id)}

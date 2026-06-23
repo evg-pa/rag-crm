@@ -1,0 +1,50 @@
+"""Session state management for the RAG-CRM frontend."""
+
+from __future__ import annotations
+
+import streamlit as st
+
+
+def init_session_state() -> None:
+    """Initialize all session state variables with safe defaults."""
+    defaults: dict[str, object] = {
+        "messages": [],          # list[dict] — chat history
+        "history_loaded": False,
+        "theme": "dark",
+        "documents_cache": None,  # list[dict] — cached document list
+        "documents_cache_time": None,  # float — timestamp of last cache
+        "wiki_cache": None,      # list[dict] — cached wiki entries
+        "wiki_cache_time": None,  # float
+        "pipeline_status": None,
+        "pipeline_status_time": None,
+        "health_cache": None,    # dict — cached health response
+        "health_cache_time": 0,  # float
+        "health_status": None,   # dict — last health status
+        "last_search_query": "",
+        "search_results": [],
+        "search_page": 1,
+        "current_page": "dashboard",
+        "scrape_url": "",        # URL input state
+        "upload_success": False,  # flash message trigger
+        "delete_confirm_id": None,  # document ID awaiting delete confirmation
+        "qa_top_k": 5,           # default top-k for Q&A
+        "qa_session_id": "default",  # Q&A session identifier
+        "app_version": "0.1.0",  # fallback app version
+    }
+    for key, default in defaults.items():
+        if key not in st.session_state:
+            st.session_state[key] = default
+
+
+def clear_chat() -> None:
+    """Clear the Q&A conversation."""
+    st.session_state.messages = []
+    st.session_state.history_loaded = False
+
+
+def invalidate_caches() -> None:
+    """Invalidate all data caches (called after uploads, scrapes)."""
+    st.session_state.documents_cache = None
+    st.session_state.documents_cache_time = None
+    st.session_state.wiki_cache = None
+    st.session_state.wiki_cache_time = None

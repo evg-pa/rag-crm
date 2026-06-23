@@ -148,6 +148,7 @@ def mock_embedding_model_for_hybrid() -> MagicMock:
 @pytest.fixture
 async def client_with_hybrid_mocks(
     mock_embedding_model_for_hybrid: MagicMock,
+    _setup_database,
 ) -> AsyncGenerator[AsyncClient, None]:
     """Return an async HTTP client with embedding, BM25, and reranker mocked."""
     from app.main import app

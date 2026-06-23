@@ -35,6 +35,7 @@ def mock_embedding_model() -> MagicMock:
 @pytest.fixture
 async def client_with_mock(
     mock_embedding_model: MagicMock,
+    _setup_database,
 ) -> AsyncGenerator[AsyncClient, None]:
     """Return an async HTTP client with the embedding model mocked."""
     from app.main import app

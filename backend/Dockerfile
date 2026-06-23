@@ -21,7 +21,11 @@ RUN pip install --no-cache-dir \
     "rank-bm25>=0.2.2" \
     "transformers>=4.46.0" \
     "torch>=2.0.0" \
-    "langgraph>=0.2.0"
+    "langgraph>=0.2.0" \
+    "beautifulsoup4>=4.13.0" \
+    "lxml>=5.3.0" \
+    "pymupdf>=1.24.0" \
+    "python-docx>=1.1.0"
 
 # --- Runner stage ---
 FROM python:3.12-slim AS runner

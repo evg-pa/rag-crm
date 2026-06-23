@@ -4,9 +4,9 @@ from __future__ import annotations
 
 import uuid
 from datetime import UTC, datetime
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
-from sqlalchemy import DateTime, Integer, String
+from sqlalchemy import JSON, DateTime, Integer, String
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 if TYPE_CHECKING:
@@ -21,7 +21,7 @@ def utcnow() -> datetime:
 
 
 class Document(Base):
-    """Uploaded document: .md or .txt file with metadata."""
+    """Uploaded document with metadata."""
 
     __tablename__ = "documents"
 
@@ -32,8 +32,11 @@ class Document(Base):
     filename: Mapped[str] = mapped_column(String(255), nullable=False)
     content_type: Mapped[str] = mapped_column(
         String(50), nullable=False
-    )  # e.g. "text/markdown", "text/plain"
+    )  # e.g. "text/markdown", "text/plain", "application/pdf"
     file_size: Mapped[int] = mapped_column(Integer, nullable=False)  # bytes
+    doc_metadata: Mapped[dict[str, Any] | None] = mapped_column(
+        "doc_metadata", JSON, nullable=True, default=None
+    )  # e.g. {title, author, page_count} from PDF parsing
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, default=utcnow
     )

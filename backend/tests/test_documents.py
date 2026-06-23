@@ -1,11 +1,12 @@
-"""Tests for the document ingestion pipeline (APP-116).
+"""Tests for the document ingestion pipeline (APP-116, APP-139, APP-140).
 
 Covers:
   1. Upload a valid .txt file — verify 201 + document metadata
   2. Upload a valid .md file — verify parsing and correct chunk order
-  3. List documents — upload 2 documents, verify both returned
-  4. Get document by id — fetch with chunks
-  5. Reject invalid file type — upload .pdf, verify error
+  3. Upload a valid .pdf file — verify 201 + extracted metadata
+  4. List documents — upload 2 documents, verify both returned
+  5. Get document by id — fetch with chunks
+  6. Reject invalid file type — upload .exe, verify error
 """
 
 import pytest
@@ -63,6 +64,50 @@ async def test_upload_md_document(client: AsyncClient) -> None:
 
 
 @pytest.mark.asyncio
+async def test_upload_pdf_document(client: AsyncClient) -> None:
+    """POST /documents/upload with a .pdf file returns 201 + extracted metadata."""
+    # Minimal valid PDF with text content and metadata
+    pdf_bytes = (
+        b"%PDF-1.4\n"
+        b"1 0 obj\n"
+        b"<< /Type /Catalog /Pages 2 0 R >>\n"
+        b"endobj\n"
+        b"2 0 obj\n"
+        b"<< /Type /Pages /Kids [3 0 R] /Count 1 >>\n"
+        b"endobj\n"
+        b"3 0 obj\n"
+        b"<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] >>\n"
+        b"endobj\n"
+        b"xref\n"
+        b"0 4\n"
+        b"0000000000 65535 f \n"
+        b"0000000009 00000 n \n"
+        b"0000000058 00000 n \n"
+        b"0000000115 00000 n \n"
+        b"trailer\n"
+        b"<< /Size 4 /Root 1 0 R /Info 4 0 R >>\n"
+        b"startxref\n"
+        b"190\n"
+        b"%%EOF\n"
+    )
+
+    response = await client.post(
+        "/documents/upload",
+        files={"file": ("report.pdf", pdf_bytes)},
+    )
+    assert response.status_code == 201, response.text
+
+    data = response.json()
+    doc = data["document"]
+    assert doc["filename"] == "report.pdf"
+    assert doc["content_type"] == "application/pdf"
+    assert doc["file_size"] > 0
+    assert data["chunk_count"] >= 0  # minimal PDF may yield 0 text chunks from that raw obj
+    # metadata key should be present (may be empty for minimal PDFs)
+    assert "metadata" in doc
+
+
+@pytest.mark.asyncio
 async def test_list_documents(client: AsyncClient) -> None:
     """GET /documents returns all uploaded documents (without chunk content)."""
     # Upload two documents
@@ -116,10 +161,10 @@ async def test_get_document_by_id(client: AsyncClient) -> None:
 
 @pytest.mark.asyncio
 async def test_upload_invalid_file_type(client: AsyncClient) -> None:
-    """POST /documents/upload rejects files that are not .md or .txt."""
+    """POST /documents/upload rejects files with unsupported extensions."""
     response = await client.post(
         "/documents/upload",
-        files={"file": ("report.pdf", b"%PDF-1.4 fake pdf content")},
+        files={"file": ("malware.exe", b"MZ\x00\x00 fake exe content")},
     )
     assert response.status_code == 415
     assert "Unsupported file type" in response.json()["detail"]

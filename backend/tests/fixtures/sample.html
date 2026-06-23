@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="description" content="A sample HTML page for testing the RAG-CRM ingestion pipeline.">
+    <title>Sample Page — RAG-CRM Integration Test</title>
+    <style>body { font-family: sans-serif; }</style>
+    <script>console.log("This should be stripped during ingestion");</script>
+</head>
+<body>
+    <nav>
+        <ul>
+            <li><a href="/">Home</a></li>
+            <li><a href="/about">About</a></li>
+            <li><a href="/contact">Contact</a></li>
+        </ul>
+    </nav>
+    <header>
+        <h1>Welcome to the Sample Page</h1>
+    </header>
+    <main>
+        <article>
+            <h2>Section One: Introduction</h2>
+            <p>This is the first paragraph of the sample article. It contains enough text to
+            ensure that the chunker produces at least one meaningful chunk.</p>
+            <p>The second paragraph provides additional context about the test document.
+            It is important that this text is correctly extracted.</p>
+
+            <h2>Section Two: Details</h2>
+            <p>Here are some important details about the RAG-CRM system:</p>
+            <ul>
+                <li>Hybrid search combining vector and keyword retrieval</li>
+                <li>Multi-format ingestion pipeline</li>
+                <li>Automatic wiki generation</li>
+            </ul>
+        </article>
+        <aside>
+            <p>Sidebar content that should be stripped during extraction.</p>
+        </aside>
+    </main>
+    <footer>
+        <p>&copy; 2026 RAG-CRM. All rights reserved.</p>
+    </footer>
+</body>
+</html>

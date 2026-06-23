@@ -40,11 +40,15 @@ async def client_with_mock(
     from app.main import app
     from app.retrieval.embeddings import get_embedding_model
 
+    _prev_embedding_override = app.dependency_overrides.get(get_embedding_model)
     app.dependency_overrides[get_embedding_model] = lambda: mock_embedding_model
     transport = ASGITransport(app=app)
     async with AsyncClient(transport=transport, base_url="http://test") as ac:
         yield ac
-    app.dependency_overrides.pop(get_embedding_model, None)
+    if _prev_embedding_override is not None:
+        app.dependency_overrides[get_embedding_model] = _prev_embedding_override
+    else:
+        app.dependency_overrides.pop(get_embedding_model, None)
 
 
 # ── API endpoint tests ──────────────────────────────────────────────────────

@@ -115,6 +115,8 @@ async def qa_client(
     from app.retrieval.keyword import BM25Index
     from app.retrieval.reranker import Reranker
 
+    # Save the existing override so we can restore it after the test
+    _prev_embedding_override = app.dependency_overrides.get(get_embedding_model)
     app.dependency_overrides[get_embedding_model] = lambda: mock_embedding_model
 
     with (
@@ -154,7 +156,11 @@ async def qa_client(
 
         Reranker.rerank = original_rerank  # type: ignore[method-assign]
 
-    app.dependency_overrides.pop(get_embedding_model, None)
+    # Restore the previous embedding model override (or remove if there was none)
+    if _prev_embedding_override is not None:
+        app.dependency_overrides[get_embedding_model] = _prev_embedding_override
+    else:
+        app.dependency_overrides.pop(get_embedding_model, None)
 
 
 # ── Unit tests: build_context_prompt ─────────────────────────────────────────

@@ -20,7 +20,8 @@ RUN pip install --no-cache-dir \
     pgvector>=0.4.0 \
     "rank-bm25>=0.2.2" \
     "transformers>=4.46.0" \
-    "torch>=2.0.0"
+    "torch>=2.0.0" \
+    "langgraph>=0.2.0"
 
 # --- Runner stage ---
 FROM python:3.12-slim AS runner

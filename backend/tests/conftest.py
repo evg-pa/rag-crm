@@ -3,7 +3,7 @@
 import os
 import sys
 from collections.abc import AsyncGenerator, AsyncIterator
-from unittest.mock import Mock
+from unittest.mock import AsyncMock, Mock
 
 import pytest
 import sqlalchemy as sa
@@ -105,8 +105,19 @@ async def _override_get_db_session() -> AsyncGenerator[AsyncSession, None]:
 app.dependency_overrides = {}
 
 from app.core.dependencies import get_db_session  # noqa: E402
+from app.retrieval.embeddings import EmbeddingModel, get_embedding_model  # noqa: E402
 
 app.dependency_overrides[get_db_session] = _override_get_db_session
+
+
+def _get_mock_embedding_model() -> EmbeddingModel:
+    """Return a mock EmbeddingModel that returns deterministic vectors without ONNX."""
+    mock = Mock(spec=EmbeddingModel)
+    mock.embed = AsyncMock(return_value=[0.01] * 384)
+    return mock
+
+
+app.dependency_overrides[get_embedding_model] = _get_mock_embedding_model
 
 
 @pytest.fixture

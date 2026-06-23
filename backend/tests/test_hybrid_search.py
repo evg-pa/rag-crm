@@ -153,6 +153,7 @@ async def client_with_hybrid_mocks(
     from app.main import app
     from app.retrieval.embeddings import get_embedding_model
 
+    _prev_embedding_override = app.dependency_overrides.get(get_embedding_model)
     app.dependency_overrides[get_embedding_model] = lambda: mock_embedding_model_for_hybrid
 
     # Patch BM25Index.search globally (classmethod)
@@ -168,7 +169,10 @@ async def client_with_hybrid_mocks(
         async with AsyncClient(transport=transport, base_url="http://test") as ac:
             yield ac
 
-    app.dependency_overrides.pop(get_embedding_model, None)
+    if _prev_embedding_override is not None:
+        app.dependency_overrides[get_embedding_model] = _prev_embedding_override
+    else:
+        app.dependency_overrides.pop(get_embedding_model, None)
 
 
 # ── Tests ────────────────────────────────────────────────────────────────────

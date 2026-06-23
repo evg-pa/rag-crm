@@ -1,6 +1,6 @@
-"""Q&A REST endpoints.
+"""Q&A REST endpoints — powered by the 7-agent LangGraph pipeline.
 
-POST /qa              — answer a question using hybrid search + LLM
+POST /qa              — answer a question using the full LangGraph pipeline
 GET  /qa/history      — stub for QA history (not yet implemented)
 """
 
@@ -12,16 +12,26 @@ from fastapi import APIRouter, Depends
 from pydantic import BaseModel, Field
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.agents.state import AgentState
+from app.agents.state_graph import build_qa_graph
 from app.core.config import Settings
 from app.core.dependencies import get_db_session, get_settings
 from app.retrieval.embeddings import EmbeddingModel, get_embedding_model
-from app.retrieval.hybrid import hybrid_search
-from app.retrieval.keyword import BM25Index
-from app.retrieval.qa import AnswerAgent, AnswerResult
-from app.retrieval.reranker import Reranker
-from app.retrieval.semantic import semantic_search
+from app.retrieval.qa import AnswerResult, Citation
 
 router = APIRouter(prefix="/qa", tags=["qa"])
+
+# ── Compiled graph (lazy, built once) ────────────────────────────────────────
+_qa_graph: Any = None  # compiled LangGraph StateGraph
+
+
+def _get_graph() -> Any:
+    """Return (or lazily build) the compiled LangGraph QA pipeline."""
+    global _qa_graph
+    if _qa_graph is None:
+        _qa_graph = build_qa_graph()
+    return _qa_graph
+
 
 # ── Pydantic schemas ────────────────────────────────────────────────────────
 
@@ -31,6 +41,17 @@ class QARequest(BaseModel):
 
     query: str = Field(..., description="The question to answer", min_length=1)
     top_k: int = Field(10, ge=1, le=100, description="Number of chunks to retrieve")
+    session_id: str = Field("default", description="Session identifier for conversation memory")
+
+
+class QAResponse(BaseModel):
+    """Response body for POST /qa (LangGraph pipeline output)."""
+
+    answer_text: str
+    citations: list[Citation] = Field(default_factory=list)
+    confidence_score: float = 0.0
+    final_response: str = ""
+    query_type: str = ""
 
 
 class QAHistoryResponse(BaseModel):
@@ -42,55 +63,62 @@ class QAHistoryResponse(BaseModel):
 # ── Endpoints ───────────────────────────────────────────────────────────────
 
 
-@router.post("", response_model=AnswerResult)
+@router.post("", response_model=QAResponse)
 async def ask_question(
     body: QARequest,
     db: AsyncSession = Depends(get_db_session),
     model: EmbeddingModel = Depends(get_embedding_model),
     settings: Settings = Depends(get_settings),
-) -> AnswerResult:
-    """Answer a question using hybrid search + LLM generation.
+) -> QAResponse:
+    """Answer a question using the 7-agent LangGraph pipeline.
 
     Pipeline:
-    1. Hybrid search (semantic + BM25 + reranker) for relevant chunks.
-    2. LLM (DeepSeek or Ollama fallback) generates a cited answer.
-    3. Returns answer text, citations, and confidence score.
-
-    If no chunks are found, returns a graceful empty response.
+    1. RouterAgent — classifies the query type
+    2. RetrieverAgent — runs the appropriate search strategy
+    3. RerankerAgent — re-ranks top results
+    4. AnswerAgent — generates an answer via DeepSeek / Ollama
+    5. CriticAgent — validates the answer (up to 2 retries)
+    6. MemoryAgent — stores the exchange in session history
+    7. SynthesizerAgent — produces the final polished response
     """
-    # ── 1. Hybrid search ────────────────────────────────────────────────
-    candidate_k = max(body.top_k * 3, 30)
+    # Build initial state with injected dependencies
+    initial_state: AgentState = {
+        "query": body.query,
+        "session_id": body.session_id,
+        "top_k": body.top_k,
+        "_db_session": db,           # type: ignore[typeddict-item]
+        "_embedding_model": model,   # type: ignore[typeddict-item]
+        "_settings": settings,       # type: ignore[typeddict-item]
+    }
 
-    # Semantic search
-    query_embedding = await model.embed(body.query)
-    semantic_results = await semantic_search(db, query_embedding, top_k=candidate_k)
+    graph = _get_graph()
+    result_state: AgentState = await graph.ainvoke(initial_state)  # type: ignore[assignment]
 
-    # BM25 keyword search
-    bm25_results = await BM25Index.search(body.query, top_k=candidate_k, db=db)
+    # Extract fields from the final state
+    answer_text: str = result_state.get("answer_text", "")
+    citations_raw: list[dict[str, Any]] = result_state.get("citations", [])
+    confidence_score: float = float(result_state.get("confidence_score", 0.0))
+    final_response: str = result_state.get("final_response", answer_text)
+    query_type: str = result_state.get("query_type", "")
 
-    # Fusion
-    fused = await hybrid_search(
-        semantic_results=semantic_results,
-        bm25_results=bm25_results,
-        top_k=min(candidate_k, 50),
-    )
-
-    # Re-rank
-    reranker = Reranker()
-    reranked = await reranker.rerank(body.query, fused, top_k=body.top_k)
-
-    # ── 2. LLM answer generation ────────────────────────────────────────
-    agent = AnswerAgent(settings=settings)
-    try:
-        result = await agent.answer(
-            query=body.query,
-            chunks=reranked,
-            top_k=body.top_k,
+    # Convert citation dicts to Citation models
+    citations: list[Citation] = []
+    for cit in citations_raw:
+        citations.append(
+            Citation(
+                chunk_id=str(cit.get("chunk_id", "")),
+                document_id=str(cit.get("document_id", "")),
+                content_snippet=str(cit.get("content_snippet", "")),
+            )
         )
-    finally:
-        await agent.close()
 
-    return result
+    return QAResponse(
+        answer_text=answer_text,
+        citations=citations,
+        confidence_score=confidence_score,
+        final_response=final_response,
+        query_type=query_type,
+    )
 
 
 @router.get("/history", response_model=QAHistoryResponse)

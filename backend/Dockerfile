@@ -24,6 +24,7 @@ RUN pip install --no-cache-dir \
     "langgraph>=0.2.0" \
     "beautifulsoup4>=4.13.0" \
     "lxml>=5.3.0" \
+    "pypdf>=5.0.0" \
     "pymupdf>=1.24.0" \
     "python-docx>=1.1.0"
 

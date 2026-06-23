@@ -13,6 +13,6 @@ Seven specialised agents orchestrated through LangGraph:
 
 from app.agents.state_graph import build_qa_graph
 from app.agents.state import AgentState
-from app.agents.memory_agent import clear_all as _clear_memory_store
+from app.memory.service import WorkingMemoryService
 
-__all__ = ["AgentState", "build_qa_graph", "_clear_memory_store"]
+__all__ = ["AgentState", "build_qa_graph"]

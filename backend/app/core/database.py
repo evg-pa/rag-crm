@@ -54,6 +54,12 @@ async def init_db(settings: Settings) -> None:
         from app.models.chunk import Chunk  # noqa: F401
         from app.models.document import Document  # noqa: F401
         from app.knowledge.models import WikiEntry  # noqa: F401
+        from app.memory.models import (  # noqa: F401
+            EpisodicMemory,
+            ProceduralMemory,
+            SemanticMemory,
+            WorkingMemory,
+        )
 
         await conn.run_sync(Base.metadata.create_all)
     await engine.dispose()

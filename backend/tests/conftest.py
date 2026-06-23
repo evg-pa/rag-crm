@@ -56,6 +56,14 @@ _pg_mock.sqlalchemy = _pg_sqlalchemy_mock
 sys.modules["pgvector"] = _pg_mock
 sys.modules["pgvector.sqlalchemy"] = _pg_sqlalchemy_mock
 
+# ── SQLite-compatible JSONB replacement ──────────────────────────────────────
+# PostgreSQL JSONB dialect type doesn't work with SQLite. Replace it with
+# the standard JSON type from sqlalchemy.
+from sqlalchemy import JSON as _SA_JSON
+_sa_mock = Mock()
+_sa_mock.JSONB = _SA_JSON
+sys.modules["sqlalchemy.dialects.postgresql"] = _sa_mock
+
 # ── Force in-memory SQLite BEFORE any app imports ──────────────────────────
 os.environ["DATABASE_URL"] = "sqlite+aiosqlite://"
 
@@ -66,12 +74,18 @@ from app.main import app  # noqa: E402
 from app.models.chunk import Chunk  # noqa: E402, F401
 from app.models.document import Document  # noqa: E402, F401
 from app.knowledge.models import WikiEntry  # noqa: E402, F401
+from app.memory.models import (  # noqa: E402, F401
+    EpisodicMemory,
+    ProceduralMemory,
+    SemanticMemory,
+    WorkingMemory,
+)
 
 TEST_ENGINE = create_async_engine("sqlite+aiosqlite://", echo=False)
 TEST_SESSION_FACTORY = async_sessionmaker(TEST_ENGINE, class_=AsyncSession, expire_on_commit=False)
 
 
-@pytest.fixture(scope="session", autouse=True)
+@pytest.fixture
 async def _setup_database() -> AsyncIterator[None]:
     """Create all tables once for the test session, then drop them."""
     async with TEST_ENGINE.begin() as conn:
@@ -84,7 +98,7 @@ async def _setup_database() -> AsyncIterator[None]:
     await TEST_ENGINE.dispose()
 
 
-@pytest.fixture(autouse=True)
+@pytest.fixture
 async def _clean_db() -> AsyncGenerator[None, None]:
     """Truncate all tables between tests for isolation."""
     yield

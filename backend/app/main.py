@@ -79,7 +79,6 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         except Exception as exc:
             logger.warning("Reranker preload failed: %s", exc)
 
-    import asyncio
     asyncio.create_task(_preload_models())
 
     yield

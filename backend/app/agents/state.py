@@ -42,6 +42,8 @@ class AgentState(TypedDict, total=False):
 
     # ── Memory output ─────────────────────────────────────────────────
     history: list[dict[str, str]]  # last N {role, content} pairs
+    memory_type: str  # "working" | "episodic" | "semantic" | "none"
+    extracted_facts: list[dict[str, Any]]  # facts for semantic memory
 
     # ── Synthesizer output ────────────────────────────────────────────
     final_response: str

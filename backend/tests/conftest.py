@@ -96,6 +96,7 @@ from app.main import app  # noqa: E402
 # Ensure all models are imported so create_all sees them
 from app.models.chunk import Chunk  # noqa: E402, F401
 from app.models.document import Document  # noqa: E402, F401
+from app.models.user import User  # noqa: E402, F401
 from app.knowledge.models import WikiEntry  # noqa: E402, F401
 from app.memory.models import (  # noqa: E402, F401
     EpisodicMemory,
@@ -104,7 +105,10 @@ from app.memory.models import (  # noqa: E402, F401
     WorkingMemory,
 )
 
-TEST_ENGINE = create_async_engine("sqlite+aiosqlite://", echo=False)
+TEST_ENGINE = create_async_engine(
+    "sqlite+aiosqlite:///file::memory:?cache=shared&mode=memory&uri=true",
+    echo=False,
+)
 TEST_SESSION_FACTORY = async_sessionmaker(TEST_ENGINE, class_=AsyncSession, expire_on_commit=False)
 
 
@@ -140,7 +144,12 @@ async def _override_get_db_session() -> AsyncGenerator[AsyncSession, None]:
 # Override the FastAPI dependency BEFORE any test collects
 app.dependency_overrides = {}
 
+import uuid
+
+from sqlalchemy import select
+
 from app.core.dependencies import get_db_session  # noqa: E402
+from app.core.auth import get_current_user, hash_password  # noqa: E402
 from app.retrieval.embeddings import EmbeddingModel, get_embedding_model  # noqa: E402
 
 app.dependency_overrides[get_db_session] = _override_get_db_session
@@ -156,9 +165,85 @@ def _get_mock_embedding_model() -> EmbeddingModel:
 app.dependency_overrides[get_embedding_model] = _get_mock_embedding_model
 
 
+# ── Test user fixtures ────────────────────────────────────────────────────
+
+
 @pytest.fixture
-async def client(_setup_database, _clean_db) -> AsyncIterator[AsyncClient]:
-    """Return an async HTTP client for the test app with tables created and clean state."""
+async def test_user(_setup_database, _clean_db) -> User:
+    """Create a test user in the in-memory DB and return it.
+
+    This user is used to override ``get_current_user`` so that existing
+    endpoint tests continue to work with the new auth requirements.
+    """
+    async with TEST_SESSION_FACTORY() as session:
+        user = User(
+            email="test@example.com",
+            hashed_password=hash_password("testpass123"),
+            display_name="Test User",
+            is_active=True,
+        )
+        session.add(user)
+        await session.commit()
+        await session.refresh(user)
+        return user
+
+
+@pytest.fixture
+async def admin_user(_setup_database, _clean_db) -> User:
+    """Create an admin test user in the in-memory DB."""
+    async with TEST_SESSION_FACTORY() as session:
+        user = User(
+            email="admin@example.com",
+            hashed_password=hash_password("adminpass123"),
+            display_name="Admin User",
+            is_active=True,
+            is_admin=True,
+        )
+        session.add(user)
+        await session.commit()
+        await session.refresh(user)
+        return user
+
+
+@pytest.fixture
+async def client(_setup_database, _clean_db, test_user) -> AsyncIterator[AsyncClient]:
+    """Return an async HTTP client with ``get_current_user`` overridden to the test user.
+
+    All requests made through this client are implicitly authenticated as
+    ``test_user``, so existing endpoint tests (documents, etc.) work
+    without explicit auth headers.
+    """
+    async def _override_get_current_user() -> User:
+        async with TEST_SESSION_FACTORY() as session:
+            result = await session.execute(
+                select(User).where(User.email == "test@example.com")
+            )
+            return result.scalar_one()
+
+    original = app.dependency_overrides.get(get_current_user)
+    app.dependency_overrides[get_current_user] = _override_get_current_user
+
     transport = ASGITransport(app=app)
     async with AsyncClient(transport=transport, base_url="http://test") as ac:
         yield ac
+
+    if original is not None:
+        app.dependency_overrides[get_current_user] = original
+    else:
+        app.dependency_overrides.pop(get_current_user, None)
+
+
+@pytest.fixture
+async def unauth_client(_setup_database, _clean_db) -> AsyncIterator[AsyncClient]:
+    """Return an async HTTP client WITHOUT auth override — yields 401 on protected routes.
+
+    Use this for testing auth flow itself (register, login, 401 on missing token).
+    """
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://test") as ac:
+        yield ac
+
+
+def get_auth_headers(access_token: str) -> dict[str, str]:
+    """Return the Authorization header dict for the given access token."""
+    return {"Authorization": f"Bearer {access_token}"}

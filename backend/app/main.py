@@ -4,15 +4,19 @@ import asyncio
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
-from starlette.responses import RedirectResponse
+from fastapi.responses import JSONResponse
+from starlette.responses import RedirectResponse, Response
 
 from app.api import api_router
 from app.core.config import Settings
 from app.core.database import init_db
 from app.core.dependencies import get_settings
-from app.core.logging import get_logger, setup_logging
+from app.core.logging import get_logger, log_unhandled
+from app.core.metrics import PrometheusMiddleware, metrics_endpoint
+from app.core.middleware import RequestIDMiddleware
+from app.core.ratelimit import RateLimitMiddleware
 
 logger = get_logger(__name__)
 
@@ -21,7 +25,7 @@ logger = get_logger(__name__)
 async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     """Application lifespan handler: startup and shutdown events."""
     settings: Settings = get_settings()
-    setup_logging(settings.LOG_LEVEL)
+    log_unhandled(settings.APP_NAME, settings.APP_VERSION)
     logger.info(
         "starting application",
         app_name=settings.APP_NAME,
@@ -104,8 +108,101 @@ def create_app() -> FastAPI:
         allow_headers=["*"],
     )
 
+    # Request ID middleware — adds X-Request-ID header and structlog context
+    app.add_middleware(RequestIDMiddleware)
+
+    # Prometheus metrics middleware — records request count & latency
+    app.add_middleware(PrometheusMiddleware)
+
+    # Rate limiting middleware — sliding window via Redis (60 req/min per IP)
+    app.add_middleware(RateLimitMiddleware, settings=settings, limit=60, window=60)
+
     # Include API routers
     app.include_router(api_router)
+
+    # Prometheus /metrics endpoint (registered after middleware to avoid recursion)
+    @app.get("/metrics", include_in_schema=False)
+    async def metrics() -> Response:  # type: ignore[misc]
+        return metrics_endpoint()
+
+    # Error rate monitoring endpoint — returns aggregated error counts by status range
+    @app.get("/monitoring/errors", include_in_schema=False)
+    async def error_rates() -> JSONResponse:
+        """Return current error counts grouped by endpoint and status range.
+
+        Aggregates the Prometheus ``http_requests_total`` counter to show
+        client errors (4xx) and server errors (5xx) per endpoint.
+        """
+        from prometheus_client import REGISTRY
+        from app.core.metrics import requests_total
+
+        errors: dict[str, dict[str, int]] = {}
+
+        # Collect samples from the counter metric
+        for metric in REGISTRY.collect():
+            if metric.name == "http_requests_total":
+                for sample in metric.samples:
+                    labels = sample.labels
+                    endpoint = labels.get("endpoint", "unknown")
+                    status_code = labels.get("status", "000")
+                    value = int(sample.value)
+
+                    if endpoint not in errors:
+                        errors[endpoint] = {
+                            "2xx": 0,
+                            "3xx": 0,
+                            "4xx": 0,
+                            "5xx": 0,
+                            "total": 0,
+                        }
+
+                    status_int = int(status_code)
+                    if 200 <= status_int < 300:
+                        errors[endpoint]["2xx"] += value
+                    elif 300 <= status_int < 400:
+                        errors[endpoint]["3xx"] += value
+                    elif 400 <= status_int < 500:
+                        errors[endpoint]["4xx"] += value
+                    elif 500 <= status_int < 600:
+                        errors[endpoint]["5xx"] += value
+                    errors[endpoint]["total"] += value
+
+        # Calculate error rate per endpoint
+        summary: list[dict] = []
+        for endpoint, counts in sorted(errors.items()):
+            total = counts["total"]
+            error_count = counts["4xx"] + counts["5xx"]
+            error_rate = round(error_count / total * 100, 2) if total > 0 else 0.0
+            summary.append({
+                "endpoint": endpoint,
+                "total_requests": total,
+                "client_errors_4xx": counts["4xx"],
+                "server_errors_5xx": counts["5xx"],
+                "error_rate_percent": error_rate,
+            })
+
+        return JSONResponse(content={
+            "summary": summary,
+            "overall": {
+                "total_requests": sum(c["total"] for c in errors.values()),
+                "total_errors": sum(c["4xx"] + c["5xx"] for c in errors.values()),
+            },
+        })
+
+    # Register global exception handlers for structured error logging
+    @app.exception_handler(Exception)
+    async def unhandled_exception_handler(request: Request, exc: Exception) -> JSONResponse:
+        """Log all unhandled exceptions with request ID context, then return 500."""
+        logger.error(
+            "unhandled exception",
+            exc_info=True,
+            method=request.method,
+            path=request.url.path,
+        )
+        return JSONResponse(
+            status_code=500,
+            content={"detail": "Internal server error"},
+        )
 
     # Redirect root to docs
     @app.get("/", include_in_schema=False)

@@ -17,14 +17,19 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
+from app.core.auth import get_current_user
 from app.core.dependencies import get_db_session
+from app.core.logging import get_logger
 from app.ingestion import get_all_supported_extensions, ingest_document
 from app.ingestion.parsers.registry import get_ext_to_content_type_map, get_parser_for
 from app.ingestion.parsers.scraper import WebScraper
 from app.models.chunk import Chunk
 from app.models.document import Document
+from app.models.user import User
 from app.retrieval.embeddings import get_embedding_model
 from app.retrieval.keyword import BM25Index
+
+logger = get_logger(__name__)
 
 router = APIRouter(prefix="/documents", tags=["documents"])
 
@@ -155,6 +160,7 @@ async def _persist_and_embed(
     text: str,
     chunk_results: list,
     metadata: dict[str, Any] | None = None,
+    user_id: uuid.UUID | None = None,
 ) -> Document:
     """Persist document + chunks, generate embeddings, rebuild BM25, trigger wiki.
 
@@ -167,6 +173,7 @@ async def _persist_and_embed(
         content_type=content_type,
         file_size=file_size,
         metadata=metadata if metadata else None,
+        user_id=user_id,
     )
     db.add(document)
     await db.flush()
@@ -194,8 +201,7 @@ async def _persist_and_embed(
             )
         await db.commit()
     except Exception as exc:
-        import logging
-        logging.getLogger(__name__).warning("Embedding generation failed: %s", exc)
+        logger.warning("Embedding generation failed: %s", exc)
 
     # Rebuild BM25 index so new chunks are searchable immediately
     await BM25Index.rebuild(db)
@@ -211,8 +217,7 @@ async def _persist_and_embed(
             try:
                 await service.create_or_update_wiki(doc_id)
             except Exception as exc:
-                import logging
-                logging.getLogger(__name__).warning(
+                logger.warning(
                     "Background wiki generation failed for document %s: %s", doc_id, exc
                 )
             finally:
@@ -231,9 +236,11 @@ async def _persist_and_embed(
 async def upload_document(
     file: UploadFile,
     db: AsyncSession = Depends(get_db_session),
+    current_user: User = Depends(get_current_user),
 ) -> Any:
     """Upload a document file, parse it, split into chunks, and persist.
 
+    Requires authentication. The document is owned by the authenticated user.
     Supported formats: .pdf, .docx, .html, .htm, .md, .txt
     The pipeline: raw bytes → plain text → chunks → DB rows.
     No LLM calls are made during ingestion.
@@ -288,6 +295,7 @@ async def upload_document(
         text=text,
         chunk_results=chunk_results,
         metadata=metadata,
+        user_id=current_user.id,
     )
 
     return UploadResponse(
@@ -301,9 +309,11 @@ async def upload_document(
 async def scrape_url(
     body: ScrapeRequest,
     db: AsyncSession = Depends(get_db_session),
+    current_user: User = Depends(get_current_user),
 ) -> Any:
     """Scrape a public web page, extract text, chunk, and store.
 
+    Requires authentication. The document is owned by the authenticated user.
     Only HTTP/HTTPS URLs are allowed. Private network addresses are rejected.
     The page is fetched, HTML is stripped to plain text, then the text is
     chunked and stored like any other document.
@@ -367,6 +377,7 @@ async def scrape_url(
         text=result.text,
         chunk_results=chunk_results,
         metadata=metadata if metadata else None,
+        user_id=current_user.id,
     )
 
     return ScrapeResponse(
@@ -389,9 +400,14 @@ async def list_supported_extensions() -> dict[str, Any]:
 @router.get("", response_model=list[DocumentListOut])
 async def list_documents(
     db: AsyncSession = Depends(get_db_session),
+    current_user: User = Depends(get_current_user),
 ) -> Any:
-    """List all ingested documents (without chunk content for brevity)."""
-    result = await db.execute(select(Document).order_by(Document.created_at.desc()))
+    """List documents owned by the authenticated user (without chunk content for brevity)."""
+    result = await db.execute(
+        select(Document)
+        .where(Document.user_id == current_user.id)
+        .order_by(Document.created_at.desc())
+    )
     documents = result.scalars().all()
     return documents
 
@@ -400,10 +416,17 @@ async def list_documents(
 async def get_document(
     document_id: uuid.UUID,
     db: AsyncSession = Depends(get_db_session),
+    current_user: User = Depends(get_current_user),
 ) -> Any:
-    """Get a single document with its chunks, ordered by chunk_index."""
+    """Get a single document with its chunks, ordered by chunk_index.
+
+    Only returns the document if it is owned by the authenticated user.
+    """
     result = await db.execute(
-        select(Document).where(Document.id == document_id).options(selectinload(Document.chunks))
+        select(Document)
+        .where(Document.id == document_id)
+        .where(Document.user_id == current_user.id)
+        .options(selectinload(Document.chunks))
     )
     document = result.scalar_one_or_none()
     if document is None:
@@ -419,13 +442,17 @@ async def get_document(
 async def delete_document(
     document_id: uuid.UUID,
     db: AsyncSession = Depends(get_db_session),
+    current_user: User = Depends(get_current_user),
 ) -> dict[str, str]:
     """Delete a document, its chunks (ORM cascade), and wiki entry (DB cascade).
 
+    Only allows deletion if the document is owned by the authenticated user.
     Rebuilds the BM25 index after deletion so removed chunks are no longer searchable.
     """
     result = await db.execute(
-        select(Document).where(Document.id == document_id)
+        select(Document)
+        .where(Document.id == document_id)
+        .where(Document.user_id == current_user.id)
     )
     document = result.scalar_one_or_none()
     if document is None:

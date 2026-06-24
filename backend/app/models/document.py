@@ -6,11 +6,12 @@ import uuid
 from datetime import UTC, datetime
 from typing import TYPE_CHECKING, Any
 
-from sqlalchemy import JSON, DateTime, Integer, String
+from sqlalchemy import JSON, DateTime, ForeignKey, Integer, String
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 if TYPE_CHECKING:
     from app.models.chunk import Chunk  # noqa: F401
+    from app.models.user import User  # noqa: F401
 
 from app.core.database import Base
 
@@ -29,6 +30,9 @@ class Document(Base):
         primary_key=True,
         default=uuid.uuid4,
     )
+    user_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("users.id"), nullable=True, default=None
+    )
     filename: Mapped[str] = mapped_column(String(255), nullable=False)
     content_type: Mapped[str] = mapped_column(
         String(50), nullable=False
@@ -45,6 +49,9 @@ class Document(Base):
     )
 
     # relationships
+    owner: Mapped[User | None] = relationship(
+        "User", back_populates="documents", foreign_keys=[user_id]
+    )
     chunks: Mapped[list[Chunk]] = relationship(
         "Chunk",
         back_populates="document",

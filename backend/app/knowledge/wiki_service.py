@@ -6,18 +6,18 @@ Orchestrates KnowledgeAgent generation and database persistence.
 from __future__ import annotations
 
 import asyncio
-import logging
 import uuid
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
+from app.core.logging import get_logger
 from app.knowledge.knowledge_agent import KnowledgeAgent
 from app.knowledge.models import WikiEntry
 from app.models.document import Document
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 
 class WikiService:

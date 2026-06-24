@@ -7,12 +7,13 @@ and basic safety checks.
 
 from __future__ import annotations
 
-import logging
 import re
 from dataclasses import dataclass
 from urllib.parse import urljoin, urlparse
 
-logger = logging.getLogger(__name__)
+from app.core.logging import get_logger
+
+logger = get_logger(__name__)
 
 
 @dataclass

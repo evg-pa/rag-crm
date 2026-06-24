@@ -10,6 +10,8 @@ Covers:
 """
 
 import io
+import uuid
+from collections.abc import AsyncIterator
 from pathlib import Path
 
 import pytest
@@ -87,11 +89,30 @@ def anyio_backend() -> str:
 
 
 @pytest.fixture
-async def client() -> AsyncClient:
-    """Override the conftest client to avoid DB dependency for unit parser tests."""
+async def client() -> AsyncIterator[AsyncClient]:
+    """Client with a mock auth user — no DB dependency needed."""
+    from unittest.mock import Mock
+
+    from app.core.auth import get_current_user
+    from app.models.user import User
+
+    mock_user = Mock(spec=User)
+    mock_user.id = uuid.UUID(int=1)
+    mock_user.email = "test@example.com"
+    mock_user.display_name = "Test User"
+    mock_user.is_active = True
+    mock_user.is_admin = False
+
+    async def _override_get_current_user() -> User:
+        return mock_user  # type: ignore[return-value]
+
+    app.dependency_overrides[get_current_user] = _override_get_current_user
+
     transport = ASGITransport(app=app)
     async with AsyncClient(transport=transport, base_url="http://test") as ac:
         yield ac
+
+    app.dependency_overrides.pop(get_current_user, None)
 
 
 # ── PDF Parser ───────────────────────────────────────────────────────────────

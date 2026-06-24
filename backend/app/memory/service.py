@@ -8,13 +8,13 @@ ProceduralMemory — reusable patterns and templates
 
 from __future__ import annotations
 
-import logging
 from datetime import UTC, datetime, timedelta
 from typing import Any
 
 from sqlalchemy import delete, select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.logging import get_logger
 from app.memory.models import (
     EMBEDDING_DIM,
     EpisodicMemory,
@@ -24,7 +24,7 @@ from app.memory.models import (
 )
 from app.retrieval.embeddings import get_embedding_model
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 # ── Constants ───────────────────────────────────────────────────────────────
 

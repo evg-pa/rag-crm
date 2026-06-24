@@ -13,6 +13,7 @@ from unittest.mock import AsyncMock, Mock, patch
 import pytest
 import sqlalchemy as sa
 from httpx import ASGITransport, AsyncClient
+from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker
 
 # ── Mock pgvector BEFORE app imports ──────────────────────────────────────────
 
@@ -75,6 +76,12 @@ os.environ["DATABASE_URL"] = "sqlite+aiosqlite://"
 from app.core.database import Base
 from app.main import app
 from app.memory.models import EMBEDDING_DIM
+from app.memory.models import (  # noqa: F401 — registers models with Base
+    EpisodicMemory,
+    ProceduralMemory,
+    SemanticMemory,
+    WorkingMemory,
+)
 from app.memory.service import (
     EpisodicMemoryService,
     ProceduralMemoryService,
@@ -82,38 +89,65 @@ from app.memory.service import (
     WorkingMemoryService,
 )
 
-# Reuse conftest's in-memory engine so tables are shared
-from tests.conftest import TEST_ENGINE, TEST_SESSION_FACTORY
-
 pytestmark = pytest.mark.asyncio(loop_scope="function")
 
 
-# ── Helpers ──────────────────────────────────────────────────────────────────
+# Fresh engine for test isolation — uses shared in-memory SQLite
+# so create_all + endpoint queries see the same database.
+_LOCAL_ENGINE = create_async_engine(
+    "sqlite+aiosqlite:///file::memory:?cache=shared&mode=memory&uri=true",
+    echo=False,
+)
+_LOCAL_SESSION = async_sessionmaker(_LOCAL_ENGINE, expire_on_commit=False)
+
+# Override the app's DB dependency to use our local engine
+from app.core.dependencies import get_db_session as _original_get_db_session
+
+
+async def _test_db_session():
+    """Yield a session on the local engine."""
+    async with _LOCAL_SESSION() as s:
+        yield s
+
+
+app.dependency_overrides[_original_get_db_session] = _test_db_session
+
+# Also override the memory API's _get_db which creates its own engine
+from app.api import memory as _memory_api
+
+
+async def _test_memory_db():
+    """Yield a session on the local engine (replaces _get_db in memory API)."""
+    async with _LOCAL_SESSION() as s:
+        yield s
+
+
+app.dependency_overrides[_memory_api._get_db] = _test_memory_db
 
 
 async def _setup_db():
     """Create all tables."""
-    async with TEST_ENGINE.begin() as conn:
+    async with _LOCAL_ENGINE.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
 
 
 async def _teardown_db():
     """Drop all tables and dispose engine."""
-    async with TEST_ENGINE.begin() as conn:
+    async with _LOCAL_ENGINE.begin() as conn:
         await conn.run_sync(Base.metadata.drop_all)
-    await TEST_ENGINE.dispose()
+    await _LOCAL_ENGINE.dispose()
 
 
 async def _clean_tables():
     """Delete all rows across all tables."""
-    async with TEST_ENGINE.begin() as conn:
+    async with _LOCAL_ENGINE.begin() as conn:
         for table in reversed(Base.metadata.sorted_tables):
             await conn.execute(table.delete())
 
 
 async def _get_db():
     """Yield a fresh DB session."""
-    async with TEST_SESSION_FACTORY() as session:
+    async with _LOCAL_SESSION() as session:
         yield session
 
 
@@ -258,23 +292,12 @@ class TestProceduralMemory:
 
 
 class TestMemoryAPI:
-    @pytest.fixture(autouse=True)
-    def _patch_app(self):
-        from app.core.dependencies import get_db_session
+    """Integration tests for the memory HTTP API endpoints.
 
-        async def _test_db():
-            async with TEST_SESSION_FACTORY() as s:
-                yield s
+    Uses _LOCAL_ENGINE from module level for DB (override set at import time).
+    """
 
-        _prev = app.dependency_overrides.get(get_db_session)
-        app.dependency_overrides[get_db_session] = _test_db
-        yield
-        # Restore the previous override (don't clear() — that removes conftest's override)
-        if _prev is not None:
-            app.dependency_overrides[get_db_session] = _prev
-        else:
-            app.dependency_overrides.pop(get_db_session, None)
-
+    @pytest.mark.asyncio
     async def test_working_empty(self):
         await _setup_db()
         transport = ASGITransport(app=app)
@@ -283,6 +306,7 @@ class TestMemoryAPI:
             assert r.status_code == 200 and r.json() == []
         await _clean_tables()
 
+    @pytest.mark.asyncio
     async def test_semantic_add(self):
         await _setup_db()
         transport = ASGITransport(app=app)
@@ -299,6 +323,7 @@ class TestMemoryAPI:
                 assert r.json()["fact"] == "PG is relational"
         await _clean_tables()
 
+    @pytest.mark.asyncio
     async def test_procedural_crud(self):
         await _setup_db()
         transport = ASGITransport(app=app)
@@ -312,6 +337,7 @@ class TestMemoryAPI:
             assert r2.status_code == 200 and "Test" in r2.json()["content"]
         await _clean_tables()
 
+    @pytest.mark.asyncio
     async def test_episodic_404(self):
         await _setup_db()
         transport = ASGITransport(app=app)

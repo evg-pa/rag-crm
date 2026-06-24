@@ -9,19 +9,19 @@ Replaces the previous in-memory store with persistent storage:
 
 from __future__ import annotations
 
-import logging
 from datetime import UTC, datetime
 from typing import Any
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.agents.state import AgentState
+from app.core.logging import get_logger
 from app.memory.service import (
     EpisodicMemoryService,
     WorkingMemoryService,
 )
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 # Maximum number of exchanges (user + assistant pairs) to retain per session
 MAX_EXCHANGES: int = 5

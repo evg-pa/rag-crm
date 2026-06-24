@@ -39,6 +39,7 @@ services:
       APP_NAME: RAG-CRM
       APP_VERSION: "0.1.0"
       LOG_LEVEL: INFO
+      JWT_SECRET_KEY: ${JWT_SECRET_KEY:-dev-jwt-secret-change-me-in-production}
     ports:
       - "8000:8000"
     depends_on:

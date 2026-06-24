@@ -1,0 +1,12 @@
+__pycache__/
+*.pyc
+.env
+.git/
+.gitignore
+.hermes/
+.venv/
+venv/
+__init__.py
+tests/
+*.egg-info/
+.DS_Store

@@ -53,6 +53,7 @@ async def init_db(settings: Settings) -> None:
     async with engine.begin() as conn:
         from app.models.chunk import Chunk  # noqa: F401
         from app.models.document import Document  # noqa: F401
+        from app.models.user import User  # noqa: F401
         from app.knowledge.models import WikiEntry  # noqa: F401
         from app.memory.models import (  # noqa: F401
             EpisodicMemory,

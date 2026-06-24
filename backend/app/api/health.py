@@ -1,4 +1,4 @@
-"""Health check endpoints."""
+"""Health check endpoints — liveness, readiness, and dependency probes."""
 
 from fastapi import APIRouter, Depends
 from sqlalchemy import text
@@ -34,16 +34,53 @@ async def health_ready(
     settings: Settings = Depends(get_settings),
     db: AsyncSession = Depends(get_db_session),
 ) -> dict[str, str]:
-    """Readiness probe: application is ready to serve traffic."""
+    """Readiness probe: application is ready to serve traffic.
+
+    Checks:
+    - Database is reachable
+    - Redis is reachable (if configured)
+    - Embedding model is loaded and producing embeddings
+    """
     db_ready = "ready"
     try:
         await db.execute(text("SELECT 1"))
     except Exception:
         db_ready = "not ready"
 
+    redis_ready = "ready"
+    try:
+        import redis.asyncio as aioredis
+
+        r = aioredis.from_url(settings.REDIS_URL, socket_connect_timeout=2)
+        await r.ping()
+        await r.aclose()
+    except Exception:
+        redis_ready = "not ready"
+
+    embedding_ready = "ready"
+    try:
+        from app.retrieval.embeddings import get_embedding_model
+
+        model = get_embedding_model()
+        emb = await model.embed("health check warmup")
+        if not emb or len(emb) == 0:
+            embedding_ready = "not ready"
+    except Exception:
+        embedding_ready = "not ready"
+
+    all_ready = (
+        db_ready == "ready"
+        and redis_ready == "ready"
+        and embedding_ready == "ready"
+    )
+    overall = "ready" if all_ready else "degraded"
+
     return {
-        "status": db_ready,
+        "status": overall,
         "version": settings.APP_VERSION,
+        "database": db_ready,
+        "redis": redis_ready,
+        "embedding_model": embedding_ready,
     }
 
 
@@ -51,7 +88,7 @@ async def health_ready(
 async def health_live(
     settings: Settings = Depends(get_settings),
 ) -> dict[str, str]:
-    """Liveness probe: application is alive."""
+    """Liveness probe: application process is alive."""
     return {
         "status": "alive",
         "version": settings.APP_VERSION,

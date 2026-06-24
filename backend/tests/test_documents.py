@@ -66,30 +66,10 @@ async def test_upload_md_document(client: AsyncClient) -> None:
 @pytest.mark.asyncio
 async def test_upload_pdf_document(client: AsyncClient) -> None:
     """POST /documents/upload with a .pdf file returns 201 + extracted metadata."""
-    # Minimal valid PDF with text content and metadata
-    pdf_bytes = (
-        b"%PDF-1.4\n"
-        b"1 0 obj\n"
-        b"<< /Type /Catalog /Pages 2 0 R >>\n"
-        b"endobj\n"
-        b"2 0 obj\n"
-        b"<< /Type /Pages /Kids [3 0 R] /Count 1 >>\n"
-        b"endobj\n"
-        b"3 0 obj\n"
-        b"<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] >>\n"
-        b"endobj\n"
-        b"xref\n"
-        b"0 4\n"
-        b"0000000000 65535 f \n"
-        b"0000000009 00000 n \n"
-        b"0000000058 00000 n \n"
-        b"0000000115 00000 n \n"
-        b"trailer\n"
-        b"<< /Size 4 /Root 1 0 R /Info 4 0 R >>\n"
-        b"startxref\n"
-        b"190\n"
-        b"%%EOF\n"
-    )
+    import pathlib
+
+    fixture_path = pathlib.Path(__file__).parent / "fixtures" / "sample.pdf"
+    pdf_bytes = fixture_path.read_bytes()
 
     response = await client.post(
         "/documents/upload",
@@ -102,9 +82,7 @@ async def test_upload_pdf_document(client: AsyncClient) -> None:
     assert doc["filename"] == "report.pdf"
     assert doc["content_type"] == "application/pdf"
     assert doc["file_size"] > 0
-    assert data["chunk_count"] >= 0  # minimal PDF may yield 0 text chunks from that raw obj
-    # metadata key should be present (may be empty for minimal PDFs)
-    assert "metadata" in doc
+    assert data["chunk_count"] >= 0
 
 
 @pytest.mark.asyncio

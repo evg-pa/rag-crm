@@ -1,32 +1,17 @@
 FROM python:3.12-slim AS builder
 
 WORKDIR /app
+# ---------- Layer 1: ML dependencies (fat, rarely changes) ----------
+COPY requirements-ml.txt .
+RUN pip install --no-cache-dir -r requirements-ml.txt
 
-# Install build dependencies and project
-COPY pyproject.toml .
-RUN pip install --no-cache-dir \
-    fastapi>=0.115.0 \
-    "uvicorn[standard]>=0.30.0" \
-    "sqlalchemy[asyncio]>=2.0.30" \
-    asyncpg>=0.29.0 \
-    alembic>=1.13.0 \
-    pydantic>=2.7.0 \
-    pydantic-settings>=2.3.0 \
-    redis>=5.0.0 \
-    structlog>=24.0.0 \
-    httpx>=0.27.0 \
-    python-multipart>=0.0.7 \
-    "optimum[onnxruntime]>=1.24.0" \
-    pgvector>=0.4.0 \
-    "rank-bm25>=0.2.2" \
-    "transformers>=4.46.0" \
-    "torch>=2.0.0" \
-    "langgraph>=0.2.0" \
-    "beautifulsoup4>=4.13.0" \
-    "lxml>=5.3.0" \
-    "pypdf>=5.0.0" \
-    "pymupdf>=1.24.0" \
-    "python-docx>=1.1.0"
+# ---------- Layer 2: App dependencies (lean, changes when we add features) ----------
+COPY requirements-app.txt .
+RUN pip install --no-cache-dir -r requirements-app.txt
+
+# ---------- Layer 3: Dev dependencies ----------
+COPY requirements-dev.txt .
+RUN pip install --no-cache-dir -r requirements-dev.txt
 
 # --- Runner stage ---
 FROM python:3.12-slim AS runner
@@ -53,7 +38,10 @@ USER appuser
 
 EXPOSE 8000
 
-ENV OPENAI_API_KEY=""
-ENV DEEPSEEK_API_KEY=""
+HEALTHCHECK --interval=10s --timeout=5s --retries=3 --start-period=15s \
+    CMD python -c "import urllib.request; urllib.request.urlopen('http://localhost:8000/health/live')" || exit 1
+
+ENV OPENAI_API_KEY=***
+ENV DEEPSEEK_API_KEY=***
 
 CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]

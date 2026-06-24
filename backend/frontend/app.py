@@ -37,20 +37,20 @@ current_page = render_sidebar()
 # ── Route to page ──────────────────────────────────────────────────────────
 
 if current_page == "dashboard":
-    from pages.dashboard import render as render_dashboard
+    from page_modules.dashboard import render as render_dashboard
     render_dashboard()
 elif current_page == "documents":
-    from pages.documents import render as render_documents
+    from page_modules.documents import render as render_documents
     render_documents()
 elif current_page == "qa_chat":
-    from pages.qa_chat import render as render_qa_chat
+    from page_modules.qa_chat import render as render_qa_chat
     render_qa_chat()
 elif current_page == "search":
-    from pages.search import render as render_search
+    from page_modules.search import render as render_search
     render_search()
 elif current_page == "wiki":
-    from pages.wiki import render as render_wiki
+    from page_modules.wiki import render as render_wiki
     render_wiki()
 elif current_page == "pipeline":
-    from pages.pipeline import render as render_pipeline
+    from page_modules.pipeline import render as render_pipeline
     render_pipeline()

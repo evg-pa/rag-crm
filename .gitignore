@@ -40,3 +40,15 @@ artifacts/*
 node_modules/
 .next/
 
+# Agent & personal files
+$AGENT_HOME/
+CLAUDE.md
+DECISIONS.md
+MAP.md
+skills/
+tasks/
+test-ui.html
+
+# Stray artifacts
+backend/=0.2.0
+

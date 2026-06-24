@@ -1,31 +1,30 @@
-# Production override — adds HTTPS reverse proxy (nginx) + Let's Encrypt auto-renewal
+# ───────────────────────────────────────────────────────────────────────
+# Production override — nginx reverse proxy with HTTPS (Let's Encrypt)
 #
 # Usage:
-#   docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d
+#   1. Set DOMAIN + CERTBOT_EMAIL in infrastructure/.env:
+#        DOMAIN=rag-crm.example.com
+#        CERTBOT_EMAIL=admin@example.com
+#   2. Run: ./init-letsencrypt.sh               (first-time cert bootstrap)
+#   3. Run: docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d
 #
-# For initial SSL certificate setup, run:
-#   ./init-letsencrypt.sh
-#
-# Requires DOMAIN and CERTBOT_EMAIL set in infrastructure/.env:
-#   DOMAIN=rag-crm.example.com
-#   CERTBOT_EMAIL=admin@example.com
+# What this override does:
+#   - Removes public ports from backend/frontend (internal-only, via nginx)
+#   - Adds nginx on :80/:443 with HTTP→HTTPS redirect + WebSocket support
+#   - Adds certbot for automatic Let's Encrypt renewal (every 12h)
+#   - nginx reloads every 6h to pick up renewed certificates
+# ───────────────────────────────────────────────────────────────────────
 
 services:
-  # ────────────────────────────────────────────────────────────
-  # Override backend: remove host port — internal-only via nginx
-  # ────────────────────────────────────────────────────────────
+  # ── Backend: remove host port — reachable only through nginx ──────
   backend:
-    ports: []
+    ports: !override []
 
-  # ────────────────────────────────────────────────────────────
-  # Override frontend: remove host port — internal-only via nginx
-  # ────────────────────────────────────────────────────────────
+  # ── Frontend: remove host port — reachable only through nginx ─────
   frontend:
-    ports: []
+    ports: !override []
 
-  # ────────────────────────────────────────────────────────────
-  # nginx reverse proxy with HTTPS termination
-  # ────────────────────────────────────────────────────────────
+  # ── nginx reverse proxy with HTTPS termination ────────────────────
   nginx:
     image: nginx:1.27-alpine
     container_name: rag-nginx
@@ -35,16 +34,13 @@ services:
       - "443:443"
     volumes:
       - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
-      - ./nginx/conf.d:/etc/nginx/conf.d:ro
+      - ./nginx/conf.d/app.conf:/etc/nginx/conf.d/app.conf:ro
       - ./certbot/www:/var/www/certbot:ro
       - ./certbot/conf:/etc/letsencrypt:ro
-    environment:
-      - DOMAIN=${DOMAIN:?DOMAIN must be set in .env}
     command: >
       /bin/sh -c "
-        envsubst '\$\${DOMAIN}' < /etc/nginx/conf.d/app.conf.template > /etc/nginx/conf.d/app.conf &&
         while :; do
-          sleep 6h & wait \$\${!};
+          sleep 6h & wait $$!;
           nginx -s reload;
         done &
         exec nginx -g 'daemon off;'
@@ -61,9 +57,7 @@ services:
       retries: 3
       start_period: 15s
 
-  # ────────────────────────────────────────────────────────────
-  # certbot — Let's Encrypt certificate auto-renewal
-  # ────────────────────────────────────────────────────────────
+  # ── certbot — Let's Encrypt automatic renewal ─────────────────────
   certbot:
     image: certbot/certbot:latest
     container_name: rag-certbot
@@ -76,21 +70,15 @@ services:
         trap exit TERM;
         while :; do
           certbot renew --webroot -w /var/www/certbot --quiet;
-          sleep 12h & wait \$\${!};
+          sleep 12h & wait $$!;
         done
       "
     environment:
-      - DOMAIN=${DOMAIN:?DOMAIN must be set in .env}
-      - CERTBOT_EMAIL=${CERTBOT_EMAIL:?CERTBOT_EMAIL must be set in .env}
+      - DOMAIN=${DOMAIN:?DOMAIN must be set in infrastructure/.env}
+      - CERTBOT_EMAIL=${CERTBOT_EMAIL:?CERTBOT_EMAIL must be set in infrastructure/.env}
     depends_on:
       nginx:
         condition: service_started
-    healthcheck:
-      test: ["CMD", "test", "-d", "/etc/letsencrypt/live"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 10s
 
 networks:
   default:

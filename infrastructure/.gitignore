@@ -1,0 +1,2 @@
+# Generated nginx config (created by init-letsencrypt.sh from template)
+nginx/conf.d/app.conf

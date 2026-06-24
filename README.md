@@ -1,6 +1,6 @@
 # RAG-CRM
 
-Retrieval-Augmented Generation CRM — a multi-agent RAG system with CRM integration.
+Retrieval-Augmented Generation CRM — a multi-agent RAG system that understands your documents using a neural network (LLM).
 
 [![Docker](https://img.shields.io/badge/Docker-Compose-2496ED?logo=docker)](https://docs.docker.com/compose/)
 [![Python](https://img.shields.io/badge/Python-3.12-3776AB?logo=python)](https://python.org)
@@ -9,65 +9,52 @@ Retrieval-Augmented Generation CRM — a multi-agent RAG system with CRM integra
 
 ---
 
-## ✨ One-command Setup
+## ✨ One-command setup
 
 ```bash
-git clone <repo-url> && cd rag-crm
 ./setup.sh
 ```
 
-The script will:
+You'll be prompted for a **DeepSeek API key** — this connects a neural network so RAG can answer your questions about documents.
 
-| Step | What it does |
-|------|-------------|
-| 1 | Check Docker & Docker Compose are installed |
-| 2 | Create `.env` from `.env.example` (won't overwrite existing) |
-| 3 | Prompt for your **DeepSeek API key** (or skip for fallback mode) |
-| 4 | Start all services via `docker compose up -d` |
-| 5 | Wait for the backend to become healthy, then print URLs |
+> **Where to get a key:** Sign up at [platform.deepseek.com](https://platform.deepseek.com/api_keys) (free credits available).
 
-That's it. Open **http://localhost:8501** for the dashboard.
+To skip the prompt, pass the key directly:
+
+```bash
+./setup.sh -k ***
+```
+
+Or with `curl` for a fully scripted install:
+
+```bash
+curl -sL https://your-repo-url/raw/setup.sh | bash -s -- -k ***
+```
+
+The script handles everything: creates the config, starts all services, and waits for everything to be healthy.
 
 ---
 
-## Manual Quick Start
+## What happens without a key?
 
-### Prerequisites
-
-- Docker & Docker Compose
-
-### 1. Set up environment
+RAG will still run and index your documents — but the AI won't be able to answer questions about them. You can add a key later by editing `.env` and restarting:
 
 ```bash
-cp .env.example .env
-# Edit .env to add your DEEPSEEK_API_KEY
+# Edit .env with your key, then:
+docker compose -f infrastructure/docker-compose.yml restart backend
 ```
 
-### 2. Start the stack
+---
 
-```bash
-docker compose -f infrastructure/docker-compose.yml up -d
-```
+## After setup
 
-### 3. Verify
+Open **http://localhost:8501** for the dashboard.
 
-```bash
-# Health check
-curl http://localhost:8000/health
-
-# API docs
-open http://localhost:8000/docs
-```
-
-### 4. Run tests (local dev)
-
-```bash
-cd backend
-pip install -e ".[dev]"
-pytest
-ruff check .
-mypy app/
-```
+| Service  | URL | What it does |
+|----------|-----|-------------|
+| Dashboard | http://localhost:8501 | Upload documents, ask questions, browse search |
+| API docs  | http://localhost:8000/docs | Interactive API reference |
+| Health    | http://localhost:8000/health/ready | Check all services are green |
 
 ---
 
@@ -83,18 +70,20 @@ User Query → FastAPI → LangGraph State Machine
   └── Memory Agent     → 4-layer memory
 ```
 
-## Services
+## Manual setup
 
-| Service  | Port | Description        |
-|----------|------|--------------------|
-| Backend  | 8000 | FastAPI REST API   |
-| Frontend | 8501 | Streamlit Dashboard|
-| Postgres | 5432 | pgvector + pgvector|
-| Redis    | 6379 | Caching & sessions |
+```bash
+cp .env.example .env       # Create config
+# Edit .env — add DEEPSEEK_API_KEY
+
+docker compose -f infrastructure/docker-compose.yml up -d
+```
 
 ## Development
 
 ```bash
 cd backend
+pip install -e ".[dev]"
 uvicorn app.main:app --reload
+pytest
 ```

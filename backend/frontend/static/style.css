@@ -28,6 +28,12 @@
   --dark-border: #333540;
 }
 
+/* HIDE Streamlit's auto-generated sidebar nav (duplicates our custom radio nav) */
+ul[data-testid="stSidebarNavItems"] { display: none !important; }
+div[data-testid="stSidebarNavSeparator"] { display: none !important; }
+button[data-testid="stSidebarNav"] { display: none !important; }
+section[data-testid="stSidebar"] > div:first-child > div:first-child > div:first-child { display: none !important; }
+
 /* ── Card component ── */
 .rag-card {
   border: 1px solid var(--border);

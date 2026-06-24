@@ -2,12 +2,39 @@
 
 Retrieval-Augmented Generation CRM — a multi-agent RAG system with CRM integration.
 
-## Quick Start
+[![Docker](https://img.shields.io/badge/Docker-Compose-2496ED?logo=docker)](https://docs.docker.com/compose/)
+[![Python](https://img.shields.io/badge/Python-3.12-3776AB?logo=python)](https://python.org)
+[![FastAPI](https://img.shields.io/badge/FastAPI-0.115-009688?logo=fastapi)](https://fastapi.tiangolo.com/)
+[![License](https://img.shields.io/badge/License-MIT-yellow)](#license)
+
+---
+
+## ✨ One-command Setup
+
+```bash
+git clone <repo-url> && cd rag-crm
+./setup.sh
+```
+
+The script will:
+
+| Step | What it does |
+|------|-------------|
+| 1 | Check Docker & Docker Compose are installed |
+| 2 | Create `.env` from `.env.example` (won't overwrite existing) |
+| 3 | Prompt for your **DeepSeek API key** (or skip for fallback mode) |
+| 4 | Start all services via `docker compose up -d` |
+| 5 | Wait for the backend to become healthy, then print URLs |
+
+That's it. Open **http://localhost:8501** for the dashboard.
+
+---
+
+## Manual Quick Start
 
 ### Prerequisites
 
 - Docker & Docker Compose
-- Python 3.12+
 
 ### 1. Set up environment
 
@@ -42,6 +69,8 @@ ruff check .
 mypy app/
 ```
 
+---
+
 ## Architecture
 
 ```
@@ -56,11 +85,12 @@ User Query → FastAPI → LangGraph State Machine
 
 ## Services
 
-| Service  | Port  | Description          |
-| -------- | ----- | -------------------- |
-| Backend  | 8000  | FastAPI REST API     |
-| Postgres | 5432  | pgvector + pgvector  |
-| Redis    | 6379  | Caching & sessions   |
+| Service  | Port | Description        |
+|----------|------|--------------------|
+| Backend  | 8000 | FastAPI REST API   |
+| Frontend | 8501 | Streamlit Dashboard|
+| Postgres | 5432 | pgvector + pgvector|
+| Redis    | 6379 | Caching & sessions |
 
 ## Development
 

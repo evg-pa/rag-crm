@@ -11,7 +11,6 @@ def init_session_state() -> None:
         # — Auth —
         "auth_token": None,        # str | None — JWT access token
         "auth_user": None,         # dict | None — logged-in user profile
-        "auth_page": "login",      # str — 'login' or page key
         # — Chat —
         "messages": [],          # list[dict] — chat history
         "history_loaded": False,
@@ -64,10 +63,9 @@ def invalidate_caches() -> None:
 
 
 def logout() -> None:
-    """Clear auth state and redirect to login."""
+    """Clear auth state — keeps the user on the current page."""
     st.session_state.auth_token = None
     st.session_state.auth_user = None
-    st.session_state.auth_page = "login"
     invalidate_caches()
     st.rerun()
 

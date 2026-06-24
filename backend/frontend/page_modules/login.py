@@ -12,7 +12,7 @@ def _handle_login(email: str, password: str) -> None:
     try:
         result = api.login(email, password)
         st.session_state.auth_token = result["access_token"]
-        st.session_state.auth_page = "dashboard"
+        st.session_state.current_page = "dashboard"
         # Fetch user profile
         try:
             st.session_state.auth_user = api.get_me()
@@ -29,7 +29,7 @@ def _handle_register(email: str, password: str, display_name: str) -> None:
     try:
         result = api.register(email, password, display_name)
         st.session_state.auth_token = result["access_token"]
-        st.session_state.auth_page = "dashboard"
+        st.session_state.current_page = "dashboard"
         st.session_state.auth_user = {
             "email": email,
             "display_name": display_name or email.split("@")[0],

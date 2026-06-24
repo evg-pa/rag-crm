@@ -27,9 +27,20 @@ def browser(playwright: Playwright) -> Generator:
 
 
 def _do_login(page: Page, base_url: str) -> None:
-    """Navigate to the app and sign in with test credentials."""
+    """Navigate to the app and sign in with test credentials.
+
+    Since auth is optional, the dashboard loads first.  Clicks the
+    sidebar Sign In button to reach the login form.
+    """
     page.goto(base_url)
     page.wait_for_load_state("networkidle")
+
+    # Click the sidebar Sign In button to navigate to the login page
+    sign_in_btn = page.locator("section[data-testid='stSidebar']").get_by_role(
+        "button"
+    ).filter(has_text="Sign In")
+    sign_in_btn.click()
+    page.wait_for_timeout(1500)
 
     # Fill email (input[type=text]) and password fields
     page.locator('input[type="text"]').first.fill(TEST_EMAIL)

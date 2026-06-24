@@ -27,7 +27,6 @@ class TestInitSessionState:
             # Auth
             "auth_token",
             "auth_user",
-            "auth_page",
             # Chat
             "messages",
             "history_loaded",
@@ -87,7 +86,7 @@ class TestInitSessionState:
         """Search page starts at 1."""
         assert self._get_app_state()["search_page"] == 1
 
-    def test_top_k_defaults_to_ten(self) -> None:
+    def test_top_k_defaults_to_five(self) -> None:
         """QA top-k defaults to 5."""
         assert self._get_app_state()["qa_top_k"] == 5
 
@@ -99,13 +98,23 @@ class TestInitSessionState:
 
         at = AppTest.from_file("app.py")
         at.run()
-        # Accessing a None key returns None in SafeSessionState
         assert at.session_state["auth_token"] is None
 
-    def test_auth_page_defaults_to_login(self) -> None:
-        """auth_page defaults to 'login'."""
+    def test_auth_user_defaults_none(self) -> None:
+        """auth_user is None on fresh app."""
         from streamlit.testing.v1 import AppTest
 
         at = AppTest.from_file("app.py")
         at.run()
-        assert at.session_state["auth_page"] == "login"
+        assert at.session_state["auth_user"] is None
+
+    def test_auth_page_not_in_defaults(self) -> None:
+        """auth_page is no longer a session state key (removed in optional-auth refactor)."""
+        from streamlit.testing.v1 import AppTest
+
+        at = AppTest.from_file("app.py")
+        at.run()
+        # auth_page was removed; should not be in session state
+        assert "auth_page" not in at.session_state, (
+            "auth_page was removed during optional-auth refactor"
+        )

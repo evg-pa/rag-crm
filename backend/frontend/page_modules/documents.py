@@ -81,6 +81,16 @@ def render() -> None:
     """Render the Documents page."""
     st.title("📄 Documents")
 
+    # ── Auth guard ─────────────────────────────────────────────────────
+    if not state.is_authenticated():
+        st.info("🔑 **Sign in required** — document upload, scrape, and management "
+                "are only available to authenticated users.")
+        st.markdown(
+            "Use the **🔑 Sign In** button in the sidebar to log in "
+            "or create an account."
+        )
+        return
+
     # ── Upload Section ──────────────────────────────────────────────────
     with st.container(border=True):
         st.subheader("📤 Upload Documents")

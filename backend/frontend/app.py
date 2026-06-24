@@ -1,6 +1,8 @@
 """RAG-CRM Streamlit Frontend — Multi-page document management + Q&A UI.
 
-Entry point with JWT auth: if no valid token, shows the login page.
+Auth is OPTIONAL: unauthenticated users can browse search, Q&A, wiki,
+and pipeline pages. Only document upload/scrape/delete/list requires
+sign-in, with a helpful prompt shown in place of the upload area.
 """
 
 from __future__ import annotations
@@ -8,7 +10,7 @@ from __future__ import annotations
 import streamlit as st
 
 from components.sidebar import render_sidebar
-from utils.state import init_session_state, is_authenticated
+from utils.state import init_session_state
 from utils.theme import init_theme
 
 # ── Page configuration (must be first Streamlit call) ───────────────────────
@@ -30,21 +32,23 @@ st.set_page_config(
 init_session_state()
 init_theme()
 
-# ── Auth check ─────────────────────────────────────────────────────────────
-
-if not is_authenticated():
-    from page_modules.login import render as render_login
-
-    render_login()
-    st.stop()  # Don't render anything below this for unauthenticated users
-
-# ── Sidebar navigation (only shown when authenticated) ─────────────────────
+# ── Sidebar navigation (always rendered, auth is optional) ─────────────────
 
 current_page = render_sidebar()
 
+# Allow programmatic navigation via session state (e.g. sidebar login button,
+# or AppTest tests that set current_page before run).
+override = st.session_state.get("current_page")
+if override in ("login",):
+    current_page = override
+
 # ── Route to page ──────────────────────────────────────────────────────────
 
-if current_page == "dashboard":
+if current_page == "login":
+    from page_modules.login import render as render_login
+
+    render_login()
+elif current_page == "dashboard":
     from page_modules.dashboard import render as render_dashboard
 
     render_dashboard()

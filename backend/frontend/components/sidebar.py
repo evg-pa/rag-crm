@@ -1,14 +1,18 @@
-"""Sidebar navigation component — includes user info and logout."""
+"""Sidebar navigation component — login, user info, nav, and settings."""
 
 from __future__ import annotations
 
 import streamlit as st
 
-from utils.state import logout
+from utils.state import is_authenticated, logout
 
 
 def render_sidebar() -> str:
     """Render the sidebar with navigation menu.
+
+    When unauthenticated, shows a Sign In button at the top and all
+    6 nav options below.  When authenticated, shows user info + logout
+    button instead of the Sign In button.
 
     Returns:
         The selected page key.
@@ -19,16 +23,26 @@ def render_sidebar() -> str:
             unsafe_allow_html=True,
         )
 
-        # ── User info ──────────────────────────────────────────────────
-        user = st.session_state.get("auth_user")
-        if user:
-            display = user.get("display_name") or user.get("email", "User")
-            col_user, col_logout = st.columns([3, 1])
-            with col_user:
-                st.caption(f"👤 {display}")
-            with col_logout:
-                if st.button("🚪", key="logout_btn", help="Log out"):
-                    logout()
+        # ── Auth section ────────────────────────────────────────────────
+        if is_authenticated():
+            user = st.session_state.get("auth_user")
+            if user:
+                display = user.get("display_name") or user.get("email", "User")
+                col_user, col_logout = st.columns([3, 1])
+                with col_user:
+                    st.caption(f"👤 {display}")
+                with col_logout:
+                    if st.button("🚪", key="logout_btn", help="Log out"):
+                        logout()
+        else:
+            if st.button(
+                "🔑 Sign In",
+                use_container_width=True,
+                key="login_nav_btn",
+                type="secondary",
+            ):
+                st.session_state.current_page = "login"
+                st.rerun()
 
         # ── Navigation ─────────────────────────────────────────────────
         selected = st.radio(

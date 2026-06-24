@@ -96,11 +96,10 @@ def render() -> None:
         st.subheader("📤 Upload Documents")
 
         uploaded_files = st.file_uploader(
-            "Drag and drop files here, or click to browse",
+            "Choose files or drag & drop",
             type=["pdf", "docx", "html", "htm", "md", "txt"],
             accept_multiple_files=True,
             key="doc_uploader",
-            label_visibility="collapsed",
         )
 
         if uploaded_files:
@@ -119,7 +118,6 @@ def render() -> None:
                 "URL to scrape",
                 placeholder="https://example.com/page",
                 key="scrape_url_input",
-                label_visibility="collapsed",
             )
         with col_btn:
             if st.button("🌐 Scrape", use_container_width=True, key="scrape_btn"):

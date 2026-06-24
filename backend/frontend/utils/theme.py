@@ -21,19 +21,19 @@ def _global_base() -> str:
     """Base resets and shared styles — applied regardless of theme."""
     return """
     <style>
-    /* ── Typography — system font stack ── */
+    /* Typography — system font stack */
     html, body, [class*="css"]  {
         font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto,
                      Oxygen, Ubuntu, Cantarell, 'Helvetica Neue', Arial,
                      sans-serif;
     }
 
-    /* ── Hide Streamlit chrome ── */
+    /* Hide Streamlit chrome */
     header[data-testid="stHeader"] { background: transparent !important; }
     footer { visibility: hidden; }
     #MainMenu { visibility: hidden; }
 
-    /* ── Smooth transitions ── */
+    /* Smooth transitions */
     .stApp, section[data-testid="stSidebar"],
     .stButton button, .stTextInput input, .stSelectbox,
     div[data-testid="stFileUploader"] {
@@ -41,7 +41,7 @@ def _global_base() -> str:
                     box-shadow 0.3s ease, color 0.3s ease;
     }
 
-    /* ── Buttons ── */
+    /* Buttons */
     .stButton button {
         border-radius: 8px !important;
         font-weight: 500 !important;
@@ -59,7 +59,7 @@ def _global_base() -> str:
         border-color: var(--accent) !important;
     }
 
-    /* ── Text inputs ── */
+    /* Text inputs */
     .stTextInput input {
         border-radius: 8px !important;
         padding: 0.6rem 0.9rem !important;
@@ -70,7 +70,7 @@ def _global_base() -> str:
         border-color: var(--accent) !important;
     }
 
-    /* ── File uploader ── */
+    /* File uploader */
     div[data-testid="stFileUploader"] {
         border-radius: 10px !important;
         padding: 0.5rem !important;
@@ -85,30 +85,30 @@ def _global_base() -> str:
         background: var(--hover-overlay) !important;
     }
 
-    /* ── Tabs ── */
+    /* Tabs */
     button[data-baseweb="tab"] {
         border-radius: 8px 8px 0 0 !important;
         font-weight: 500 !important;
     }
 
-    /* ── Slider ── */
+    /* Slider */
     div[data-testid="stSlider"] {
         padding: 0.3rem 0 !important;
     }
 
-    /* ── Dividers ── */
+    /* Dividers */
     hr {
         margin: 1.2rem 0 !important;
         border-color: var(--border) !important;
     }
 
-    /* ── Expander ── */
+    /* Expander */
     .streamlit-expanderHeader {
         border-radius: 8px !important;
         font-weight: 500 !important;
     }
 
-    /* ── Metric / KPI ── */
+    /* Metric / KPI */
     div[data-testid="metric-container"] {
         border-radius: 10px !important;
         padding: 1rem 0.8rem !important;
@@ -116,13 +116,13 @@ def _global_base() -> str:
         background: var(--bg-secondary) !important;
     }
 
-    /* ── Spinner ── */
+    /* Spinner */
     .stSpinner {
         text-align: center;
         padding: 2rem 0;
     }
 
-    /* ── Code blocks ── */
+    /* Code blocks */
     code {
         border-radius: 4px !important;
         padding: 0.15em 0.4em !important;
@@ -132,7 +132,7 @@ def _global_base() -> str:
         padding: 1rem !important;
     }
 
-    /* ── Scrollbar ── */
+    /* Scrollbar */
     ::-webkit-scrollbar {
         width: 6px;
         height: 6px;
@@ -262,31 +262,39 @@ def _dark_css() -> str:
 
 
 def _light_css() -> str:
-    """Crisp light theme — high contrast, clean structure, bold accents."""
+    """High-contrast light theme — crisp, bold, every element visible."""
     return """
     <style>
     :root {
-        --bg-primary: #EFF1F5;
+        --bg-primary: #F3F4F8;
         --bg-secondary: #FFFFFF;
-        --bg-tertiary: #E5E7EB;
-        --text-primary: #0F172A;
-        --text-secondary: #475569;
+        --bg-tertiary: #E5E7EC;
+        --text-primary: #0B0D14;
+        --text-secondary: #3D4455;
         --accent: #4F46E5;
-        --accent-hover: #4338CA;
-        --accent-soft: rgba(79, 70, 229, 0.1);
+        --accent-hover: #3730A3;
+        --accent-soft: rgba(79, 70, 229, 0.10);
         --success: #059669;
         --warning: #D97706;
         --error: #DC2626;
-        --border: #CBD5E1;
-        --focus-ring: rgba(79, 70, 229, 0.25);
-        --hover-overlay: rgba(0, 0, 0, 0.05);
+        --border: #B0B8C8;
+        --focus-ring: rgba(79, 70, 229, 0.30);
+        --hover-overlay: rgba(0, 0, 0, 0.06);
     }
+    /* Use dark for sidebar toggle button label color */
+    section[data-testid="stSidebar"] .stButton button {
+        color: var(--text-primary) !important;
+    }
+    /* Main background */
     .stApp {
-        background-color: var(--bg-primary);
+        background-color: var(--bg-primary) !important;
     }
     section[data-testid="stSidebar"] {
-        background-color: var(--bg-secondary);
-        border-right: 1px solid var(--border);
+        background-color: var(--bg-secondary) !important;
+        border-right: 1.5px solid var(--border) !important;
+    }
+    section[data-testid="stSidebar"] * {
+        color: var(--text-primary) !important;
     }
     section[data-testid="stSidebar"] label {
         padding: 0.4rem 0.8rem !important;
@@ -294,22 +302,35 @@ def _light_css() -> str:
         margin: 2px 0 !important;
         transition: background 0.15s ease !important;
         color: var(--text-primary) !important;
+        font-weight: 500 !important;
     }
     section[data-testid="stSidebar"] label:hover {
         background: var(--hover-overlay) !important;
     }
     section[data-testid="stSidebar"] label[data-selected="true"] {
         background: var(--accent-soft) !important;
-        font-weight: 600 !important;
+        font-weight: 700 !important;
+        color: var(--accent) !important;
     }
     section[data-testid="stSidebar"] div[role="radiogroup"] {
         gap: 2px !important;
     }
+    section[data-testid="stSidebar"] [data-testid="baseButton-secondary"] {
+        color: var(--text-primary) !important;
+        border: 1px solid var(--border) !important;
+        background: transparent !important;
+    }
+    section[data-testid="stSidebar"] [data-testid="baseButton-secondary"]:hover {
+        border-color: var(--accent) !important;
+        background: var(--accent-soft) !important;
+    }
+    /* Buttons */
     .stButton button[kind="primary"] {
         background: var(--accent) !important;
-        color: white !important;
-        box-shadow: 0 1px 3px rgba(0,0,0,0.12) !important;
+        color: #FFFFFF !important;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.15) !important;
         font-weight: 600 !important;
+        border: none !important;
     }
     .stButton button[kind="primary"]:hover {
         background: var(--accent-hover) !important;
@@ -318,18 +339,19 @@ def _light_css() -> str:
     .stButton button[kind="secondary"] {
         background: var(--bg-secondary) !important;
         color: var(--text-primary) !important;
-        border: 1px solid var(--border) !important;
+        border: 1.5px solid var(--border) !important;
         font-weight: 500 !important;
     }
     .stButton button[kind="secondary"]:hover {
         border-color: var(--accent) !important;
         background: var(--accent-soft) !important;
     }
+    /* Text inputs */
     .stTextInput input {
         background: var(--bg-secondary) !important;
         color: var(--text-primary) !important;
         border: 1.5px solid var(--border) !important;
-        box-shadow: 0 1px 2px rgba(0,0,0,0.05) !important;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.06) !important;
     }
     .stTextInput input:focus {
         border-color: var(--accent) !important;
@@ -337,8 +359,18 @@ def _light_css() -> str:
     }
     .stTextInput input::placeholder {
         color: var(--text-secondary) !important;
-        opacity: 0.6;
+        opacity: 0.7;
     }
+    .stTextArea textarea {
+        background: var(--bg-secondary) !important;
+        color: var(--text-primary) !important;
+        border: 1.5px solid var(--border) !important;
+    }
+    .stTextArea textarea:focus {
+        border-color: var(--accent) !important;
+        box-shadow: 0 0 0 3px var(--focus-ring) !important;
+    }
+    /* File uploader */
     div[data-testid="stFileUploader"] {
         background: transparent !important;
     }
@@ -350,41 +382,146 @@ def _light_css() -> str:
         border-color: var(--accent) !important;
         background: var(--accent-soft) !important;
     }
-    .st-bb, .st-at, .st-au, .st-ae, .st-af {
-        background-color: var(--bg-secondary) !important;
-        border-color: var(--border) !important;
-        color: var(--text-primary) !important;
-    }
+    /* Select / dropdown */
     div[data-baseweb="select"] > div {
         background: var(--bg-secondary) !important;
         border: 1.5px solid var(--border) !important;
         border-radius: 8px !important;
     }
-    div[data-testid="stToast"] {
+    div[data-baseweb="select"] * {
+        color: var(--text-primary) !important;
+    }
+    div[data-baseweb="popover"] {
         background: var(--bg-secondary) !important;
         border: 1px solid var(--border) !important;
-        border-radius: 10px !important;
-        box-shadow: 0 8px 32px rgba(0,0,0,0.15) !important;
     }
-    hr {
-        border-color: var(--border) !important;
-        opacity: 0.7;
+    /* Slider */
+    div[data-testid="stSlider"] label {
+        color: var(--text-primary) !important;
     }
+    /* Metrics / KPIs */
     div[data-testid="metric-container"] {
         background: var(--bg-secondary) !important;
-        border: 1px solid var(--border) !important;
+        border: 1.5px solid var(--border) !important;
+        border-radius: 10px !important;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.06) !important;
+    }
+    div[data-testid="metric-container"] label {
+        color: var(--text-secondary) !important;
+    }
+    div[data-testid="metric-container"] [data-testid="stMetricValue"] {
+        color: var(--text-primary) !important;
+    }
+    /* DataFrames / tables */
+    .stDataFrame {
+        border-radius: 10px !important;
+        overflow: hidden !important;
+        border: 1.5px solid var(--border) !important;
+    }
+    .stDataFrame [data-testid="StyledDataFrameColHeader"] {
+        background: var(--bg-tertiary) !important;
+        color: var(--text-primary) !important;
+        font-weight: 600 !important;
+    }
+    .stDataFrame [data-testid="StyledDataFrameRowHeader"] {
+        color: var(--text-primary) !important;
+    }
+    /* All markdown text (the main content) */
+    .stMarkdown, .stMarkdown * {
+        color: var(--text-primary) !important;
     }
     .stMarkdown p, .stMarkdown li, .stMarkdown h1, .stMarkdown h2,
     .stMarkdown h3, .stMarkdown h4, .stMarkdown h5, .stMarkdown h6 {
         color: var(--text-primary) !important;
     }
+    .stMarkdown code {
+        color: var(--text-primary) !important;
+        background: var(--bg-tertiary) !important;
+    }
     .stCaption, .st-emotion-caption {
         color: var(--text-secondary) !important;
     }
-    .stDataFrame {
+    /* Tabs */
+    button[data-baseweb="tab"] {
+        color: var(--text-primary) !important;
+    }
+    button[data-baseweb="tab"][aria-selected="true"] {
+        color: var(--accent) !important;
+        font-weight: 600 !important;
+    }
+    /* Dividers */
+    hr {
+        border-color: var(--border) !important;
+        opacity: 1 !important;
+    }
+    /* Toast / notification */
+    div[data-testid="stToast"] {
+        background: var(--bg-secondary) !important;
+        border: 1.5px solid var(--border) !important;
         border-radius: 10px !important;
-        overflow: hidden !important;
+        box-shadow: 0 8px 32px rgba(0,0,0,0.18) !important;
+    }
+    div[data-testid="stToast"] * {
+        color: var(--text-primary) !important;
+    }
+    /* Expander */
+    .streamlit-expanderHeader {
+        color: var(--text-primary) !important;
+        background: var(--bg-primary) !important;
         border: 1px solid var(--border) !important;
+        border-radius: 8px !important;
+    }
+    .streamlit-expanderHeader:hover {
+        background: var(--hover-overlay) !important;
+    }
+    /* Spinner */
+    .stSpinner {
+        text-align: center;
+        padding: 2rem 0;
+        color: var(--text-secondary) !important;
+    }
+    /* Chat messages */
+    .rag-chat-user {
+        background: var(--accent) !important;
+        color: #FFFFFF !important;
+    }
+    .rag-chat-assistant {
+        background: var(--bg-secondary) !important;
+        border: 1px solid var(--border) !important;
+    }
+    .rag-chat-assistant * {
+        color: var(--text-primary) !important;
+    }
+    /* General text catch-all for unthemed elements */
+    .stApp {
+        color: var(--text-primary) !important;
+    }
+    .stApp p, .stApp span, .stApp div, .stApp label, .stApp li {
+        color: var(--text-primary) !important;
+    }
+    /* Checkbox / radio */
+    label[data-testid="stWidgetLabel"] {
+        color: var(--text-primary) !important;
+    }
+    div[role="checkbox"] {
+        color: var(--text-primary) !important;
+    }
+    .stCheckbox label {
+        color: var(--text-primary) !important;
+    }
+    /* Number input */
+    .stNumberInput input {
+        background: var(--bg-secondary) !important;
+        color: var(--text-primary) !important;
+        border: 1.5px solid var(--border) !important;
+    }
+    /* Info/warning/error/success boxes */
+    div[data-testid="stAlert"] {
+        border: 1px solid var(--border) !important;
+        border-radius: 8px !important;
+    }
+    div[data-testid="stAlert"] * {
+        color: var(--text-primary) !important;
     }
     </style>
     """
@@ -407,7 +544,7 @@ def init_theme() -> None:
 def theme_toggle() -> None:
     """Render a theme toggle button and handle switching."""
     current = st.session_state.get("theme", "dark")
-    label = "🌙 Dark" if current == "dark" else "☀️ Light"
+    label = "☀️ Light" if current == "dark" else "🌙 Dark"
     if st.button(label, key="theme_toggle_btn"):
         st.session_state.theme = "light" if current == "dark" else "dark"
         st.rerun()

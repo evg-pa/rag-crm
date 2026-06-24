@@ -80,6 +80,35 @@ class CrmDeal(Base):
         return f"<CrmDeal id={self.id!r} name={self.name!r} stage={self.stage!r}>"
 
 
+class CrmSyncRun(Base):
+    """CRM Sync Run — tracks each sync execution for the status widget."""
+
+    __tablename__ = "crm_sync_runs"
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        primary_key=True,
+        default=uuid.uuid4,
+    )
+    status: Mapped[str] = mapped_column(
+        String(20), nullable=False, default="pending",
+    )  # pending | running | success | error
+    started_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True, default=None,
+    )
+    completed_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True, default=None,
+    )
+    contacts_synced: Mapped[int] = mapped_column(default=0)
+    deals_synced: Mapped[int] = mapped_column(default=0)
+    activities_synced: Mapped[int] = mapped_column(default=0)
+    rag_documents_created: Mapped[int] = mapped_column(default=0)
+    rag_chunks_created: Mapped[int] = mapped_column(default=0)
+    error_message: Mapped[str | None] = mapped_column(Text, nullable=True, default=None)
+
+    def __repr__(self) -> str:
+        return f"<CrmSyncRun id={self.id!r} status={self.status!r}>"
+
+
 class CrmActivity(Base):
     """CRM Activity — call, email, meeting, note associated with a contact."""
 

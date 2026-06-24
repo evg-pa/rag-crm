@@ -23,8 +23,8 @@ class TestSidebarRendering:
         titles = [m for m in sidebar_md if "RAG-CRM" in m.value]
         assert len(titles) >= 1, "RAG-CRM heading not found in sidebar"
 
-    def test_six_nav_options(self) -> None:
-        """Sidebar radio has exactly 6 navigation options."""
+    def test_nav_options(self) -> None:
+        """Sidebar radio has exactly 10 navigation options."""
         radio = self.at.sidebar.radio
         nav_radios = [r for r in radio if r.key == "nav_radio"]
         assert len(nav_radios) == 1, "Expected exactly one nav_radio widget"
@@ -34,6 +34,10 @@ class TestSidebarRendering:
             "💬 Q&A Chat",
             "🔍 Search",
             "📚 Knowledge Base",
+            "📊 CRM Dashboard",
+            "🔍 CRM Data",
+            "💬 CRM Query",
+            "🔄 CRM Sync",
             "⚙️ Pipeline",
         ]
         assert nav_radios[0].options == expected_options, (

@@ -9,6 +9,7 @@ import streamlit as st
 from streamlit_autorefresh import st_autorefresh
 
 from components.kpi_card import kpi_row
+from components.crm_sync_status import crm_sync_status
 from components.pipeline_diagram import pipeline_diagram
 from utils import api, state
 
@@ -105,6 +106,10 @@ def render() -> None:
         ("Backend", backend_status, ""),
         ("Version", app_version, "📦"),
     ])
+
+    # ── CRM Sync Status ──────────────────────────────────────────────────
+    st.subheader("CRM Sync")
+    crm_sync_status()
 
     # ── Two-column layout ────────────────────────────────────────────────
     col_left, col_right = st.columns(2)

@@ -52,7 +52,7 @@ async def init_db(settings: Settings) -> None:
     engine = create_engine(settings)
     async with engine.begin() as conn:
         from app.models.chunk import Chunk  # noqa: F401
-        from app.models.crm import CrmActivity, CrmContact, CrmDeal  # noqa: F401
+        from app.models.crm import CrmActivity, CrmContact, CrmDeal, CrmSyncRun  # noqa: F401
         from app.models.document import Document  # noqa: F401
         from app.models.user import User  # noqa: F401
         from app.knowledge.models import WikiEntry  # noqa: F401

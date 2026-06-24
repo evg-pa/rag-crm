@@ -23,6 +23,7 @@ PAGE_MODULES: list[dict[str, str]] = [
     {"module": "page_modules.crm_dashboard", "page_key": "crm_dashboard"},
     {"module": "page_modules.crm_data", "page_key": "crm_data"},
     {"module": "page_modules.crm_query", "page_key": "crm_query"},
+    {"module": "page_modules.crm_sync", "page_key": "crm_sync"},
     {"module": "page_modules.pipeline", "page_key": "pipeline"},
 ]
 
@@ -84,6 +85,7 @@ def test_page_keys_map_to_module_names() -> None:
         "📊 CRM Dashboard": "crm_dashboard",
         "🔍 CRM Data": "crm_data",
         "💬 CRM Query": "crm_query",
+        "🔄 CRM Sync": "crm_sync",
         "⚙️ Pipeline": "pipeline",
     }
 

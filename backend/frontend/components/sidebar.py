@@ -26,6 +26,10 @@ def render_sidebar() -> str:
                 "💬 Q&A Chat",
                 "🔍 Search",
                 "📚 Knowledge Base",
+                "📊 CRM Dashboard",
+                "🔍 CRM Data",
+                "💬 CRM Query",
+                "🔄 CRM Sync",
                 "⚙️ Pipeline",
             ],
             index=0,
@@ -74,6 +78,10 @@ def render_sidebar() -> str:
         "💬 Q&A Chat": "qa_chat",
         "🔍 Search": "search",
         "📚 Knowledge Base": "wiki",
+        "📊 CRM Dashboard": "crm_dashboard",
+        "🔍 CRM Data": "crm_data",
+        "💬 CRM Query": "crm_query",
+        "🔄 CRM Sync": "crm_sync",
         "⚙️ Pipeline": "pipeline",
     }
     return page_map.get(selected, "dashboard")

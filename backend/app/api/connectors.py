@@ -10,7 +10,7 @@ from __future__ import annotations
 
 import asyncio
 import uuid
-from datetime import datetime
+from datetime import UTC, datetime
 from typing import Any
 
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query, status
@@ -23,7 +23,7 @@ from app.core.dependencies import get_db_session, get_settings
 from app.core.logging import get_logger
 from app.connectors.adapters.base import BaseCRMAdapter, ContactData, DealData, ActivityData
 from app.connectors.crm import CRMOrchestrator, _get_adapter
-from app.models.crm import CrmActivity, CrmContact, CrmDeal
+from app.models.crm import CrmActivity, CrmContact, CrmDeal, CrmSyncRun
 
 logger = get_logger(__name__)
 
@@ -102,10 +102,24 @@ class SyncResponse(BaseModel):
     message: str = "CRM sync started"
 
 
-class SyncStatusResponse(BaseModel):
-    contacts_synced: int
-    deals_synced: int
-    activities_synced: int
+class SyncStatusOut(BaseModel):
+    """Full sync status for the status widget."""
+    model_config = ConfigDict(from_attributes=True)
+
+    id: uuid.UUID
+    status: str
+    started_at: datetime | None = None
+    completed_at: datetime | None = None
+    contacts_synced: int = 0
+    deals_synced: int = 0
+    activities_synced: int = 0
+    rag_documents_created: int = 0
+    rag_chunks_created: int = 0
+    error_message: str | None = None
+    # Live counts from current DB state
+    total_contacts: int = 0
+    total_deals: int = 0
+    total_activities: int = 0
 
 
 # ── Shared adapter getter ──────────────────────────────────────────────────
@@ -118,12 +132,83 @@ def _get_crm_adapter(settings: Settings = Depends(get_settings)) -> BaseCRMAdapt
 
 
 async def _run_sync(db: AsyncSession, settings: Settings) -> dict:
-    """Run a full CRM sync using the provided DB session."""
-    orchestrator = CRMOrchestrator(db, settings)
-    return await orchestrator.sync()
+    """Run a full CRM sync using the provided DB session.
+
+    Creates a CrmSyncRun record and updates it on completion or error.
+    """
+    run = CrmSyncRun(status="running", started_at=datetime.now(UTC))
+    db.add(run)
+    await db.commit()
+
+    try:
+        orchestrator = CRMOrchestrator(db, settings)
+        stats = await orchestrator.sync()
+
+        run.status = "success"
+        run.completed_at = datetime.now(UTC)
+        run.contacts_synced = stats.get("contacts_synced", 0)
+        run.deals_synced = stats.get("deals_synced", 0)
+        run.activities_synced = stats.get("activities_synced", 0)
+        run.rag_documents_created = stats.get("rag_documents_created", 0)
+        run.rag_chunks_created = stats.get("rag_chunks_created", 0)
+        await db.commit()
+        return stats
+    except Exception as exc:
+        run.status = "error"
+        run.completed_at = datetime.now(UTC)
+        run.error_message = str(exc)
+        await db.commit()
+        logger.exception("CRM sync failed")
+        raise
 
 
 # ── Endpoints ───────────────────────────────────────────────────────────────
+
+
+@router.get("/sync/status", response_model=SyncStatusOut)
+async def get_sync_status(
+    db: AsyncSession = Depends(get_db_session),
+) -> Any:
+    """Return the latest CRM sync run status plus current record counts."""
+
+    # Latest sync run
+    result = await db.execute(
+        select(CrmSyncRun)
+        .order_by(CrmSyncRun.completed_at.desc().nullslast())
+        .limit(1)
+    )
+    latest = result.scalar_one_or_none()
+
+    # Current counts
+    contacts_total = await db.execute(select(func.count(CrmContact.id)))
+    deals_total = await db.execute(select(func.count(CrmDeal.id)))
+    activities_total = await db.execute(select(func.count(CrmActivity.id)))
+
+    if latest is None:
+        # Return a stub — no sync has ever run
+        return SyncStatusOut(
+            id=uuid.uuid4(),
+            status="never",
+            total_contacts=contacts_total.scalar() or 0,
+            total_deals=deals_total.scalar() or 0,
+            total_activities=activities_total.scalar() or 0,
+        )
+
+    return SyncStatusOut(
+        id=latest.id,
+        status=latest.status,
+        started_at=latest.started_at,
+        completed_at=latest.completed_at,
+        contacts_synced=latest.contacts_synced,
+        deals_synced=latest.deals_synced,
+        activities_synced=latest.activities_synced,
+        rag_documents_created=latest.rag_documents_created,
+        rag_chunks_created=latest.rag_chunks_created,
+        error_message=latest.error_message,
+        total_contacts=contacts_total.scalar() or 0,
+        total_deals=deals_total.scalar() or 0,
+        total_activities=activities_total.scalar() or 0,
+    )
 
 
 @router.post("/sync", response_model=SyncResponse, status_code=status.HTTP_202_ACCEPTED)

@@ -56,6 +56,22 @@ elif current_page == "wiki":
     from page_modules.wiki import render as render_wiki
 
     render_wiki()
+elif current_page == "crm_dashboard":
+    from page_modules.crm_dashboard import render as render_crm_dashboard
+
+    render_crm_dashboard()
+elif current_page == "crm_data":
+    from page_modules.crm_data import render as render_crm_data
+
+    render_crm_data()
+elif current_page == "crm_query":
+    from page_modules.crm_query import render as render_crm_query
+
+    render_crm_query()
+elif current_page == "crm_sync":
+    from page_modules.crm_sync import render as render_crm_sync
+
+    render_crm_sync()
 elif current_page == "pipeline":
     from page_modules.pipeline import render as render_pipeline
 

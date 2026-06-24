@@ -173,3 +173,106 @@ def search_wiki(query: str) -> list[dict[str, Any]]:
     r = _get_client().get("/wiki/search", params={"q": query})
     r.raise_for_status()
     return r.json()  # type: ignore[no-any-return]
+
+
+# ── CRM ──────────────────────────────────────────────────────────────────────
+
+
+def list_crm_contacts(
+    offset: int = 0,
+    limit: int = 50,
+    search: str | None = None,
+) -> dict[str, Any]:
+    """GET /connectors/crm/contacts — paginated contact list with optional search."""
+    params: dict[str, Any] = {"offset": offset, "limit": limit}
+    if search:
+        params["search"] = search
+    r = _get_client().get("/connectors/crm/contacts", params=params)
+    r.raise_for_status()
+    return r.json()  # type: ignore[no-any-return]
+
+
+def list_crm_deals(
+    offset: int = 0,
+    limit: int = 50,
+    stage: str | None = None,
+    min_value: float | None = None,
+    close_date_from: str | None = None,
+    close_date_to: str | None = None,
+) -> dict[str, Any]:
+    """GET /connectors/crm/deals — paginated deals with optional filters."""
+    params: dict[str, Any] = {"offset": offset, "limit": limit}
+    if stage:
+        params["stage"] = stage
+    if min_value is not None:
+        params["min_value"] = min_value
+    if close_date_from:
+        params["close_date_from"] = close_date_from
+    if close_date_to:
+        params["close_date_to"] = close_date_to
+    r = _get_client().get("/connectors/crm/deals", params=params)
+    r.raise_for_status()
+    return r.json()  # type: ignore[no-any-return]
+
+
+def list_crm_activities(
+    offset: int = 0,
+    limit: int = 50,
+    contact_id: str | None = None,
+) -> dict[str, Any]:
+    """GET /connectors/crm/activities — paginated activities with optional contact filter."""
+    params: dict[str, Any] = {"offset": offset, "limit": limit}
+    if contact_id:
+        params["contact_id"] = contact_id
+    r = _get_client().get("/connectors/crm/activities", params=params)
+    r.raise_for_status()
+    return r.json()  # type: ignore[no-any-return]
+
+
+def list_crm_contacts_all(
+    offset: int = 0,
+    limit: int = 200,
+) -> dict[str, Any]:
+    """Get all contacts (for use as filter dropdowns in other CRM views)."""
+    return list_crm_contacts(offset=offset, limit=limit)
+
+
+# ── CRM Sync ────────────────────────────────────────────────────────────────
+
+
+def get_sync_status() -> dict[str, Any]:
+    """GET /connectors/crm/sync/status — latest sync run status + record counts."""
+    r = _get_client().get("/connectors/crm/sync/status")
+    r.raise_for_status()
+    return r.json()  # type: ignore[no-any-return]
+
+
+def trigger_sync() -> dict[str, Any]:
+    """POST /connectors/crm/sync — trigger a full CRM sync (returns 202)."""
+    r = _get_client().post("/connectors/crm/sync")
+    r.raise_for_status()
+    return r.json()  # type: ignore[no-any-return]
+
+
+# ── CRM Quick Query ─────────────────────────────────────────────────────────
+
+
+def get_crm_presets() -> dict[str, Any]:
+    """GET /qa/crm/presets — list available CRM quick-query presets."""
+    r = _get_client().get("/qa/crm/presets")
+    r.raise_for_status()
+    return r.json()  # type: ignore[no-any-return]
+
+
+def crm_quick_query(
+    query: str,
+    preset: str | None = None,
+    limit: int = 10,
+) -> dict[str, Any]:
+    """POST /qa/crm/quick-query — direct CRM database lookup."""
+    body: dict[str, Any] = {"query": query, "limit": limit}
+    if preset:
+        body["preset"] = preset
+    r = _get_client().post("/qa/crm/quick-query", json=body)
+    r.raise_for_status()
+    return r.json()  # type: ignore[no-any-return]

@@ -95,6 +95,7 @@ from app.main import app  # noqa: E402
 
 # Ensure all models are imported so create_all sees them
 from app.models.chunk import Chunk  # noqa: E402, F401
+from app.models.crm import CrmActivity, CrmContact, CrmDeal  # noqa: E402, F401
 from app.models.document import Document  # noqa: E402, F401
 from app.models.user import User  # noqa: E402, F401
 from app.knowledge.models import WikiEntry  # noqa: E402, F401
@@ -247,3 +248,15 @@ async def unauth_client(_setup_database, _clean_db) -> AsyncIterator[AsyncClient
 def get_auth_headers(access_token: str) -> dict[str, str]:
     """Return the Authorization header dict for the given access token."""
     return {"Authorization": f"Bearer {access_token}"}
+
+
+@pytest.fixture
+async def _sync_crm(_setup_database, _clean_db) -> None:
+    """Run a full CRM sync to populate mock data before API tests."""
+    from app.connectors.crm import CRMOrchestrator
+    from app.core.config import Settings
+
+    settings = Settings(CRM_ADAPTER="mock", CRM_RAG_BRIDGE=False)
+    async with TEST_SESSION_FACTORY() as db:
+        orchestrator = CRMOrchestrator(db, settings)
+        await orchestrator.sync()

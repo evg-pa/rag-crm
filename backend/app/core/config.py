@@ -40,6 +40,13 @@ class Settings(BaseSettings):
     # LLM defaults
     LLM_TEMPERATURE: float = 0.0
 
+    # CRM Connector
+    CRM_ADAPTER: str = "mock"  # "mock" or "rest"
+    CRM_SYNC_FREQUENCY: str = "hourly"  # hourly | daily | manual
+    CRM_RAG_BRIDGE: bool = False  # If true, create Document+Chunk from CRM entities
+    CRM_REST_BASE_URL: str = ""  # Base URL for the REST CRM adapter
+    CRM_REST_API_KEY: str = ""  # API key for the REST CRM adapter
+
     # Auth
     JWT_SECRET_KEY: str = ""
     JWT_ALGORITHM: str = "HS256"

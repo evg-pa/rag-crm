@@ -27,6 +27,12 @@ class Settings(BaseSettings):
     DEEPSEEK_API_KEY: str = ""
     DEEPSEEK_BASE_URL: str = "https://api.deepseek.com"
 
+    # LLM — generic (any OpenAI-compatible provider)
+    # Overrides DEEPSEEK_* when set
+    LLM_API_KEY: str = ""
+    LLM_BASE_URL: str = ""
+    LLM_MODEL: str = ""
+
     # Ollama (local fallback)
     OLLAMA_BASE_URL: str = "http://localhost:11434"
 

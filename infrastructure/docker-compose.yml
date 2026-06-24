@@ -31,7 +31,7 @@ services:
     build:
       context: ../backend
       dockerfile: Dockerfile
-    image: rag-backend:latest
+    image: rag-backend:fixed
     container_name: rag-backend
     environment:
       DATABASE_URL: postgresql+asyncpg://rag_user:rag_pass@postgres:5432/rag_crm
@@ -40,6 +40,9 @@ services:
       APP_NAME: RAG-CRM
       APP_VERSION: "0.1.0"
       LOG_LEVEL: INFO
+      LLM_API_KEY: ${LLM_API_KEY:-}
+      LLM_BASE_URL: ${LLM_BASE_URL:-}
+      LLM_MODEL: ${LLM_MODEL:-}
       JWT_SECRET_KEY: ${JWT_SECRET_KEY:-dev-jwt-secret-change-me-in-production}
     ports:
       - "8000:8000"
@@ -61,7 +64,7 @@ services:
       dockerfile: Dockerfile
     container_name: rag-frontend
     environment:
-      BACKEND_URL: http://backend:8000
+      BACKEND_URL: http://rag-backend:8000
     ports:
       - "8501:8501"
     depends_on:

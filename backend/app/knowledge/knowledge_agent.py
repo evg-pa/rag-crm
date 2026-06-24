@@ -103,10 +103,11 @@ class KnowledgeAgent:
             {"role": "user", "content": user_prompt},
         ]
 
-        # Try DeepSeek API first
-        if self._settings.DEEPSEEK_API_KEY:
+        # Try LLM (any OpenAI-compatible provider)
+        api_key = self._settings.LLM_API_KEY or self._settings.DEEPSEEK_API_KEY
+        if api_key and api_key != "***":
             try:
-                return await self._call_deepseek(messages)
+                return await self._call_llm_api(messages)
             except Exception:
                 pass
 
@@ -122,15 +123,23 @@ class KnowledgeAgent:
             "topics": [],
         })
 
-    async def _call_deepseek(self, messages: list[dict[str, str]]) -> str:
-        """Call the DeepSeek chat completions API."""
-        url = f"{self._settings.DEEPSEEK_BASE_URL}/v1/chat/completions"
+    async def _call_llm_api(self, messages: list[dict[str, str]]) -> str:
+        """Call any OpenAI-compatible chat completions API.
+
+        Uses LLM_API_KEY / LLM_BASE_URL / LLM_MODEL when set,
+        falls back to DEEPSEEK_API_KEY / DEEPSEEK_BASE_URL / "deepseek-chat".
+        """
+        api_key = self._settings.LLM_API_KEY or self._settings.DEEPSEEK_API_KEY
+        base_url = self._settings.LLM_BASE_URL or self._settings.DEEPSEEK_BASE_URL
+        model = self._settings.LLM_MODEL or "deepseek-chat"
+
+        url = f"{base_url.rstrip('/')}/v1/chat/completions"
         headers = {
-            "Authorization": f"Bearer {self._settings.DEEPSEEK_API_KEY}",
+            "Authorization": f"Bearer {api_key}",
             "Content-Type": "application/json",
         }
         payload: dict[str, Any] = {
-            "model": "deepseek-chat",
+            "model": model,
             "messages": messages,
             "temperature": self._settings.LLM_TEMPERATURE,
             "max_tokens": 512,

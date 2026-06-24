@@ -15,20 +15,30 @@ Retrieval-Augmented Generation CRM — a multi-agent RAG system that understands
 ./setup.sh
 ```
 
-You'll be prompted for a **DeepSeek API key** — this connects a neural network so RAG can answer your questions about documents.
+You'll be guided to pick an **LLM provider** and paste your API key — this connects a neural network so RAG can answer your questions about documents.
 
-> **Where to get a key:** Sign up at [platform.deepseek.com](https://platform.deepseek.com/api_keys) (free credits available).
+**Supported providers:** DeepSeek, OpenAI, Together AI, Groq, OpenRouter, or any custom OpenAI-compatible endpoint.
 
-To skip the prompt, pass the key directly:
+### Quick examples
 
 ```bash
+# Interactive (choose provider from a menu)
+./setup.sh
+
+# DeepSeek (default)
 ./setup.sh -k ***
-```
 
-Or with `curl` for a fully scripted install:
+# OpenAI
+./setup.sh -k *** -u https://api.openai.com -m gpt-4o-mini
 
-```bash
-curl -sL https://your-repo-url/raw/setup.sh | bash -s -- -k ***
+# Together AI
+./setup.sh -k *** -u https://api.together.xyz -m mistralai/Mixtral-8x7B-Instruct-v0.1
+
+# Groq
+./setup.sh -k *** -u https://api.groq.com/openai -m llama3-70b-8192
+
+# OpenRouter
+./setup.sh -k *** -u https://openrouter.ai/api/v1 -m openai/gpt-4o-mini
 ```
 
 The script handles everything: creates the config, starts all services, and waits for everything to be healthy.
@@ -40,7 +50,7 @@ The script handles everything: creates the config, starts all services, and wait
 RAG will still run and index your documents — but the AI won't be able to answer questions about them. You can add a key later by editing `.env` and restarting:
 
 ```bash
-# Edit .env with your key, then:
+# Edit .env — set LLM_API_KEY, LLM_BASE_URL, LLM_MODEL
 docker compose -f infrastructure/docker-compose.yml restart backend
 ```
 
@@ -65,7 +75,7 @@ User Query → FastAPI → LangGraph State Machine
   ├── Retrieval Agent  → pgvector + BM25 → RRF Fusion
   ├── Reranker Agent   → BGE-Reranker
   ├── Knowledge Agent  → LLM Wiki
-  ├── Answer Agent     → DeepSeek / Ollama
+  ├── Answer Agent     → Any OpenAI-compatible LLM
   ├── Critic Agent     → Answer validation
   └── Memory Agent     → 4-layer memory
 ```
@@ -74,7 +84,7 @@ User Query → FastAPI → LangGraph State Machine
 
 ```bash
 cp .env.example .env       # Create config
-# Edit .env — add DEEPSEEK_API_KEY
+# Edit .env — set LLM_API_KEY, LLM_BASE_URL, LLM_MODEL
 
 docker compose -f infrastructure/docker-compose.yml up -d
 ```

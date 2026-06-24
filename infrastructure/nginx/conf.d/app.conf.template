@@ -59,7 +59,7 @@ server {
     # ── Backend API (FastAPI on port 8000) ───────────────────────
     location /api/ {
         limit_req zone=api_limit burst=50 nodelay;
-        proxy_pass http://backend;
+        proxy_pass http://backend:8000;
         proxy_http_version 1.1;
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
@@ -72,7 +72,7 @@ server {
 
     # Backend docs (Swagger, ReDoc)
     location /docs {
-        proxy_pass http://backend;
+        proxy_pass http://backend:8000;
         proxy_http_version 1.1;
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
@@ -81,13 +81,13 @@ server {
     }
 
     location /openapi.json {
-        proxy_pass http://backend;
+        proxy_pass http://backend:8000;
         proxy_http_version 1.1;
         proxy_set_header Host $host;
     }
 
     location /redoc {
-        proxy_pass http://backend;
+        proxy_pass http://backend:8000;
         proxy_http_version 1.1;
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
@@ -97,7 +97,7 @@ server {
 
     # Health checks
     location /health/ {
-        proxy_pass http://backend;
+        proxy_pass http://backend:8000;
         proxy_http_version 1.1;
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
@@ -106,7 +106,7 @@ server {
     # ── Frontend (Streamlit on port 8501) ────────────────────────
     # WebSocket endpoint (must come before the catch-all /)
     location /_stcore/stream {
-        proxy_pass http://frontend;
+        proxy_pass http://frontend:8501;
         proxy_http_version 1.1;
         proxy_set_header Upgrade $http_upgrade;
         proxy_set_header Connection "upgrade";
@@ -118,7 +118,7 @@ server {
     }
 
     location /_stcore/ {
-        proxy_pass http://frontend;
+        proxy_pass http://frontend:8501;
         proxy_http_version 1.1;
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
@@ -128,7 +128,7 @@ server {
 
     # Catch-all → frontend
     location / {
-        proxy_pass http://frontend;
+        proxy_pass http://frontend:8501;
         proxy_http_version 1.1;
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;

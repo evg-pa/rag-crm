@@ -1,44 +1,35 @@
-"""E2E tests for theme toggle functionality."""
+"""E2E tests for theme toggle functionality.
+
+NOTE: The ``page`` fixture already logs in.
+"""
 
 from __future__ import annotations
 
-import pytest
 from playwright.sync_api import Page, expect
 
 
 class TestThemeToggle:
     """Dark/Light theme toggle works in the browser."""
 
-    def test_theme_toggle_button_visible(self, page: Page, base_url: str) -> None:
+    def test_theme_toggle_button_visible(self, page: Page) -> None:
         """Theme toggle button renders in the sidebar."""
-        page.goto(base_url)
-        page.wait_for_load_state("networkidle")
-
         sidebar = page.locator("section[data-testid='stSidebar']")
         toggle = sidebar.get_by_role("button").filter(has_text="🌙")
         expect(toggle).to_be_visible()
 
-    def test_toggle_switches_to_light(self, page: Page, base_url: str) -> None:
+    def test_toggle_switches_to_light(self, page: Page) -> None:
         """Clicking the toggle changes the button label from 🌙 to ☀️."""
-        page.goto(base_url)
-        page.wait_for_load_state("networkidle")
-
         sidebar = page.locator("section[data-testid='stSidebar']")
-        # Find and click the toggle
         toggle = sidebar.get_by_role("button").filter(has_text="🌙")
         expect(toggle).to_be_visible()
         toggle.click()
-        page.wait_for_timeout(1500)  # Wait for rerun
+        page.wait_for_timeout(1500)
 
-        # Now the button should show the light mode label
         light_toggle = sidebar.get_by_role("button").filter(has_text="☀️")
         expect(light_toggle).to_be_visible()
 
-    def test_toggle_roundtrip(self, page: Page, base_url: str) -> None:
+    def test_toggle_roundtrip(self, page: Page) -> None:
         """Toggle: dark → light → dark works."""
-        page.goto(base_url)
-        page.wait_for_load_state("networkidle")
-
         sidebar = page.locator("section[data-testid='stSidebar']")
 
         # Dark → Light

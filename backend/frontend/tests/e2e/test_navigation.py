@@ -2,6 +2,9 @@
 
 Verifies the single unified navigation works correctly,
 no duplicate nav exists, and all pages load without errors.
+
+NOTE: The ``page`` fixture already logs in and is at the app root.
+Do NOT call ``page.goto(base_url)`` — that would reset the auth.
 """
 
 from __future__ import annotations
@@ -24,20 +27,17 @@ class TestNavigation:
     """All 6 nav options load correctly."""
 
     @pytest.mark.parametrize(
-        ("nav_text", "expected_path_segment", "expected_title"),
-        NAV_OPTIONS,
+        ("nav_text", "expected_title"),
+        [(n[0], n[2]) for n in NAV_OPTIONS],
         ids=[n[1] for n in NAV_OPTIONS],
     )
     def test_nav_loads_page(
         self,
         page: Page,
-        base_url: str,
         nav_text: str,
-        expected_path_segment: str,
         expected_title: str,
     ) -> None:
         """Clicking each nav option loads the correct page."""
-        page.goto(base_url)
         page.wait_for_load_state("networkidle")
 
         # Click the nav radio item by its label text
@@ -46,16 +46,14 @@ class TestNavigation:
         radio_label.click()
         page.wait_for_timeout(1000)  # Let Streamlit re-render
 
-        # Verify page content loaded — look for the page title
+        # Verify page content loaded
         body = page.locator("body")
         expect(body).to_contain_text(expected_title)
 
-    def test_no_duplicate_sidebar_nav(self, page: Page, base_url: str) -> None:
+    def test_no_duplicate_sidebar_nav(self, page: Page) -> None:
         """Only ONE radiogroup with 6 nav items exists (no auto-nav)."""
-        page.goto(base_url)
         page.wait_for_load_state("networkidle")
 
-        # Count radio groups in the sidebar
         radios = page.locator(
             "section[data-testid='stSidebar'] div[role='radiogroup']"
         )
@@ -73,27 +71,19 @@ class TestNavigation:
             "If >6, auto-generated pages/ nav might be duplicating."
         )
 
-    def test_sidebar_title(self, page: Page, base_url: str) -> None:
+    def test_sidebar_title(self, page: Page) -> None:
         """Sidebar shows RAG-CRM heading."""
-        page.goto(base_url)
         page.wait_for_load_state("networkidle")
-
         sidebar = page.locator("section[data-testid='stSidebar']")
         expect(sidebar).to_contain_text("RAG-CRM")
 
-    def test_version_in_sidebar(self, page: Page, base_url: str) -> None:
+    def test_version_in_sidebar(self, page: Page) -> None:
         """Sidebar footer shows version."""
-        page.goto(base_url)
-        page.wait_for_load_state("networkidle")
-
         sidebar = page.locator("section[data-testid='stSidebar']")
         expect(sidebar).to_contain_text("v0.1.0")
 
-    def test_top_k_slider_exists(self, page: Page, base_url: str) -> None:
+    def test_top_k_slider_exists(self, page: Page) -> None:
         """Search Top-K slider is present in sidebar."""
-        page.goto(base_url)
-        page.wait_for_load_state("networkidle")
-
         slider = page.locator("section[data-testid='stSidebar']").locator(
             "div[data-testid='stSlider']"
         )

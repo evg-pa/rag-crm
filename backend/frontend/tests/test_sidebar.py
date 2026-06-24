@@ -8,16 +8,14 @@ and version info.
 from __future__ import annotations
 
 import pytest
-from streamlit.testing.v1 import AppTest
 
 
 class TestSidebarRendering:
     """The sidebar should render all navigation and control elements."""
 
     @pytest.fixture(autouse=True)
-    def _setup(self) -> None:
-        self.at = AppTest.from_file("app.py")
-        self.at.run()
+    def _setup(self, app) -> None:  # noqa: ANN001
+        self.at = app
 
     def test_sidebar_has_title(self) -> None:
         """Sidebar displays the RAG-CRM heading."""

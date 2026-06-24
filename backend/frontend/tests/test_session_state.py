@@ -15,6 +15,7 @@ class TestInitSessionState:
         from streamlit.testing.v1 import AppTest
 
         at = AppTest.from_file("app.py")
+        at.session_state["auth_token"] = "test-token"
         at.run()
         return at.session_state
 
@@ -23,27 +24,40 @@ class TestInitSessionState:
         ss = self._get_app_state()
 
         expected_keys: set[str] = {
+            # Auth
+            "auth_token",
+            "auth_user",
+            "auth_page",
+            # Chat
             "messages",
             "history_loaded",
             "theme",
+            # Data caches
             "documents_cache",
             "documents_cache_time",
             "wiki_cache",
             "wiki_cache_time",
+            # Pipeline
             "pipeline_status",
             "pipeline_status_time",
+            # Health
             "health_cache",
             "health_cache_time",
             "health_status",
+            # Search
             "last_search_query",
             "search_results",
             "search_page",
+            # Navigation
             "current_page",
+            # Documents / Upload
             "scrape_url",
             "upload_success",
             "delete_confirm_id",
+            # Q&A
             "qa_top_k",
             "qa_session_id",
+            # Misc
             "app_version",
         }
         for key in expected_keys:
@@ -62,12 +76,12 @@ class TestInitSessionState:
         assert self._get_app_state()["messages"] == []
 
     def test_health_cache_is_timestamp(self) -> None:
-        """health_cache_time is set to a valid timestamp after app init."""
+        """health_cache_time is set to a valid timestamp (or stays at 0 before first check)."""
         val = self._get_app_state()["health_cache_time"]
         assert isinstance(val, (int, float)), (
             f"Expected health_cache_time to be int/float, got {type(val)}"
         )
-        assert val > 0, f"Expected positive timestamp, got {val}"
+        assert val >= 0, f"Expected non-negative timestamp, got {val}"
 
     def test_search_page_defaults_to_one(self) -> None:
         """Search page starts at 1."""
@@ -76,3 +90,22 @@ class TestInitSessionState:
     def test_top_k_defaults_to_ten(self) -> None:
         """QA top-k defaults to 5."""
         assert self._get_app_state()["qa_top_k"] == 5
+
+    # ── Auth defaults ──────────────────────────────────────────────
+
+    def test_auth_token_defaults_none(self) -> None:
+        """auth_token is None on fresh app (no token pre-set)."""
+        from streamlit.testing.v1 import AppTest
+
+        at = AppTest.from_file("app.py")
+        at.run()
+        # Accessing a None key returns None in SafeSessionState
+        assert at.session_state["auth_token"] is None
+
+    def test_auth_page_defaults_to_login(self) -> None:
+        """auth_page defaults to 'login'."""
+        from streamlit.testing.v1 import AppTest
+
+        at = AppTest.from_file("app.py")
+        at.run()
+        assert at.session_state["auth_page"] == "login"

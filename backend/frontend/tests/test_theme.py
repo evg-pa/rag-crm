@@ -7,16 +7,14 @@ between dark and light modes.
 from __future__ import annotations
 
 import pytest
-from streamlit.testing.v1 import AppTest
 
 
 class TestThemeToggle:
     """Theme toggle toggles between dark and light states."""
 
     @pytest.fixture(autouse=True)
-    def _setup(self) -> None:
-        self.at = AppTest.from_file("app.py")
-        self.at.run()
+    def _setup(self, app) -> None:  # noqa: ANN001
+        self.at = app
 
     def test_theme_defaults_to_dark(self) -> None:
         """Initial theme is 'dark'."""

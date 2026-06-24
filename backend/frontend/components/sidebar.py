@@ -1,8 +1,10 @@
-"""Sidebar navigation component."""
+"""Sidebar navigation component — includes user info and logout."""
 
 from __future__ import annotations
 
 import streamlit as st
+
+from utils.state import logout
 
 
 def render_sidebar() -> str:
@@ -17,6 +19,18 @@ def render_sidebar() -> str:
             unsafe_allow_html=True,
         )
 
+        # ── User info ──────────────────────────────────────────────────
+        user = st.session_state.get("auth_user")
+        if user:
+            display = user.get("display_name") or user.get("email", "User")
+            col_user, col_logout = st.columns([3, 1])
+            with col_user:
+                st.caption(f"👤 {display}")
+            with col_logout:
+                if st.button("🚪", key="logout_btn", help="Log out"):
+                    logout()
+
+        # ── Navigation ─────────────────────────────────────────────────
         selected = st.radio(
             "Navigation",
             options=[
@@ -36,11 +50,12 @@ def render_sidebar() -> str:
 
         # Theme toggle
         from utils.theme import theme_toggle
+
         theme_toggle()
 
         st.divider()
 
-        # Top-K slider for search/Q&A (contextual but always available)
+        # Top-K slider for search/Q&A
         st.caption("⚙️ Settings")
         top_k = st.slider(
             "Search Top-K",

@@ -2,6 +2,9 @@
 
 Uses st.testing.v1.AppTest to run the Streamlit app in a
 headless subprocess for component-level testing.
+
+Sets a test auth token by default so the app renders the
+authenticated sidebar + pages (not the login page).
 """
 
 from __future__ import annotations
@@ -15,25 +18,26 @@ from streamlit.testing.v1 import AppTest
 
 @pytest.fixture(scope="function")
 def app() -> Generator[AppTest, None, None]:
-    """Load the Streamlit app and run it via AppTest.
+    """Load the Streamlit app with a test auth token.
 
-    Mocks out httpx client calls so the app doesn't need
-    a live backend during unit tests.
+    Sets auth_token before AppTest.run() so the app skips the
+    login page and renders the authenticated sidebar + routing.
     """
     at = AppTest.from_file("app.py")
-    # Mock the full httpx module so page rendering doesn't fail
+    # Pre-set auth token so the app authenticates on startup
+    at.session_state["auth_token"] = "test-token-for-apptest"
+    at.run()
+    yield at
+
+
+@pytest.fixture(scope="function")
+def app_authenticated() -> Generator[AppTest, None, None]:
+    """Load app with auth token and mocked API — for page tests."""
+    at = AppTest.from_file("app.py")
+    at.session_state["auth_token"] = "test-token"
     with patch("httpx.Client") as mock_client:
         mock_instance = mock_client.return_value
         mock_instance.get.return_value.raise_for_status.return_value = None
         mock_instance.get.return_value.json.return_value = {}
-
         at.run()
         yield at
-
-
-@pytest.fixture(scope="function")
-def app_no_mock() -> Generator[AppTest, None, None]:
-    """Load app WITHOUT mocking — catches import issues."""
-    at = AppTest.from_file("app.py")
-    at.run()
-    yield at

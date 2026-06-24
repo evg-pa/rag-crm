@@ -28,6 +28,9 @@ def _handle_upload(uploaded_files) -> None:
                 icon="✅",
             )
         except Exception as exc:
+            if api.is_unauthorized(exc):
+                state.logout()
+                return
             fail_count += 1
             st.toast(f"❌ Failed to upload **{uploaded_file.name}**: {exc}", icon="❌")
 
@@ -54,6 +57,9 @@ def _handle_scrape(url: str) -> None:
         )
         state.invalidate_caches()
     except Exception as exc:
+        if api.is_unauthorized(exc):
+            state.logout()
+            return
         st.error(f"❌ Failed to scrape URL: {exc}")
 
 
@@ -64,6 +70,9 @@ def _handle_delete(document_id: str) -> None:
         st.toast(f"✅ Document deleted: {result.get('status', 'ok')}", icon="🗑️")
         state.invalidate_caches()
     except Exception as exc:
+        if api.is_unauthorized(exc):
+            state.logout()
+            return
         st.error(f"❌ Failed to delete document: {exc}")
     st.session_state.delete_confirm_id = None
 

@@ -20,6 +20,9 @@ PAGE_MODULES: list[dict[str, str]] = [
     {"module": "page_modules.qa_chat", "page_key": "qa_chat"},
     {"module": "page_modules.search", "page_key": "search"},
     {"module": "page_modules.wiki", "page_key": "wiki"},
+    {"module": "page_modules.crm_dashboard", "page_key": "crm_dashboard"},
+    {"module": "page_modules.crm_data", "page_key": "crm_data"},
+    {"module": "page_modules.crm_query", "page_key": "crm_query"},
     {"module": "page_modules.pipeline", "page_key": "pipeline"},
 ]
 
@@ -78,6 +81,9 @@ def test_page_keys_map_to_module_names() -> None:
         "💬 Q&A Chat": "qa_chat",
         "🔍 Search": "search",
         "📚 Knowledge Base": "wiki",
+        "📊 CRM Dashboard": "crm_dashboard",
+        "🔍 CRM Data": "crm_data",
+        "💬 CRM Query": "crm_query",
         "⚙️ Pipeline": "pipeline",
     }
 

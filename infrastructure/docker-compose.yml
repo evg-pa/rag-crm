@@ -44,6 +44,9 @@ services:
       LLM_BASE_URL: ${LLM_BASE_URL:-}
       LLM_MODEL: ${LLM_MODEL:-}
       JWT_SECRET_KEY: ${JWT_SECRET_KEY:-dev-jwt-secret-change-me-in-production}
+      CRM_ADAPTER: ${CRM_ADAPTER:-mock}
+      CRM_SYNC_FREQUENCY: ${CRM_SYNC_FREQUENCY:-manual}
+      CRM_RAG_BRIDGE: ${CRM_RAG_BRIDGE:-false}
     ports:
       - "8000:8000"
     depends_on:

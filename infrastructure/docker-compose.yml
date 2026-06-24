@@ -31,6 +31,7 @@ services:
     build:
       context: ../backend
       dockerfile: Dockerfile
+    image: rag-backend:latest
     container_name: rag-backend
     environment:
       DATABASE_URL: postgresql+asyncpg://rag_user:rag_pass@postgres:5432/rag_crm

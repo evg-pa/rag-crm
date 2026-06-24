@@ -1,0 +1,5 @@
+# Ignore real certificates and ACME challenge files
+# Only .gitkeep and this .gitignore are committed
+*
+!.gitkeep
+!.gitignore

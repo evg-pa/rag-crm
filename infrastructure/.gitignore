@@ -1,2 +1,7 @@
 # Generated nginx config (created by init-letsencrypt.sh from template)
 nginx/conf.d/app.conf
+
+# Backup archives (large, generated)
+backups/*.dump
+backups/backup.log
+backups/.last_backup_status

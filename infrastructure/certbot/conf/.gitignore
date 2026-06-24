@@ -1,0 +1,4 @@
+# Ignore real Let's Encrypt certificates and account data
+*
+!.gitkeep
+!.gitignore

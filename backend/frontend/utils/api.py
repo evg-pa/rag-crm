@@ -2,9 +2,6 @@
 
 Uses synchronous httpx client (Streamlit's execution model is synchronous).
 Base URL is configurable via BACKEND_URL env var or defaults to localhost:8000.
-
-Includes JWT auth: login/register obtains a token which is automatically
-added to all subsequent requests.
 """
 
 from __future__ import annotations
@@ -19,19 +16,6 @@ BACKEND_URL: str = os.environ.get("BACKEND_URL", "http://localhost:8000")
 TIMEOUT: float = float(os.environ.get("BACKEND_TIMEOUT", "120.0"))
 
 
-def is_unauthorized(exc: Exception) -> bool:
-    """Return True if *exc* is a 401 response, indicating the token expired."""
-    return isinstance(exc, httpx.HTTPStatusError) and exc.response.status_code == 401
-
-
-def _get_headers() -> dict[str, str]:
-    """Return auth headers if a token is stored in session state."""
-    token = st.session_state.get("auth_token")
-    if token:
-        return {"Authorization": f"Bearer {token}"}
-    return {}
-
-
 def _get_client() -> httpx.Client:
     """Return (or create and cache) a synchronous httpx client."""
     if "api_client" not in st.session_state:
@@ -39,57 +23,7 @@ def _get_client() -> httpx.Client:
             base_url=BACKEND_URL,
             timeout=TIMEOUT,
         )
-    client: httpx.Client = st.session_state.api_client
-    # Update auth header from current session state
-    token = st.session_state.get("auth_token")
-    if token:
-        client.headers.update({"Authorization": f"Bearer {token}"})
-    else:
-        client.headers.pop("Authorization", None)
-    return client
-
-
-# ── Auth ─────────────────────────────────────────────────────────────────────
-
-
-def login(email: str, password: str) -> dict[str, Any]:
-    """POST /auth/login — authenticate and receive JWT tokens."""
-    r = _get_client().post(
-        "/auth/login",
-        json={"email": email, "password": password},
-    )
-    r.raise_for_status()
-    return r.json()  # type: ignore[no-any-return]
-
-
-def register(email: str, password: str, display_name: str = "") -> dict[str, Any]:
-    """POST /auth/register — create account and receive JWT tokens."""
-    r = _get_client().post(
-        "/auth/register",
-        json={"email": email, "password": password, "display_name": display_name},
-    )
-    r.raise_for_status()
-    return r.json()  # type: ignore[no-any-return]
-
-
-def get_me() -> dict[str, Any]:
-    """GET /auth/me — return the currently authenticated user's profile."""
-    r = _get_client().get(
-        "/auth/me",
-        headers=_get_headers(),
-    )
-    r.raise_for_status()
-    return r.json()  # type: ignore[no-any-return]
-
-
-def refresh_token(refresh_token_str: str) -> dict[str, Any]:
-    """POST /auth/refresh — exchange a refresh token for a new token pair."""
-    r = _get_client().post(
-        "/auth/refresh",
-        json={"refresh_token": refresh_token_str},
-    )
-    r.raise_for_status()
-    return r.json()  # type: ignore[no-any-return]
+    return st.session_state.api_client
 
 
 # ── Health ───────────────────────────────────────────────────────────────────
@@ -127,11 +61,7 @@ def get_document(document_id: str) -> dict[str, Any]:
 
 
 def upload_document(file_bytes: bytes, filename: str) -> dict[str, Any]:
-    """POST /documents/upload — upload a file for ingestion.
-
-    Sends the Bearer token via _get_client() which is automatically
-    set from st.session_state.auth_token.
-    """
+    """POST /documents/upload — upload a file for ingestion."""
     r = _get_client().post(
         "/documents/upload",
         files={"file": (filename, file_bytes)},

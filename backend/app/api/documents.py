@@ -17,7 +17,6 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from app.core.auth import get_current_user
 from app.core.dependencies import get_db_session
 from app.core.logging import get_logger
 from app.ingestion import get_all_supported_extensions, ingest_document
@@ -25,7 +24,6 @@ from app.ingestion.parsers.registry import get_ext_to_content_type_map, get_pars
 from app.ingestion.parsers.scraper import WebScraper
 from app.models.chunk import Chunk
 from app.models.document import Document
-from app.models.user import User
 from app.retrieval.embeddings import get_embedding_model
 from app.retrieval.keyword import BM25Index
 
@@ -236,11 +234,10 @@ async def _persist_and_embed(
 async def upload_document(
     file: UploadFile,
     db: AsyncSession = Depends(get_db_session),
-    current_user: User = Depends(get_current_user),
 ) -> Any:
     """Upload a document file, parse it, split into chunks, and persist.
 
-    Requires authentication. The document is owned by the authenticated user.
+    Open to all users (no authentication required).
     Supported formats: .pdf, .docx, .html, .htm, .md, .txt
     The pipeline: raw bytes → plain text → chunks → DB rows.
     No LLM calls are made during ingestion.
@@ -295,7 +292,7 @@ async def upload_document(
         text=text,
         chunk_results=chunk_results,
         metadata=metadata,
-        user_id=current_user.id,
+        user_id=None,
     )
 
     return UploadResponse(
@@ -309,11 +306,10 @@ async def upload_document(
 async def scrape_url(
     body: ScrapeRequest,
     db: AsyncSession = Depends(get_db_session),
-    current_user: User = Depends(get_current_user),
 ) -> Any:
     """Scrape a public web page, extract text, chunk, and store.
 
-    Requires authentication. The document is owned by the authenticated user.
+    Open to all users (no authentication required).
     Only HTTP/HTTPS URLs are allowed. Private network addresses are rejected.
     The page is fetched, HTML is stripped to plain text, then the text is
     chunked and stored like any other document.
@@ -377,7 +373,7 @@ async def scrape_url(
         text=result.text,
         chunk_results=chunk_results,
         metadata=metadata if metadata else None,
-        user_id=current_user.id,
+        user_id=None,
     )
 
     return ScrapeResponse(
@@ -400,12 +396,10 @@ async def list_supported_extensions() -> dict[str, Any]:
 @router.get("", response_model=list[DocumentListOut])
 async def list_documents(
     db: AsyncSession = Depends(get_db_session),
-    current_user: User = Depends(get_current_user),
 ) -> Any:
-    """List documents owned by the authenticated user (without chunk content for brevity)."""
+    """List all documents (without chunk content for brevity)."""
     result = await db.execute(
         select(Document)
-        .where(Document.user_id == current_user.id)
         .order_by(Document.created_at.desc())
     )
     documents = result.scalars().all()
@@ -416,16 +410,11 @@ async def list_documents(
 async def get_document(
     document_id: uuid.UUID,
     db: AsyncSession = Depends(get_db_session),
-    current_user: User = Depends(get_current_user),
 ) -> Any:
-    """Get a single document with its chunks, ordered by chunk_index.
-
-    Only returns the document if it is owned by the authenticated user.
-    """
+    """Get a single document with its chunks, ordered by chunk_index."""
     result = await db.execute(
         select(Document)
         .where(Document.id == document_id)
-        .where(Document.user_id == current_user.id)
         .options(selectinload(Document.chunks))
     )
     document = result.scalar_one_or_none()
@@ -442,17 +431,14 @@ async def get_document(
 async def delete_document(
     document_id: uuid.UUID,
     db: AsyncSession = Depends(get_db_session),
-    current_user: User = Depends(get_current_user),
 ) -> dict[str, str]:
     """Delete a document, its chunks (ORM cascade), and wiki entry (DB cascade).
 
-    Only allows deletion if the document is owned by the authenticated user.
     Rebuilds the BM25 index after deletion so removed chunks are no longer searchable.
     """
     result = await db.execute(
         select(Document)
         .where(Document.id == document_id)
-        .where(Document.user_id == current_user.id)
     )
     document = result.scalar_one_or_none()
     if document is None:

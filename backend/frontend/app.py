@@ -1,8 +1,6 @@
 """RAG-CRM Streamlit Frontend — Multi-page document management + Q&A UI.
 
-Auth is OPTIONAL: unauthenticated users can browse search, Q&A, wiki,
-and pipeline pages. Only document upload/scrape/delete/list requires
-sign-in, with a helpful prompt shown in place of the upload area.
+Open to all users (no authentication required).
 """
 
 from __future__ import annotations
@@ -32,23 +30,13 @@ st.set_page_config(
 init_session_state()
 init_theme()
 
-# ── Sidebar navigation (always rendered, auth is optional) ─────────────────
+# ── Sidebar navigation ─────────────────────────────────────────────────────
 
 current_page = render_sidebar()
 
-# Allow programmatic navigation via session state (e.g. sidebar login button,
-# or AppTest tests that set current_page before run).
-override = st.session_state.get("current_page")
-if override in ("login",):
-    current_page = override
-
 # ── Route to page ──────────────────────────────────────────────────────────
 
-if current_page == "login":
-    from page_modules.login import render as render_login
-
-    render_login()
-elif current_page == "dashboard":
+if current_page == "dashboard":
     from page_modules.dashboard import render as render_dashboard
 
     render_dashboard()

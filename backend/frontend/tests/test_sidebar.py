@@ -72,43 +72,18 @@ class TestSidebarRendering:
         """Session state has app_version set."""
         assert self.at.session_state["app_version"] == "0.1.0"
 
-
-class TestUnauthenticatedSidebar:
-    """Sidebar for unauthenticated users (no auth_token)."""
-
-    def test_sign_in_button_exists(self) -> None:
-        """Unauthenticated sidebar has a Sign In button."""
-        from streamlit.testing.v1 import AppTest
-
-        at = AppTest.from_file("app.py")
-        at.run()  # no auth_token
-
-        buttons = at.sidebar.button
-        sign_in_btns = [b for b in buttons if b.key == "login_nav_btn"]
-        assert len(sign_in_btns) >= 1, (
-            "Sidebar should have a Sign In button for unauthenticated users"
+    def test_no_auth_button_in_sidebar(self) -> None:
+        """Sidebar has no Sign In button (auth removed)."""
+        buttons = self.at.sidebar.button
+        auth_btns = [b for b in buttons if b.key == "login_nav_btn" or "Sign In" in str(b)]
+        assert len(auth_btns) == 0, (
+            "Sign In button found in sidebar — auth should be fully removed"
         )
 
-    def test_nav_radio_still_six_options(self) -> None:
-        """Unauthenticated sidebar still shows 6 nav options (login is a button, not an option)."""
-        from streamlit.testing.v1 import AppTest
-
-        at = AppTest.from_file("app.py")
-        at.run()  # no auth_token
-
-        radio = at.sidebar.radio
-        nav_radios = [r for r in radio if r.key == "nav_radio"]
-        assert len(nav_radios) == 1, "Expected exactly one nav_radio widget"
-        expected_options = [
-            "📊 Dashboard",
-            "📄 Documents",
-            "💬 Q&A Chat",
-            "🔍 Search",
-            "📚 Knowledge Base",
-            "⚙️ Pipeline",
-        ]
-        assert nav_radios[0].options == expected_options, (
-            f"Nav options mismatch.\n"
-            f"  Expected: {expected_options}\n"
-            f"  Got:      {nav_radios[0].options}"
+    def test_no_user_info_in_sidebar(self) -> None:
+        """Sidebar has no user info section (auth removed)."""
+        sidebar_md = self.at.sidebar.markdown
+        user_refs = [m for m in sidebar_md if "👤" in m.value]
+        assert len(user_refs) == 0, (
+            "User emoji found in sidebar — auth should be fully removed"
         )

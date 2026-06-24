@@ -54,9 +54,11 @@ class TestNavigation:
         """Only ONE radiogroup with 6 nav items exists (no auto-nav)."""
         page.wait_for_load_state("networkidle")
 
+        # Wait for the sidebar radiogroup to actually render
         radios = page.locator(
             "section[data-testid='stSidebar'] div[role='radiogroup']"
         )
+        radios.first.wait_for(state="visible", timeout=10000)
         radio_count = radios.count()
         assert radio_count == 1, (
             f"Expected 1 radiogroup in sidebar, found {radio_count}. "

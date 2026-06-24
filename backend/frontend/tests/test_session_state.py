@@ -11,11 +11,20 @@ class TestInitSessionState:
     """init_session_state() should populate all expected keys."""
 
     def _get_app_state(self):
-        """Helper: run AppTest and return session state proxy."""
+        """Helper: run AppTest and return session state proxy.
+
+        Pre-populates health cache so the dashboard doesn't block on API calls.
+        """
         from streamlit.testing.v1 import AppTest
 
         at = AppTest.from_file("app.py")
-        at.session_state["auth_token"] = "test-token"
+        at.session_state["health_cache_time"] = 100  # far in the past — fresh call
+        at.session_state["health_cache"] = {
+            "status": "ok", "database": "connected",
+        }
+        at.session_state["health_status"] = {
+            "status": "ok", "database": "connected",
+        }
         at.run()
         return at.session_state
 
@@ -24,9 +33,6 @@ class TestInitSessionState:
         ss = self._get_app_state()
 
         expected_keys: set[str] = {
-            # Auth
-            "auth_token",
-            "auth_user",
             # Chat
             "messages",
             "history_loaded",
@@ -90,31 +96,19 @@ class TestInitSessionState:
         """QA top-k defaults to 5."""
         assert self._get_app_state()["qa_top_k"] == 5
 
-    # ── Auth defaults ──────────────────────────────────────────────
-
-    def test_auth_token_defaults_none(self) -> None:
-        """auth_token is None on fresh app (no token pre-set)."""
+    def test_no_auth_keys_in_defaults(self) -> None:
+        """Auth keys (auth_token, auth_user) are NOT in session state defaults."""
         from streamlit.testing.v1 import AppTest
 
         at = AppTest.from_file("app.py")
+        at.session_state["health_cache_time"] = 100
+        at.session_state["health_cache"] = {
+            "status": "ok", "database": "connected",
+        }
+        at.session_state["health_status"] = {
+            "status": "ok", "database": "connected",
+        }
         at.run()
-        assert at.session_state["auth_token"] is None
-
-    def test_auth_user_defaults_none(self) -> None:
-        """auth_user is None on fresh app."""
-        from streamlit.testing.v1 import AppTest
-
-        at = AppTest.from_file("app.py")
-        at.run()
-        assert at.session_state["auth_user"] is None
-
-    def test_auth_page_not_in_defaults(self) -> None:
-        """auth_page is no longer a session state key (removed in optional-auth refactor)."""
-        from streamlit.testing.v1 import AppTest
-
-        at = AppTest.from_file("app.py")
-        at.run()
-        # auth_page was removed; should not be in session state
-        assert "auth_page" not in at.session_state, (
-            "auth_page was removed during optional-auth refactor"
-        )
+        assert "auth_token" not in at.session_state
+        assert "auth_user" not in at.session_state
+        assert "auth_page" not in at.session_state

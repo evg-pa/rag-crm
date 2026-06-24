@@ -8,9 +8,6 @@ import streamlit as st
 def init_session_state() -> None:
     """Initialize all session state variables with safe defaults."""
     defaults: dict[str, object] = {
-        # — Auth —
-        "auth_token": None,        # str | None — JWT access token
-        "auth_user": None,         # dict | None — logged-in user profile
         # — Chat —
         "messages": [],          # list[dict] — chat history
         "history_loaded": False,
@@ -60,16 +57,3 @@ def invalidate_caches() -> None:
     st.session_state.documents_cache_time = None
     st.session_state.wiki_cache = None
     st.session_state.wiki_cache_time = None
-
-
-def logout() -> None:
-    """Clear auth state — keeps the user on the current page."""
-    st.session_state.auth_token = None
-    st.session_state.auth_user = None
-    invalidate_caches()
-    st.rerun()
-
-
-def is_authenticated() -> bool:
-    """Return True if a valid auth token is present."""
-    return st.session_state.get("auth_token") is not None

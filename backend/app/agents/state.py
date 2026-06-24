@@ -22,7 +22,13 @@ class AgentState(TypedDict, total=False):
     top_k: int
 
     # ── Router output ─────────────────────────────────────────────────
-    query_type: str  # "semantic" | "keyword" | "hybrid" | "greeting" | "irrelevant"
+    query_type: str  # "semantic" | "keyword" | "hybrid" | "greeting" | "irrelevant" | "crm"
+
+    # ── CRM Context output ────────────────────────────────────────────
+    crm_query_type: str  # "contact" | "deal" | "activity" | "cross_reference" | "none"
+    crm_entities: list[dict[str, Any]]  # extracted CRM entity names from query
+    crm_context: str  # formatted CRM data injected as context
+    crm_cross_refs: list[dict[str, Any]]  # cross-referenced document-chunk matches
 
     # ── Retriever output ──────────────────────────────────────────────
     retrieved_chunks: list[dict[str, Any]]

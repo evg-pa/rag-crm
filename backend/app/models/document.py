@@ -38,6 +38,9 @@ class Document(Base):
         String(50), nullable=False
     )  # e.g. "text/markdown", "text/plain", "application/pdf"
     file_size: Mapped[int] = mapped_column(Integer, nullable=False)  # bytes
+    content_hash: Mapped[str | None] = mapped_column(
+        String(64), nullable=True, default=None, index=True
+    )  # sha256 hex digest of parsed text; used for duplicate detection
     doc_metadata: Mapped[dict[str, Any] | None] = mapped_column(
         "doc_metadata", JSON, nullable=True, default=None
     )  # e.g. {title, author, page_count} from PDF parsing

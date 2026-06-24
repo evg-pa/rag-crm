@@ -137,7 +137,7 @@ class AnswerAgent:
 
         if not selected:
             return AnswerResult(
-                answer_text="No relevant information found to answer your question.",
+                answer_text="I don't have enough information in the knowledge base to answer your question. Try uploading relevant documents first, or rephrase your query.",
                 citations=[],
                 confidence_score=0.0,
             )
@@ -153,15 +153,67 @@ class AnswerAgent:
         except asyncio.TimeoutError:
             llm_response = json.dumps({
                 "answer_text": (
-                    f"Based on the retrieved documents, here is the relevant information:\n\n"
-                    f"{context[:500]}"
+                    "The AI model took too long to respond. "
+                    "Please try asking again."
                 ),
                 "citations": [],
-                "confidence_score": 0.3,
+                "confidence_score": 0.0,
             })
 
         # Parse LLM response
-        return self._parse_llm_response(llm_response, selected)
+        result = self._parse_llm_response(llm_response, selected)
+        # Post-processing: override low-confidence / empty answers
+        return self._enforce_honesty(result, chunks_present=bool(selected))
+
+    # ── Honest "not found" guard ──────────────────────────────────────
+    # If the parsed answer from the LLM is empty or the LLM explicitly says
+    # "i don't know", override to an honest refusal. Otherwise trust the LLM
+    # even with moderately low confidence — it had chunks to work with.
+    @staticmethod
+    def _enforce_honesty(result: AnswerResult, chunks_present: bool) -> AnswerResult:
+        """Override empty / LLM-rejected answers with an honest refusal.
+
+        Only triggers when:
+        - No chunks were provided to the LLM (already handled elsewhere,
+          but redundant guard)
+        - The answer text is truly empty or the LLM itself said "i don't know"
+        """
+        if not chunks_present:
+            return AnswerResult(
+                answer_text=(
+                    "I don't have enough information in the knowledge base to "
+                    "answer your question. Try uploading relevant documents first, "
+                    "or rephrase your query."
+                ),
+                citations=[],
+                confidence_score=0.0,
+            )
+
+        answer = result.answer_text.strip().lower()
+
+        # Only override if the LLM itself said it can't answer
+        is_explicit_refusal = answer in ("", ".", "...", "i don't know", "i don't know.")
+        llm_says_no_info = any(
+            answer.startswith(p)
+            for p in (
+                "no relevant information found",
+                "the provided context does not contain",
+                "i cannot answer",
+                "there is no information",
+            )
+        )
+
+        if is_explicit_refusal or llm_says_no_info:
+            return AnswerResult(
+                answer_text=(
+                    "I don't have enough information in the knowledge base to "
+                    "answer your question. Try uploading relevant documents first, "
+                    "or rephrase your query."
+                ),
+                citations=[],
+                confidence_score=0.0,
+            )
+        return result
 
     async def _call_llm(self, query: str, context: str) -> str:
         """Call the LLM API and return the raw response text.
@@ -178,7 +230,7 @@ class AnswerAgent:
         ]
 
         # Try DeepSeek API (httpx timeout handles the deadline)
-        if self._settings.DEEPSEEK_API_KEY:
+        if self._settings.DEEPSEEK_API_KEY and self._settings.DEEPSEEK_API_KEY != "***":
             try:
                 return await self._call_deepseek(messages)
             except Exception:
@@ -190,14 +242,16 @@ class AnswerAgent:
         except Exception:
             pass
 
-        # Neither LLM is reachable — return context-based fallback
+        # Neither LLM is reachable — return honest fallback
         return json.dumps({
             "answer_text": (
-                f"Based on the retrieved documents, here is the relevant information:\n\n"
+                "I found relevant documents in the knowledge base, but the AI model "
+                "was not available to generate a proper answer. "
+                "Here are the raw search results for you to browse:\n\n"
                 f"{context[:500]}"
             ),
             "citations": [],
-            "confidence_score": 0.3,
+            "confidence_score": 0.5,
         })
 
     async def _call_deepseek(self, messages: list[dict[str, str]]) -> str:

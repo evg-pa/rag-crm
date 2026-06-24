@@ -29,11 +29,33 @@ def _run_qa(prompt: str) -> None:
             confidence = response.get("confidence_score", 0.0)
             query_type = response.get("query_type", "")
 
-            content_parts = [answer_text]
-            if confidence > 0:
-                content_parts.append(f"\n\n*Confidence: {confidence * 100:.0f}%*")
-            if query_type:
-                content_parts.append(f"*Query type: {query_type}*")
+            # Check if this is a "not found" / empty answer
+            is_no_answer = False
+            if confidence < 0.15 or not answer_text.strip():
+                is_no_answer = True
+            no_info_phrases = (
+                "i don't have enough information",
+                "no relevant information",
+                "the provided context does not contain",
+                "i cannot answer",
+                "there is no information",
+            )
+            if any(phrase in answer_text.lower() for phrase in no_info_phrases):
+                is_no_answer = True
+
+            content_parts = []
+            if is_no_answer:
+                content_parts.append(
+                    "**🤷 I don't know** — no relevant information was found in "
+                    "the knowledge base for your question.\n\n"
+                    "Try uploading documents about this topic first, or rephrase your query."
+                )
+            else:
+                content_parts.append(answer_text)
+                if confidence > 0:
+                    content_parts.append(f"\n\n*Confidence: {confidence * 100:.0f}%*")
+                if query_type:
+                    content_parts.append(f"*Query type: {query_type}*")
 
             st.session_state.messages.append({
                 "role": "assistant",

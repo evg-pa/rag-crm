@@ -8,6 +8,7 @@ GET  /documents/{id}            — get a single document with its chunks
 """
 
 import asyncio
+import hashlib
 import uuid
 from typing import Any
 
@@ -163,13 +164,35 @@ async def _persist_and_embed(
     """Persist document + chunks, generate embeddings, rebuild BM25, trigger wiki.
 
     Shared between file upload and web scrape paths.
+
+    Raises HTTPException 409 if a document with the same content hash
+    already exists in the database.
     """
     chunk_texts = [chunk_result.content for chunk_result in chunk_results]
+
+    # ── Duplicate detection ─────────────────────────────────────────────
+    # Compute SHA-256 hash of the full parsed text to detect identical content.
+    content_hash = hashlib.sha256(text.encode("utf-8")).hexdigest()
+
+    # Check for existing document with same content hash
+    from sqlalchemy import select as sa_select
+    existing = await db.execute(
+        sa_select(Document.id).where(Document.content_hash == content_hash).limit(1)
+    )
+    if existing.scalar_one_or_none() is not None:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=(
+                f"A document with identical content already exists in the knowledge base. "
+                f"Skipping duplicate."
+            ),
+        )
 
     document = Document(
         filename=filename,
         content_type=content_type,
         file_size=file_size,
+        content_hash=content_hash,
         metadata=metadata if metadata else None,
         user_id=user_id,
     )

@@ -73,7 +73,10 @@ def render() -> None:
             )
 
     # ── Execute Search ──────────────────────────────────────────────────
+    has_searched = st.session_state.get("has_searched", False)
     if not query and not search_clicked:
+        if has_searched:
+            st.session_state.has_searched = False
         st.info("Enter a query above and click Search.")
         return
 
@@ -81,7 +84,7 @@ def render() -> None:
         st.warning("Please enter a search query.")
         return
 
-    if query != st.session_state.get("last_search_query") or search_clicked:
+    if query and (query != st.session_state.get("last_search_query") or search_clicked):
         st.session_state.last_search_query = query
         st.session_state.search_page = 1  # Reset to page 1 on new search
 
@@ -99,14 +102,17 @@ def render() -> None:
 
                 results = results_data.get("results", [])
                 st.session_state.search_results = results
+                st.session_state.has_searched = True
             except Exception as exc:
                 st.error(f"❌ Search failed: {exc}")
                 st.session_state.search_results = []
 
     # ── Render Results with Pagination ──────────────────────────────────
     results = st.session_state.get("search_results", [])
+    has_searched = st.session_state.get("has_searched", False)
     if not results:
-        st.caption("No results found.")
+        if has_searched:
+            st.warning("🔍 No matching documents found. Try a different query or upload relevant documents first.")
         return
 
     st.divider()

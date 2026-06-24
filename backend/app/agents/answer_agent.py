@@ -35,7 +35,7 @@ async def answer_agent(state: AgentState) -> dict:
 
     if not chunks:
         return {
-            "answer_text": "No relevant information found to answer your question.",
+            "answer_text": "I don't have enough information in the knowledge base to answer your question. Try uploading relevant documents first, or rephrase your query.",
             "citations": [],
             "confidence_score": 0.0,
             "agent_states": {

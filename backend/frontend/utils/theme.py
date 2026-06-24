@@ -262,24 +262,24 @@ def _dark_css() -> str:
 
 
 def _light_css() -> str:
-    """Clean light theme — crisp white with warm gray accents."""
+    """Crisp light theme — high contrast, clean structure, bold accents."""
     return """
     <style>
     :root {
-        --bg-primary: #F8F9FB;
+        --bg-primary: #EFF1F5;
         --bg-secondary: #FFFFFF;
-        --bg-tertiary: #F0F1F5;
-        --text-primary: #1A1D2E;
-        --text-secondary: #6B7280;
+        --bg-tertiary: #E5E7EB;
+        --text-primary: #0F172A;
+        --text-secondary: #475569;
         --accent: #4F46E5;
         --accent-hover: #4338CA;
-        --accent-soft: rgba(79, 70, 229, 0.08);
-        --success: #10B981;
-        --warning: #F59E0B;
-        --error: #EF4444;
-        --border: #E2E4EB;
-        --focus-ring: rgba(79, 70, 229, 0.2);
-        --hover-overlay: rgba(0, 0, 0, 0.03);
+        --accent-soft: rgba(79, 70, 229, 0.1);
+        --success: #059669;
+        --warning: #D97706;
+        --error: #DC2626;
+        --border: #CBD5E1;
+        --focus-ring: rgba(79, 70, 229, 0.25);
+        --hover-overlay: rgba(0, 0, 0, 0.05);
     }
     .stApp {
         background-color: var(--bg-primary);
@@ -293,12 +293,14 @@ def _light_css() -> str:
         border-radius: 6px !important;
         margin: 2px 0 !important;
         transition: background 0.15s ease !important;
+        color: var(--text-primary) !important;
     }
     section[data-testid="stSidebar"] label:hover {
         background: var(--hover-overlay) !important;
     }
     section[data-testid="stSidebar"] label[data-selected="true"] {
         background: var(--accent-soft) !important;
+        font-weight: 600 !important;
     }
     section[data-testid="stSidebar"] div[role="radiogroup"] {
         gap: 2px !important;
@@ -306,16 +308,18 @@ def _light_css() -> str:
     .stButton button[kind="primary"] {
         background: var(--accent) !important;
         color: white !important;
-        box-shadow: 0 1px 3px rgba(0,0,0,0.08) !important;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.12) !important;
+        font-weight: 600 !important;
     }
     .stButton button[kind="primary"]:hover {
         background: var(--accent-hover) !important;
-        box-shadow: 0 4px 12px rgba(79,70,229,0.25) !important;
+        box-shadow: 0 4px 14px rgba(79,70,229,0.3) !important;
     }
     .stButton button[kind="secondary"] {
         background: var(--bg-secondary) !important;
         color: var(--text-primary) !important;
         border: 1px solid var(--border) !important;
+        font-weight: 500 !important;
     }
     .stButton button[kind="secondary"]:hover {
         border-color: var(--accent) !important;
@@ -324,38 +328,63 @@ def _light_css() -> str:
     .stTextInput input {
         background: var(--bg-secondary) !important;
         color: var(--text-primary) !important;
-        border: 1px solid var(--border) !important;
-        box-shadow: 0 1px 2px rgba(0,0,0,0.04) !important;
+        border: 1.5px solid var(--border) !important;
+        box-shadow: 0 1px 2px rgba(0,0,0,0.05) !important;
     }
     .stTextInput input:focus {
+        border-color: var(--accent) !important;
         box-shadow: 0 0 0 3px var(--focus-ring) !important;
     }
     .stTextInput input::placeholder {
         color: var(--text-secondary) !important;
-        opacity: 0.7;
+        opacity: 0.6;
     }
     div[data-testid="stFileUploader"] {
         background: transparent !important;
     }
     div[data-testid="stFileUploader"] section {
-        background: var(--bg-tertiary) !important;
-        border-color: var(--border) !important;
+        background: var(--bg-primary) !important;
+        border: 2px dashed var(--border) !important;
+    }
+    div[data-testid="stFileUploader"] section:hover {
+        border-color: var(--accent) !important;
+        background: var(--accent-soft) !important;
     }
     .st-bb, .st-at, .st-au, .st-ae, .st-af {
-        background-color: var(--bg-tertiary) !important;
+        background-color: var(--bg-secondary) !important;
         border-color: var(--border) !important;
         color: var(--text-primary) !important;
     }
     div[data-baseweb="select"] > div {
         background: var(--bg-secondary) !important;
-        border: 1px solid var(--border) !important;
+        border: 1.5px solid var(--border) !important;
         border-radius: 8px !important;
     }
     div[data-testid="stToast"] {
         background: var(--bg-secondary) !important;
         border: 1px solid var(--border) !important;
         border-radius: 10px !important;
-        box-shadow: 0 8px 32px rgba(0,0,0,0.12) !important;
+        box-shadow: 0 8px 32px rgba(0,0,0,0.15) !important;
+    }
+    hr {
+        border-color: var(--border) !important;
+        opacity: 0.7;
+    }
+    div[data-testid="metric-container"] {
+        background: var(--bg-secondary) !important;
+        border: 1px solid var(--border) !important;
+    }
+    .stMarkdown p, .stMarkdown li, .stMarkdown h1, .stMarkdown h2,
+    .stMarkdown h3, .stMarkdown h4, .stMarkdown h5, .stMarkdown h6 {
+        color: var(--text-primary) !important;
+    }
+    .stCaption, .st-emotion-caption {
+        color: var(--text-secondary) !important;
+    }
+    .stDataFrame {
+        border-radius: 10px !important;
+        overflow: hidden !important;
+        border: 1px solid var(--border) !important;
     }
     </style>
     """

@@ -33,12 +33,17 @@ from app.models.crm import CrmActivity, CrmContact, CrmDeal
 
 # Phrases that signal a CRM-related query
 _CRM_QUERY_PATTERNS = [
-    r"\b(crm|contact|deal|opportunity|account|lead)\b",
+    r"\bcrm\b",
+    r"\bcontacts?\b",
+    r"\bdeals?\b",
+    r"\bopportunit",
+    r"\baccounts?\b",
+    r"\bleads?\b",
     r"\btop\s+(deals?|opportunities?|accounts?)\b",
     r"\brecent\s+(activities?|calls?|meetings?|emails?)\b",
     r"\b(hot|warm|cold)\s+(lead|opportunity)\b",
     r"\bpipeline\b",
-    r"\bstage\b",
+    r"\bstages?\b",
     r"\brevenue\b",
     r"\bforecast\b",
     r"\bclose\s+(date|rate|ratio)\b",
@@ -64,16 +69,14 @@ _ENTITY_PATTERNS = [
     (r"(?:phone|call|dial)\s+([+\d][\d\s\-().]{5,})", "contact"),
     # Quoted entity names
     (r"(?:about|regarding|related to|for)\s+['\"]?(.+?)['\"]?(?:\s*(?:document|file|PDF|agreement|contract))?", "generic"),
-    # Named entities at query start (proper nouns)
-    (r"^([A-Z][a-zA-Z]+(?:\s+[A-Z][a-zA-Z]+)*)", "generic"),
 ]
 
 # CRM intent classification
 _CRM_INTENT_PATTERNS = {
-    "contact": [r"\bcontact", r"\bperson\b", r"\bwho\b", r"\bemail\b", r"\bphone\b", r"\bcall\b"],
-    "deal": [r"\bdeal", r"\bopportunity", r"\bpipeline", r"\bstage\b", r"\bvalue\b", r"\brevenue\b", r"\bclose\b"],
-    "activity": [r"\bactivity", r"\bmeeting", r"\bcall\b", r"\bemail\b", r"\blog\b", r"\binteraction\b"],
-    "cross_reference": [r"\brelat", r"\breferenc", r"\bconnect", r"\blink(?:ed|s)?\b", r"\bassociat", r"\babout\b.*\b(document|PDF|file|contract|agreement)"],
+    "cross_reference": [r"\brelat", r"\breferenc", r"\bconnect", r"\blink(?:ed|s)?\b", r"\bassociat", r"\babout\b.*\b(doc|PDF|file|contract|agreement)"],
+    "contact": [r"\bcontacts?\b", r"\bperson\b", r"\bwho\b", r"\bemail\b", r"\bphone\b"],
+    "activity": [r"\bactivity", r"\bmeeting\b", r"\bcalls?\b.*\b(yesterday|today|week|recent)", r"\bemail\b.*\b(recent|last|sent)"],
+    "deal": [r"\bdeals?\b", r"\bopportunit", r"\bpipeline\b", r"\bstages?\b", r"\bvalue\b", r"\brevenue\b", r"\bclose\b"],
     "quick_query": [r"\btop\b", r"\brecent\b", r"\blist\b", r"\bshow me\b", r"\bsummary\b", r"\bcount\b"],
 }
 
@@ -88,7 +91,7 @@ def is_crm_query(query: str) -> bool:
 
 
 def classify_crm_intent(query: str) -> str:
-    """Classify the CRM intent: contact, deal, activity, cross_reference, quick_query, or none."""
+    """Classify the CRM intent: cross_reference, contact, activity, deal, quick_query, or none."""
     q = query.lower().strip()
     scores: dict[str, int] = {}
     for intent, patterns in _CRM_INTENT_PATTERNS.items():
@@ -97,9 +100,10 @@ def classify_crm_intent(query: str) -> str:
     if not any(scores.values()):
         return "none"
 
-    # Highest-scoring intent wins
-    best = max(scores, key=scores.get)  # type: ignore[arg-type]
-    return best if scores[best] > 0 else "none"
+    # Priority order: specific intents beat quick_query on ties
+    priority = ["cross_reference", "contact", "activity", "deal", "quick_query"]
+    best = max(priority, key=lambda i: (scores.get(i, 0), -priority.index(i)))
+    return best if scores.get(best, 0) > 0 else "none"
 
 
 def extract_entity_names(query: str, db_names: list[str]) -> list[dict[str, Any]]:

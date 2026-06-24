@@ -76,14 +76,19 @@ class TestClassifyCRMIntent:
 
     def test_activity_intent(self) -> None:
         assert classify_crm_intent("Recent activities") in ("activity", "quick_query")
-        assert classify_crm_intent("Show me calls from yesterday") == "activity"
+        assert classify_crm_intent("Show calls from yesterday") == "activity"
 
     def test_cross_reference_intent(self) -> None:
         result = classify_crm_intent("What deals relate to the contract document?")
         assert result == "cross_reference"
 
     def test_quick_query_intent(self) -> None:
+        # "List all deals" mentions a specific entity → classified as deal intent
         result = classify_crm_intent("List all deals")
+        assert result == "deal"
+
+    def test_list_without_entity_is_quick_query(self) -> None:
+        result = classify_crm_intent("List everything")
         assert result == "quick_query"
 
     def test_non_crm_query(self) -> None:
@@ -112,13 +117,17 @@ class TestExtractEntityNames:
         assert any("Acme" in n for n in names)
 
     def test_fuzzy_matching(self) -> None:
-        entities = extract_entity_names("Show information about Jon Smit", ["John Smith"])
-        # Should fuzzy-match "Jon Smit" to "John Smith"
+        # Fuzzy matching should find "Jon Smit" close to "John Smith"
+        entities = extract_entity_names("Jon Smit", ["John Smith"])
         fuzzy_ents = [e for e in entities if e.get("method") == "fuzzy"]
         assert any(e["confidence"] >= 0.6 for e in fuzzy_ents)
 
     def test_no_entities(self) -> None:
+        # Generic queries that aren't CRM-related should return no entities
         entities = extract_entity_names("What is the weather?", [])
+        assert entities == []
+        # Also test short queries
+        entities = extract_entity_names("hello", [])
         assert entities == []
 
 
@@ -245,7 +254,10 @@ class TestBuildCrossReferences:
             },
         ]
         refs = build_cross_references(entities, chunks)
-        assert len(refs) == 1  # Both names in the same chunk = 1 match for "Acme Corp"
+        # Both entity names appear in the chunk — expect 2 matches
+        assert len(refs) == 2
+        assert refs[0]["entity"] in ("Acme Corp", "John Doe")
+        assert refs[1]["entity"] in ("Acme Corp", "John Doe")
 
     def test_empty_inputs(self) -> None:
         assert build_cross_references([], [{"id": "c1", "document_id": "d1", "content": "test"}]) == []

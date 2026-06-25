@@ -19,9 +19,13 @@ class Settings(BaseSettings):
 
     # Database
     DATABASE_URL: str = "postgresql+asyncpg://rag_user:rag_pass@localhost:5432/rag_crm"
+    DB_POOL_SIZE: int = 10
+    DB_MAX_OVERFLOW: int = 20
+    DB_POOL_RECYCLE: int = 3600  # seconds — recycle connections after 1 hour
 
     # Redis
     REDIS_URL: str = "redis://localhost:6379/0"
+    REDIS_POOL_MAX_CONNECTIONS: int = 20
 
     # LLM — DeepSeek
     DEEPSEEK_API_KEY: str = ""
@@ -39,6 +43,14 @@ class Settings(BaseSettings):
     # Embedding
     EMBEDDING_MODEL: str = "BAAI/bge-small-en-v1.5"
     EMBEDDING_DIM: int = 384
+
+    # ONNX Runtime session options
+    ONNX_GRAPH_OPTIMIZATION_LEVEL: str = "all"  # "all", "basic", "extended", or "disable"
+    ONNX_INTRA_OP_THREADS: int = 0  # 0 = auto (use all cores)
+    ONNX_INTER_OP_THREADS: int = 0  # 0 = auto
+
+    # Upload limits
+    MAX_UPLOAD_SIZE_MB: int = 50  # Maximum file upload size in megabytes
 
     # Reranker
     RERANKER_MODEL: str = "cross-encoder/ms-marco-MiniLM-L-6-v2"

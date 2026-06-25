@@ -23,7 +23,12 @@ def create_engine(settings: Settings) -> Any:
     """
     kwargs: dict[str, Any] = {"echo": False}
     if not settings.DATABASE_URL.startswith("sqlite"):
-        kwargs.update({"pool_size": 5, "max_overflow": 15, "pool_pre_ping": True})
+        kwargs.update({
+            "pool_size": settings.DB_POOL_SIZE,
+            "max_overflow": settings.DB_MAX_OVERFLOW,
+            "pool_recycle": settings.DB_POOL_RECYCLE,
+            "pool_pre_ping": True,
+        })
     return create_async_engine(settings.DATABASE_URL, **kwargs)
 
 

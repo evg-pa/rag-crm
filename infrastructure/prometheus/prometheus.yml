@@ -1,0 +1,24 @@
+# Prometheus configuration for RAG-CRM monitoring
+# Scrapes the backend /metrics endpoint every 15s.
+
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+
+# Alert rules
+rule_files:
+  - "alerts.yml"
+
+# Scrape configs
+scrape_configs:
+  - job_name: "rag-crm-backend"
+    metrics_path: "/metrics"
+    static_configs:
+      - targets: ["rag-backend:8000"]
+        labels:
+          service: "rag-crm"
+          component: "backend"
+
+  - job_name: "prometheus"
+    static_configs:
+      - targets: ["localhost:9090"]

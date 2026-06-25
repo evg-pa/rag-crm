@@ -12,13 +12,13 @@ import hashlib
 import uuid
 from typing import Any
 
-from fastapi import APIRouter, Depends, HTTPException, UploadFile, status
+from fastapi import APIRouter, Depends, HTTPException, Request, UploadFile, status
 from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from app.core.dependencies import get_db_session
+from app.core.dependencies import get_db_session, get_settings
 from app.core.logging import get_logger
 from app.ingestion import get_all_supported_extensions, ingest_document
 from app.ingestion.parsers.registry import get_ext_to_content_type_map, get_parser_for
@@ -105,6 +105,77 @@ class ScrapeResponse(BaseModel):
 
 ALLOWED_EXTENSIONS: frozenset[str] = get_all_supported_extensions()
 EXTENSION_TO_CONTENT_TYPE: dict[str, str] = get_ext_to_content_type_map()
+
+# Whitelist of allowed MIME types for upload (in addition to extension check).
+# Maps to the content types we can actually parse.
+_ALLOWED_CONTENT_TYPES: frozenset[str] = frozenset({
+    "text/plain",
+    "text/markdown",
+    "application/pdf",
+    "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+    "text/html",
+})
+
+
+def _validate_upload_size(request: Request, max_bytes: int) -> None:
+    """Reject the request early (413) if Content-Length exceeds max_bytes.
+
+    This is a fast pre-check that runs before reading the request body.
+    If Content-Length is missing or spoofed, a second check runs after
+    the full body is consumed (see ``_check_size_after_read``).
+    """
+    content_length = request.headers.get("Content-Length")
+    if content_length is not None:
+        try:
+            length = int(content_length)
+        except ValueError:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Invalid Content-Length header.",
+            )
+        if length > max_bytes:
+            raise HTTPException(
+                status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
+                detail=(
+                    f"File too large. Content-Length is {length} bytes, "
+                    f"maximum allowed is {max_bytes} bytes "
+                    f"({max_bytes // (1024 * 1024)} MB)."
+                ),
+            )
+
+
+def _check_size_after_read(raw_bytes: bytes, max_bytes: int, filename: str) -> None:
+    """Second-chance size check after the file body has been read.
+
+    Catches cases where Content-Length was missing or spoofed.
+    """
+    actual_size = len(raw_bytes)
+    if actual_size > max_bytes:
+        raise HTTPException(
+            status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
+            detail=(
+                f"File '{filename}' is {actual_size} bytes, "
+                f"maximum allowed is {max_bytes} bytes "
+                f"({max_bytes // (1024 * 1024)} MB)."
+            ),
+        )
+
+
+def _validate_content_type(content_type: str | None, filename: str) -> None:
+    """Reject uploads whose declared Content-Type is not in the whitelist.
+
+    This is a defense-in-depth check: the primary validation is extension-based
+    (via ``_validate_extension``), but a mismatched Content-Type header can
+    indicate a malicious or malformed upload.
+    """
+    if content_type and content_type not in _ALLOWED_CONTENT_TYPES:
+        raise HTTPException(
+            status_code=status.HTTP_415_UNSUPPORTED_MEDIA_TYPE,
+            detail=(
+                f"Content-Type '{content_type}' is not supported for upload. "
+                f"Accepted: {', '.join(sorted(_ALLOWED_CONTENT_TYPES))}"
+            ),
+        )
 
 
 def _detect_content_type(filename: str, declared_type: str | None) -> str:
@@ -255,6 +326,7 @@ async def _persist_and_embed(
 
 @router.post("/upload", response_model=UploadResponse, status_code=status.HTTP_201_CREATED)
 async def upload_document(
+    request: Request,
     file: UploadFile,
     db: AsyncSession = Depends(get_db_session),
 ) -> Any:
@@ -262,9 +334,25 @@ async def upload_document(
 
     Open to all users (no authentication required).
     Supported formats: .pdf, .docx, .html, .htm, .md, .txt
+
+    Validation (defence in depth, applied in order):
+    1. Content-Length header pre-check → 413 before reading body
+    2. Filename must be present
+    3. File extension must be in the allowed whitelist → 415
+    4. Content-Type header must be in the allowed whitelist → 415
+    5. After reading, actual body size is checked → 413 (catches spoofed
+       or missing Content-Length)
+    6. Empty body is rejected → 400
+
     The pipeline: raw bytes → plain text → chunks → DB rows.
     No LLM calls are made during ingestion.
     """
+    settings = get_settings()
+    max_bytes = settings.MAX_UPLOAD_SIZE_MB * 1024 * 1024
+
+    # ── Fast pre-check: Content-Length header ──────────────────────────
+    _validate_upload_size(request, max_bytes)
+
     if not file.filename:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -272,9 +360,14 @@ async def upload_document(
         )
 
     _validate_extension(file.filename)
+    _validate_content_type(file.content_type, file.filename)
 
     # Read file content
     raw_bytes = await file.read()
+
+    # ── Post-read size check (catches spoofed/missing Content-Length) ──
+    _check_size_after_read(raw_bytes, max_bytes, file.filename)
+
     if not raw_bytes:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,

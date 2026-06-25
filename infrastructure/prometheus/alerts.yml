@@ -1,0 +1,154 @@
+# Prometheus alert rules for RAG-CRM
+#
+# Groups:
+#   1. service — service availability
+#   2. errors  — error rate alerts
+#   3. latency — request latency SLOs
+#   4. ratelimit — rate limit hit alerts
+
+groups:
+  # ── Service Availability ──────────────────────────────────────────────────
+  - name: service
+    rules:
+      - alert: ServiceDown
+        expr: up{job="rag-crm-backend"} == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "RAG-CRM backend is down"
+          description: "The backend service has been unreachable for more than 1 minute."
+
+      - alert: High5xxRate
+        expr: |
+          (
+            sum(rate(http_requests_total{status=~"5.."}[5m])) by (service)
+            /
+            sum(rate(http_requests_total[5m])) by (service)
+          ) > 0.05
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "High 5xx error rate ({{ $value | humanizePercentage }})"
+          description: >
+            Backend {{ $labels.service }} has a 5xx error rate above 5%
+            over the last 5 minutes. Current rate: {{ $value | humanizePercentage }}.
+
+      - alert: Elevated4xxRate
+        expr: |
+          (
+            sum(rate(http_requests_total{status=~"4.."}[10m])) by (service)
+            /
+            sum(rate(http_requests_total[10m])) by (service)
+          ) > 0.25
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Elevated 4xx error rate ({{ $value | humanizePercentage }})"
+          description: >
+            Backend {{ $labels.service }} has a 4xx error rate above 25%
+            over the last 10 minutes. Could indicate client misconfiguration
+            or an auth issue. Current rate: {{ $value | humanizePercentage }}.
+
+  # ── Request Latency ──────────────────────────────────────────────────────
+  - name: latency
+    rules:
+      - alert: HighP95Latency
+        expr: |
+          histogram_quantile(0.95,
+            sum(rate(http_request_duration_seconds_bucket[5m])) by (le, service)
+          ) > 2.0
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High p95 request latency ({{ $value }}s)"
+          description: >
+            Backend {{ $labels.service }} p95 latency exceeds 2 seconds
+            over the last 5 minutes. Current p95: {{ $value }}s.
+
+      - alert: CriticalP99Latency
+        expr: |
+          histogram_quantile(0.99,
+            sum(rate(http_request_duration_seconds_bucket[5m])) by (le, service)
+          ) > 5.0
+        for: 3m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Critical p99 request latency ({{ $value }}s)"
+          description: >
+            Backend {{ $labels.service }} p99 latency exceeds 5 seconds
+            over the last 5 minutes. Current p99: {{ $value }}s.
+
+      - alert: SlowQALatency
+        expr: |
+          histogram_quantile(0.95,
+            rate(http_request_duration_seconds_bucket{endpoint="/qa"}[10m])
+          ) > 10.0
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "QA endpoint p95 latency is high ({{ $value }}s)"
+          description: >
+            The /qa endpoint p95 latency exceeds 10 seconds. This may indicate
+            LLM API issues or excessive load.
+
+  # ── Rate Limiting ────────────────────────────────────────────────────────
+  - name: ratelimit
+    rules:
+      - alert: HighRateLimitHitRate
+        expr: |
+          (
+            sum(rate(ratelimit_hits_total[5m])) by (service)
+            /
+            sum(rate(http_requests_total[5m])) by (service)
+          ) > 0.10
+        for: 3m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High rate limit hit rate ({{ $value | humanizePercentage }})"
+          description: >
+            More than 10% of requests are being rate-limited. Consider
+            adjusting limits or investigating abuse. Current rate:
+            {{ $value | humanizePercentage }}.
+
+      - alert: RateLimitSpike
+        expr: rate(ratelimit_hits_total[1m]) > 10
+        for: 1m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Rate limit spike detected ({{ $value }} hits/s)"
+          description: >
+            Sudden spike in rate limit hits — possible abuse or DDoS attempt.
+            Current rate: {{ $value }} hits per second.
+
+      - alert: ManyActiveBuckets
+        expr: ratelimit_active_buckets > 500
+        for: 5m
+        labels:
+          severity: info
+        annotations:
+          summary: "High number of active rate-limit buckets ({{ $value }})"
+          description: >
+            More than 500 unique IP+endpoint buckets are being tracked.
+            This may indicate a distributed request pattern or abuse.
+
+  # ── Resource Warnings ────────────────────────────────────────────────────
+  - name: resources
+    rules:
+      - alert: NoRecentRequests
+        expr: rate(http_requests_total[10m]) == 0
+        for: 10m
+        labels:
+          severity: info
+        annotations:
+          summary: "No requests in the last 10 minutes"
+          description: >
+            Backend {{ $labels.service }} has not received any requests
+            in the last 10 minutes. The service may be idle or down.

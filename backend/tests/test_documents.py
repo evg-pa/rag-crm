@@ -1,4 +1,4 @@
-"""Tests for the document ingestion pipeline (APP-116, APP-139, APP-140).
+"""Tests for the document ingestion pipeline (APP-116, APP-139, APP-140, APP-179).
 
 Covers:
   1. Upload a valid .txt file — verify 201 + document metadata
@@ -7,7 +7,12 @@ Covers:
   4. List documents — upload 2 documents, verify both returned
   5. Get document by id — fetch with chunks
   6. Reject invalid file type — upload .exe, verify error
+  7. Reject oversized file via Content-Length pre-check — verify 413
+  8. Reject oversized file post-read (spoofed Content-Length) — verify 413
+  9. Reject upload with unsupported Content-Type header — verify 415
 """
+
+import os
 
 import pytest
 from httpx import AsyncClient
@@ -146,3 +151,154 @@ async def test_upload_invalid_file_type(client: AsyncClient) -> None:
     )
     assert response.status_code == 415
     assert "Unsupported file type" in response.json()["detail"]
+
+
+@pytest.mark.asyncio
+async def test_upload_size_limit_content_length(client: AsyncClient) -> None:
+    """POST /documents/upload rejects oversized files via Content-Length pre-check (413).
+
+    Sends a small body but a large Content-Length header to test the fast
+    pre-check that runs before reading the request body.
+    """
+    # Default MAX_UPLOAD_SIZE_MB is 50 MB, so 51 MB Content-Length should be rejected.
+    oversize_bytes = 51 * 1024 * 1024
+    response = await client.post(
+        "/documents/upload",
+        files={"file": ("big.txt", b"small body")},
+        headers={"Content-Length": str(oversize_bytes)},
+    )
+    assert response.status_code == 413
+    detail = response.json()["detail"]
+    assert "too large" in detail.lower()
+
+
+@pytest.mark.asyncio
+async def test_upload_content_type_whitelist_reject(client: AsyncClient) -> None:
+    """POST /documents/upload rejects files with a non-whitelisted Content-Type.
+
+    Uses a 3-tuple in httpx's ``files`` parameter to set the per-part
+    content type to ``application/octet-stream``, which is not allowed.
+    """
+    response = await client.post(
+        "/documents/upload",
+        files={
+            "file": (
+                "data.txt",
+                b"Hello world.",
+                "application/octet-stream",
+            )
+        },
+    )
+    assert response.status_code == 415
+    detail = response.json()["detail"]
+    assert "Content-Type" in detail
+
+
+@pytest.mark.asyncio
+async def test_upload_valid_passes_content_type_check(client: AsyncClient) -> None:
+    """POST /documents/upload accepts files with a valid Content-Type."""
+    response = await client.post(
+        "/documents/upload",
+        files={"file": ("ok.txt", b"Valid content with proper type.")},
+    )
+    assert response.status_code == 201, response.text
+
+
+# ── Unit tests for helper functions ─────────────────────────────────────────
+
+
+class TestValidateUploadSize:
+    """Unit tests for _validate_upload_size pre-check."""
+
+    def test_rejects_oversized_content_length(self):
+        """413 when Content-Length > max_bytes."""
+        from unittest.mock import Mock
+        from app.api.documents import _validate_upload_size
+        from fastapi import HTTPException
+
+        request = Mock()
+        request.headers = {"Content-Length": "2000000"}
+
+        with pytest.raises(HTTPException) as exc_info:
+            _validate_upload_size(request, max_bytes=1000000)
+        assert exc_info.value.status_code == 413
+
+    def test_allows_valid_content_length(self):
+        """No exception when Content-Length <= max_bytes."""
+        from unittest.mock import Mock
+        from app.api.documents import _validate_upload_size
+
+        request = Mock()
+        request.headers = {"Content-Length": "500000"}
+
+        # Should not raise
+        _validate_upload_size(request, max_bytes=1000000)
+
+    def test_allows_missing_content_length(self):
+        """No exception when Content-Length is missing."""
+        from unittest.mock import Mock
+        from app.api.documents import _validate_upload_size
+
+        request = Mock()
+        request.headers = {}
+
+        # Should not raise — missing header falls through to post-read check
+        _validate_upload_size(request, max_bytes=1000000)
+
+    def test_rejects_invalid_content_length(self):
+        """400 when Content-Length is not an integer."""
+        from unittest.mock import Mock
+        from app.api.documents import _validate_upload_size
+        from fastapi import HTTPException
+
+        request = Mock()
+        request.headers = {"Content-Length": "not-a-number"}
+
+        with pytest.raises(HTTPException) as exc_info:
+            _validate_upload_size(request, max_bytes=1000000)
+        assert exc_info.value.status_code == 400
+
+
+class TestCheckSizeAfterRead:
+    """Unit tests for _check_size_after_read post-read check."""
+
+    def test_rejects_oversized_body(self):
+        """413 when actual body size > max_bytes."""
+        from app.api.documents import _check_size_after_read
+        from fastapi import HTTPException
+
+        with pytest.raises(HTTPException) as exc_info:
+            _check_size_after_read(b"x" * 2000, max_bytes=1000, filename="test.txt")
+        assert exc_info.value.status_code == 413
+
+    def test_allows_valid_body(self):
+        """No exception when body size <= max_bytes."""
+        from app.api.documents import _check_size_after_read
+
+        # Should not raise
+        _check_size_after_read(b"x" * 500, max_bytes=1000, filename="test.txt")
+
+
+class TestValidateContentType:
+    """Unit tests for _validate_content_type whitelist check."""
+
+    def test_rejects_unsupported_content_type(self):
+        """415 when Content-Type is not in the whitelist."""
+        from app.api.documents import _validate_content_type
+        from fastapi import HTTPException
+
+        with pytest.raises(HTTPException) as exc_info:
+            _validate_content_type("application/octet-stream", "data.bin")
+        assert exc_info.value.status_code == 415
+
+    def test_allows_text_plain(self):
+        """No exception for whitelisted Content-Type."""
+        from app.api.documents import _validate_content_type
+
+        _validate_content_type("text/plain", "data.txt")
+
+    def test_allows_none_content_type(self):
+        """No exception when Content-Type is None (not provided)."""
+        from app.api.documents import _validate_content_type
+
+        _validate_content_type(None, "data.txt")

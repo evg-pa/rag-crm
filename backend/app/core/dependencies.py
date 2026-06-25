@@ -28,13 +28,31 @@ async def get_db_session() -> AsyncGenerator[AsyncSession, None]:
         yield session
 
 
+# Shared Redis connection pool (lazy singleton, same pattern as RateLimitMiddleware)
+_redis_pool: aioredis.ConnectionPool | None = None
+
+
+async def _get_redis_pool() -> aioredis.ConnectionPool:
+    """Lazily create and return a shared Redis connection pool."""
+    global _redis_pool
+    if _redis_pool is None:
+        _redis_pool = aioredis.ConnectionPool.from_url(
+            _settings.REDIS_URL,
+            encoding="utf-8",
+            decode_responses=True,
+            max_connections=_settings.REDIS_POOL_MAX_CONNECTIONS,
+        )
+    return _redis_pool
+
+
 async def get_redis() -> AsyncGenerator[aioredis.Redis, None]:
-    """FastAPI dependency: yields a Redis connection."""
-    redis_client: aioredis.Redis = aioredis.from_url(  # type: ignore[no-untyped-call]
-        _settings.REDIS_URL,
-        encoding="utf-8",
-        decode_responses=True,
-    )
+    """FastAPI dependency: yields a Redis connection from the shared pool.
+
+    Uses a process-wide ConnectionPool so connections are reused across
+    requests instead of creating a new TCP connection every time.
+    """
+    pool = await _get_redis_pool()
+    redis_client: aioredis.Redis = aioredis.Redis(connection_pool=pool)  # type: ignore[no-untyped-call]
     try:
         yield redis_client
     finally:

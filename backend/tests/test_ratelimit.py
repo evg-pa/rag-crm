@@ -169,47 +169,47 @@ class TestRateLimitingWithMockRedis:
             assert resp.status_code == 200
 
     @pytest.mark.asyncio
-    async def test_different_ips_have_separate_buckets(self, app_with_ratelimit):
-        """IP A being rate-limited should not affect IP B."""
-        # Track keys used for zcard, so we can verify IPs produce different keys
+    async def test_different_client_ips_have_separate_buckets(self, app_with_ratelimit):
+        """Two requests from different client hosts should use separate
+        rate-limit keys.  Verifies that _client_ip always uses
+        request.client.host, not spoofable headers."""
         zcard_keys = []
-        zadd_keys = []
 
         def _zcard_side(key, *args, **kwargs):
             zcard_keys.append(key)
             return 0
 
-        def _zadd_side(key, *args, **kwargs):
-            zadd_keys.append(key)
-
-        mock_redis = _build_mock_redis(
-            zcard_cb=_zcard_side,
-            zadd_cb=_zadd_side,
-        )
+        mock_redis = _build_mock_redis(zcard_cb=_zcard_side)
 
         with patch("redis.asyncio.ConnectionPool.from_url"), \
              patch("redis.asyncio.Redis", return_value=mock_redis):
             client = app_with_ratelimit
 
-            # Request from "IP-A" via header
+            # The ASGI transport always uses ("testclient", 50000) as
+            # the client address, so both requests share the same bucket
+            # regardless of X-Forwarded-For headers.
             resp = await client.get(
                 self._URL,
                 headers={"X-Forwarded-For": "10.0.0.1"},
             )
             assert resp.status_code == 200
 
-            # Request from "IP-B" via header
             resp = await client.get(
                 self._URL,
                 headers={"X-Forwarded-For": "10.0.0.2"},
             )
             assert resp.status_code == 200
 
-            # Both requests should have recorded keys with different IPs
+            # Both keys should use the actual client host (testclient),
+            # NOT the spoofed X-Forwarded-For values.
             assert len(zcard_keys) >= 2
-            ip1_key = next(k for k in zcard_keys if "10.0.0.1" in k)
-            ip2_key = next(k for k in zcard_keys if "10.0.0.2" in k)
-            assert ip1_key != ip2_key
+            for key in zcard_keys:
+                assert "10.0.0.1" not in key, (
+                    f"Spoofed IP 10.0.0.1 should not appear in key {key!r}"
+                )
+                assert "10.0.0.2" not in key, (
+                    f"Spoofed IP 10.0.0.2 should not appear in key {key!r}"
+                )
 
 
 class TestInMemoryRateLimiting:
@@ -349,10 +349,14 @@ class TestInMemoryRateLimiting:
 
 
 class TestClientIPExtraction:
-    """Test IP extraction logic."""
+    """Test IP extraction logic.
 
-    def test_prefers_x_forwarded_for(self):
-        """X-Forwarded-For should take priority."""
+    _client_ip always uses ``request.client.host`` (the direct connection
+    address) to prevent IP spoofing via forged X-Forwarded-For headers.
+    """
+
+    def test_uses_client_host_directly(self):
+        """Direct client IP is always used, ignoring proxy headers."""
         from app.core.ratelimit import _client_ip
         from starlette.requests import Request
 
@@ -360,28 +364,15 @@ class TestClientIPExtraction:
             "type": "http",
             "headers": [
                 (b"x-forwarded-for", b"10.0.0.1, 10.0.0.2"),
-            ],
-            "client": ("192.168.1.1", 12345),
-        }
-        request = Request(scope)
-        assert _client_ip(request) == "10.0.0.1"
-
-    def test_falls_back_to_x_real_ip(self):
-        """X-Real-IP should be used when X-Forwarded-For is absent."""
-        from app.core.ratelimit import _client_ip
-        from starlette.requests import Request
-
-        scope = {
-            "type": "http",
-            "headers": [
                 (b"x-real-ip", b"10.0.0.3"),
             ],
             "client": ("192.168.1.1", 12345),
         }
         request = Request(scope)
-        assert _client_ip(request) == "10.0.0.3"
+        # Proxy headers are ignored — use the actual connecting IP
+        assert _client_ip(request) == "192.168.1.1"
 
-    def test_falls_back_to_client_host(self):
+    def test_uses_client_host_when_no_proxy_headers(self):
         """When no proxy headers are set, use the direct client IP."""
         from app.core.ratelimit import _client_ip
         from starlette.requests import Request

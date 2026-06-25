@@ -82,14 +82,13 @@ SKIP_PREFIXES = ("/docs", "/openapi", "/redoc")
 
 
 def _client_ip(request: Request) -> str:
-    """Extract the client IP from request headers or direct address."""
-    forwarded = request.headers.get("X-Forwarded-For")
-    if forwarded:
-        return forwarded.split(",")[0].strip()
-    real_ip = request.headers.get("X-Real-IP")
-    if real_ip:
-        return real_ip
-    # Fall back to the raw client address
+    """Extract the client IP from the direct connection address.
+
+    Only trusts X-Forwarded-For / X-Real-IP when the connecting client
+    is a known proxy. Otherwise, falls back to ``request.client.host``
+    to prevent IP spoofing via forged headers.
+    """
+    # Fall back to the raw client address (safe default)
     client = request.client
     return client.host if client else "unknown"
 
@@ -176,64 +175,63 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
         try:
             pool = await self._get_pool()
             redis_client = aioredis.Redis(connection_pool=pool)
+            try:
+                key = f"ratelimit:{ip}:{path}"
 
-            key = f"ratelimit:{ip}:{path}"
+                # Remove old entries outside the window
+                await redis_client.zremrangebyscore(key, 0, window_start)
 
-            # Remove old entries outside the window
-            await redis_client.zremrangebyscore(key, 0, window_start)
+                # Count requests in the current window
+                count = await redis_client.zcard(key)
 
-            # Count requests in the current window
-            count = await redis_client.zcard(key)
+                if count >= effective_limit:
+                    # Rate limit exceeded — compute Retry-After from the
+                    # oldest timestamp still in the window (when it expires).
+                    oldest_raw = await redis_client.zrange(key, 0, 0, withscores=True)
+                    if oldest_raw:
+                        oldest_ts = oldest_raw[0][1]
+                        retry_after = max(1, int(oldest_ts + tier_window - now))
+                    else:
+                        retry_after = int(tier_window)
 
-            if count >= effective_limit:
-                # Rate limit exceeded — compute Retry-After from the
-                # oldest timestamp still in the window (when it expires).
-                oldest_raw = await redis_client.zrange(key, 0, 0, withscores=True)
-                if oldest_raw:
-                    oldest_ts = oldest_raw[0][1]
-                    retry_after = max(1, int(oldest_ts + tier_window - now))
-                else:
-                    retry_after = int(tier_window)
+                    # Increment rate limit hit counter
+                    ratelimit_hits_total.labels(endpoint=path).inc()
 
-                # Increment rate limit hit counter
-                ratelimit_hits_total.labels(endpoint=path).inc()
+                    return JSONResponse(
+                        status_code=429,
+                        content={
+                            "detail": "Rate limit exceeded. Try again later.",
+                            "retry_after": retry_after,
+                            "limit": tier_limit,
+                            "burst": burst,
+                        },
+                        headers={"Retry-After": str(retry_after)},
+                    )
 
+                # Record this request
+                await redis_client.zadd(key, {str(now): now})
+                await redis_client.expire(key, tier_window * 2)
+
+                # Update active bucket count gauge (throttled to every 10s)
+                if now - self._last_bucket_count_update > 10:
+                    # Approximate: count keys matching the ratelimit prefix
+                    try:
+                        cursor = 0
+                        key_count = 0
+                        while True:
+                            cursor, keys = await redis_client.scan(
+                                cursor, match="ratelimit:*", count=100
+                            )
+                            key_count += len(keys)
+                            if cursor == 0:
+                                break
+                        self._active_bucket_count = key_count
+                        self._last_bucket_count_update = now
+                        ratelimit_active_buckets.set(key_count)
+                    except Exception:
+                        pass  # best-effort metric
+            finally:
                 await redis_client.aclose()
-                return JSONResponse(
-                    status_code=429,
-                    content={
-                        "detail": "Rate limit exceeded. Try again later.",
-                        "retry_after": retry_after,
-                        "limit": tier_limit,
-                        "burst": burst,
-                    },
-                    headers={"Retry-After": str(retry_after)},
-                )
-
-            # Record this request
-            await redis_client.zadd(key, {str(now): now})
-            await redis_client.expire(key, tier_window * 2)
-
-            # Update active bucket count gauge (throttled to every 10s)
-            if now - self._last_bucket_count_update > 10:
-                # Approximate: count keys matching the ratelimit prefix
-                try:
-                    cursor = 0
-                    key_count = 0
-                    while True:
-                        cursor, keys = await redis_client.scan(
-                            cursor, match="ratelimit:*", count=100
-                        )
-                        key_count += len(keys)
-                        if cursor == 0:
-                            break
-                    self._active_bucket_count = key_count
-                    self._last_bucket_count_update = now
-                    ratelimit_active_buckets.set(key_count)
-                except Exception:
-                    pass  # best-effort metric
-
-            await redis_client.aclose()
 
         except Exception:
             # If Redis is unreachable, allow the request through

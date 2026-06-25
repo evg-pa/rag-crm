@@ -16,19 +16,54 @@
 # ───────────────────────────────────────────────────────────────────────
 
 services:
+  # ── PostgreSQL: production hardening ───────────────────────────────
+  postgres:
+    restart: always
+    deploy:
+      resources:
+        limits:
+          cpus: "1.0"
+          memory: 512M
+
+  # ── Redis: production hardening ────────────────────────────────────
+  redis:
+    restart: always
+    deploy:
+      resources:
+        limits:
+          cpus: "0.5"
+          memory: 256M
+
   # ── Backend: remove host port — reachable only through nginx ──────
   backend:
+    restart: always
     ports: !override []
+    deploy:
+      resources:
+        limits:
+          cpus: "1.0"
+          memory: 1G
 
   # ── Frontend: remove host port — reachable only through nginx ─────
   frontend:
+    restart: always
     ports: !override []
+    deploy:
+      resources:
+        limits:
+          cpus: "0.5"
+          memory: 512M
 
   # ── nginx reverse proxy with HTTPS termination ────────────────────
   nginx:
     image: nginx:1.27-alpine
     container_name: rag-nginx
-    restart: unless-stopped
+    restart: always
+    deploy:
+      resources:
+        limits:
+          cpus: "0.25"
+          memory: 128M
     ports:
       - "80:80"
       - "443:443"
@@ -61,7 +96,12 @@ services:
   certbot:
     image: certbot/certbot:latest
     container_name: rag-certbot
-    restart: unless-stopped
+    restart: always
+    deploy:
+      resources:
+        limits:
+          cpus: "0.25"
+          memory: 128M
     volumes:
       - ./certbot/www:/var/www/certbot:rw
       - ./certbot/conf:/etc/letsencrypt:rw

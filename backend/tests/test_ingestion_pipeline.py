@@ -39,10 +39,16 @@ async def _upload_and_assert(
     """Upload a file and perform common assertions.
 
     Returns the parsed JSON response dict.
+
+    Uses the expected_content_type as the per-part Content-Type header so
+    that the server's content-type whitelist accepts the upload.  Without an
+    explicit Content-Type, httpx may fall back to ``application/octet-stream``
+    for formats whose MIME type is not in Python's mimetypes database
+    (e.g. .docx), which would cause a 415.
     """
     response = await client.post(
         "/documents/upload",
-        files={"file": (filename, content)},
+        files={"file": (filename, content, expected_content_type)},
     )
     assert response.status_code == 201, (
         f"Expected 201, got {response.status_code}: {response.text}"
@@ -314,29 +320,36 @@ async def test_multi_format_upload_all_appear_in_list(
     docx_bytes = _read_fixture("sample.docx")
     html_bytes = _read_fixture("sample.html")
 
-    # Upload all three
+    # Upload all three — use 3-tuples to send explicit Content-Type per part
+    # so the server content-type whitelist accepts the uploads.
     resp1 = await client.post(
         "/documents/upload",
-        files={"file": ("test.pdf", pdf_bytes)},
+        files={"file": ("test.pdf", pdf_bytes, "application/pdf")},
     )
     assert resp1.status_code == 201
 
     resp2 = await client.post(
         "/documents/upload",
-        files={"file": ("test.docx", docx_bytes)},
+        files={
+            "file": (
+                "test.docx",
+                docx_bytes,
+                "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+            )
+        },
     )
     assert resp2.status_code == 201
 
     resp3 = await client.post(
         "/documents/upload",
-        files={"file": ("test.html", html_bytes)},
+        files={"file": ("test.html", html_bytes, "text/html")},
     )
     assert resp3.status_code == 201
 
     # Also upload a .txt for good measure
     resp4 = await client.post(
         "/documents/upload",
-        files={"file": ("notes.txt", b"Plain text document.")},
+        files={"file": ("notes.txt", b"Plain text document.", "text/plain")},
     )
     assert resp4.status_code == 201
 

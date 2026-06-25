@@ -24,21 +24,35 @@ from app.core.dependencies import get_settings
 
 logger = logging.getLogger(__name__)
 
-# Map config strings to onnxruntime GraphOptimizationLevel constants
-_OPTIMIZATION_LEVEL_MAP: dict[str, Any] = {}
+# Map config strings to onnxruntime GraphOptimizationLevel constants.
+# Initialised eagerly at module-level to avoid thread-safety issues
+# with lazy mutable dict updates.
+try:
+    import onnxruntime as ort
+    _OPTIMIZATION_LEVEL_MAP: dict[str, Any] = {
+        "disable": ort.GraphOptimizationLevel.ORT_DISABLE_ALL,
+        "basic": ort.GraphOptimizationLevel.ORT_ENABLE_BASIC,
+        "extended": ort.GraphOptimizationLevel.ORT_ENABLE_EXTENDED,
+        "all": ort.GraphOptimizationLevel.ORT_ENABLE_ALL,
+    }
+except ImportError:
+    # onnxruntime not installed — will be caught at model load time.
+    _OPTIMIZATION_LEVEL_MAP = {}  # type: ignore[assignment]
 
 
 def _get_optimization_level(level_name: str) -> Any:
-    """Resolve a named optimization level to the onnxruntime constant."""
-    if not _OPTIMIZATION_LEVEL_MAP:
-        import onnxruntime as ort
-        _OPTIMIZATION_LEVEL_MAP.update({
-            "disable": ort.GraphOptimizationLevel.ORT_DISABLE_ALL,
-            "basic": ort.GraphOptimizationLevel.ORT_ENABLE_BASIC,
-            "extended": ort.GraphOptimizationLevel.ORT_ENABLE_EXTENDED,
-            "all": ort.GraphOptimizationLevel.ORT_ENABLE_ALL,
-        })
-    return _OPTIMIZATION_LEVEL_MAP.get(level_name.lower(), _OPTIMIZATION_LEVEL_MAP["all"])
+    """Resolve a named optimization level to the onnxruntime constant.
+
+    Logs a warning and falls back to 'all' when the name is unrecognised.
+    """
+    normalized = level_name.lower()
+    if normalized in _OPTIMIZATION_LEVEL_MAP:
+        return _OPTIMIZATION_LEVEL_MAP[normalized]
+    logger.warning(
+        "Unrecognised ONNX_GRAPH_OPTIMIZATION_LEVEL '%s' — falling back to 'all'",
+        level_name,
+    )
+    return _OPTIMIZATION_LEVEL_MAP.get("all")
 
 
 class EmbeddingModel:
@@ -64,6 +78,9 @@ class EmbeddingModel:
             cls._lock = asyncio.Lock()
         return cls._lock
 
+    # Upper bound for ONNX thread pool sizes to prevent accidental CPU oversubscription.
+    _MAX_ONNX_THREADS: int = 128
+
     @classmethod
     def _ensure_loaded(cls) -> None:
         """Blocking load of the ONNX model and tokenizer.
@@ -75,9 +92,16 @@ class EmbeddingModel:
         - Graph optimization level (via ``ONNX_GRAPH_OPTIMIZATION_LEVEL``)
         - Intra-op thread parallelism (via ``ONNX_INTRA_OP_THREADS``)
         - Inter-op thread parallelism (via ``ONNX_INTER_OP_THREADS``)
+
+        Thread counts are capped at _MAX_ONNX_THREADS to prevent
+        accidental CPU oversubscription.
         """
         if cls._loaded:
             return
+
+        # Reset partial state in case of previous failed load.
+        cls._tokenizer = None
+        cls._model = None
 
         import onnxruntime as ort
         from optimum.onnxruntime import (  # type: ignore[import-not-found,unused-ignore]
@@ -95,9 +119,23 @@ class EmbeddingModel:
             settings.ONNX_GRAPH_OPTIMIZATION_LEVEL
         )
         if settings.ONNX_INTRA_OP_THREADS > 0:
-            session_options.intra_op_num_threads = settings.ONNX_INTRA_OP_THREADS
+            intra = min(settings.ONNX_INTRA_OP_THREADS, cls._MAX_ONNX_THREADS)
+            session_options.intra_op_num_threads = intra
+            if intra < settings.ONNX_INTRA_OP_THREADS:
+                logger.warning(
+                    "ONNX_INTRA_OP_THREADS=%d capped at %d",
+                    settings.ONNX_INTRA_OP_THREADS,
+                    cls._MAX_ONNX_THREADS,
+                )
         if settings.ONNX_INTER_OP_THREADS > 0:
-            session_options.inter_op_num_threads = settings.ONNX_INTER_OP_THREADS
+            inter = min(settings.ONNX_INTER_OP_THREADS, cls._MAX_ONNX_THREADS)
+            session_options.inter_op_num_threads = inter
+            if inter < settings.ONNX_INTER_OP_THREADS:
+                logger.warning(
+                    "ONNX_INTER_OP_THREADS=%d capped at %d",
+                    settings.ONNX_INTER_OP_THREADS,
+                    cls._MAX_ONNX_THREADS,
+                )
 
         logger.info(
             "Loading embedding model %s (opt_level=%s, intra_threads=%s, inter_threads=%s)",
@@ -107,12 +145,22 @@ class EmbeddingModel:
             session_options.inter_op_num_threads,
         )
 
-        cls._tokenizer = AutoTokenizer.from_pretrained(settings.EMBEDDING_MODEL)
-        cls._model = ORTModelForFeatureExtraction.from_pretrained(
-            settings.EMBEDDING_MODEL,
-            export=False,
-            session_options=session_options,
-        )
+        try:
+            cls._tokenizer = AutoTokenizer.from_pretrained(settings.EMBEDDING_MODEL)
+            cls._model = ORTModelForFeatureExtraction.from_pretrained(
+                settings.EMBEDDING_MODEL,
+                export=False,
+                session_options=session_options,
+            )
+        except Exception:
+            # Clean up partial state so a later retry starts fresh.
+            cls._tokenizer = None
+            cls._model = None
+            logger.exception(
+                "Failed to load embedding model %s", settings.EMBEDDING_MODEL
+            )
+            raise
+
         cls._loaded = True
         logger.info("Embedding model loaded and cached for process lifetime")
 

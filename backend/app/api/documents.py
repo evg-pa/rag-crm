@@ -107,14 +107,9 @@ ALLOWED_EXTENSIONS: frozenset[str] = get_all_supported_extensions()
 EXTENSION_TO_CONTENT_TYPE: dict[str, str] = get_ext_to_content_type_map()
 
 # Whitelist of allowed MIME types for upload (in addition to extension check).
-# Maps to the content types we can actually parse.
-_ALLOWED_CONTENT_TYPES: frozenset[str] = frozenset({
-    "text/plain",
-    "text/markdown",
-    "application/pdf",
-    "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-    "text/html",
-})
+# Derived from the parser registry's extension-to-content-type map so the two
+# stay in sync automatically — no drift risk.
+_ALLOWED_CONTENT_TYPES: frozenset[str] = frozenset(EXTENSION_TO_CONTENT_TYPE.values())
 
 
 def _validate_upload_size(request: Request, max_bytes: int) -> None:
@@ -129,13 +124,18 @@ def _validate_upload_size(request: Request, max_bytes: int) -> None:
         try:
             length = int(content_length)
         except ValueError:
+            logger.warning(
+                "Invalid Content-Length header '%s' from %s",
+                content_length,
+                request.client.host if request.client else "unknown",
+            )
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="Invalid Content-Length header.",
             )
         if length > max_bytes:
             raise HTTPException(
-                status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
+                status_code=status.HTTP_413_CONTENT_TOO_LARGE,
                 detail=(
                     f"File too large. Content-Length is {length} bytes, "
                     f"maximum allowed is {max_bytes} bytes "
@@ -152,7 +152,7 @@ def _check_size_after_read(raw_bytes: bytes, max_bytes: int, filename: str) -> N
     actual_size = len(raw_bytes)
     if actual_size > max_bytes:
         raise HTTPException(
-            status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
+            status_code=status.HTTP_413_CONTENT_TOO_LARGE,
             detail=(
                 f"File '{filename}' is {actual_size} bytes, "
                 f"maximum allowed is {max_bytes} bytes "
@@ -167,8 +167,17 @@ def _validate_content_type(content_type: str | None, filename: str) -> None:
     This is a defense-in-depth check: the primary validation is extension-based
     (via ``_validate_extension``), but a mismatched Content-Type header can
     indicate a malicious or malformed upload.
+
+    When the client omits the Content-Type header entirely, the check is
+    bypassed — we rely on extension validation alone in that case.
     """
-    if content_type and content_type not in _ALLOWED_CONTENT_TYPES:
+    if content_type is None:
+        logger.debug(
+            "Content-Type header missing for '%s' — relying on extension check only",
+            filename,
+        )
+        return
+    if content_type not in _ALLOWED_CONTENT_TYPES:
         raise HTTPException(
             status_code=status.HTTP_415_UNSUPPORTED_MEDIA_TYPE,
             detail=(

@@ -367,6 +367,9 @@ class TestVectorStoreFactory:
             result = get_vector_store()
             assert result is not None
 
+        # Clear cache so other tests get correct vector store
+        get_vector_store.cache_clear()
+
     @patch("app.retrieval.vector_store.get_settings")
     def test_qdrant_selection(self, mock_settings: MagicMock):
         """VECTOR_STORE=qdrant should return QdrantRepository."""
@@ -383,6 +386,9 @@ class TestVectorStoreFactory:
             result = get_vector_store()
             assert result is not None
 
+        # Clear cache so other tests get correct vector store
+        get_vector_store.cache_clear()
+
     @patch("app.retrieval.vector_store.get_settings")
     def test_case_insensitive(self, mock_settings: MagicMock):
         """VECTOR_STORE should be case-insensitive."""
@@ -398,6 +404,9 @@ class TestVectorStoreFactory:
         ):
             result = get_vector_store()
             assert result is not None
+
+        # Clear cache so other tests get correct vector store
+        get_vector_store.cache_clear()
 
 
 # ── Migration script helpers ─────────────────────────────────────────────────

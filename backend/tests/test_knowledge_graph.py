@@ -114,15 +114,12 @@ class TestEntityExtraction:
         # Both should have same entity_id (case-insensitive name+type hash)
         assert len(entities) <= 1  # at most 1 unique entity_id
 
-    def test_extract_entities_short_text(self):
+    @pytest.mark.asyncio
+    async def test_extract_entities_short_text(self):
         """Should return empty list for very short text (< 20 chars)."""
         from app.knowledge_graph.entity_extractor import extract_entities_from_text
 
-        async def _test():
-            return await extract_entities_from_text("Short.")
-
-        import asyncio
-        entities = asyncio.get_event_loop().run_until_complete(_test())
+        entities = await extract_entities_from_text("Short.")
         assert entities == []
 
     @pytest.mark.asyncio

@@ -152,6 +152,15 @@ import app.retrieval.vector_store as _vs_module  # noqa: E402
 _vs_module._session_factory = TEST_SESSION_FACTORY
 # Clear LRU cache on get_vector_store so it picks up the test session factory
 _vs_module.get_vector_store.cache_clear()
+# Clear related caches for test isolation
+from app.core.dependencies import get_settings as _get_settings
+_get_settings.cache_clear()
+
+# Also clear before every test session to handle test ordering edge cases
+def pytest_sessionstart() -> None:
+    """Clear vector store cache at session start for test isolation."""
+    _vs_module.get_vector_store.cache_clear()
+
 
 import uuid
 

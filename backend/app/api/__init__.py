@@ -12,6 +12,7 @@ from app.api.qa import router as qa_router
 from app.api.qa import crm_router
 from app.api.search import router as search_router
 from app.api.wiki import router as wiki_router
+from app.api.graph import router as knowledge_graph_router
 
 # ── Pipeline status endpoint ─────────────────────────────────────────────────
 
@@ -33,6 +34,7 @@ async def pipeline_status() -> dict:
             "answer": "idle",
             "critic": "idle",
             "memory": "idle",
+            "knowledge_graph": "idle",
             "synthesizer": "idle",
         },
         "pipeline": "ready",
@@ -52,4 +54,5 @@ api_router.include_router(crm_router, tags=["qa"])
 api_router.include_router(search_router, tags=["search"])
 api_router.include_router(wiki_router, tags=["wiki"])
 api_router.include_router(memory_router, tags=["memory"])
+api_router.include_router(knowledge_graph_router, tags=["knowledge-graph"])
 api_router.include_router(pipeline_router, tags=["pipeline"])

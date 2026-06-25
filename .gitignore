@@ -53,3 +53,4 @@ test-ui.html
 # Stray artifacts
 backend/=0.2.0
 
+.cache/

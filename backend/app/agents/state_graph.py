@@ -20,6 +20,7 @@ from app.agents.retriever_agent import retriever_agent
 from app.agents.router_agent import router_agent
 from app.agents.state import AgentState
 from app.agents.synthesizer_agent import synthesizer_agent
+from app.knowledge_graph.graph_agent import knowledge_graph_agent
 
 
 # ── Routing helpers ──────────────────────────────────────────────────────────
@@ -44,6 +45,15 @@ def _route_after_router(state: AgentState) -> str:
     if query_type in ("greeting", "irrelevant"):
         return "synthesizer"
     return "crm_context"
+
+
+def _route_after_graph(state: AgentState) -> str:
+    """Decide the next node after KnowledgeGraphAgent.
+
+    Always routes to reranker (graph augments existing chunks in-place).
+    On error, still route to reranker — graph is a best-effort augmentation.
+    """
+    return "reranker"
 
 
 def _route_after_crm(state: AgentState) -> str:
@@ -101,6 +111,7 @@ def build_qa_graph() -> StateGraph:
     graph.add_node("critic", critic_agent)
     graph.add_node("memory", memory_agent)
     graph.add_node("synthesizer", synthesizer_agent)
+    graph.add_node("knowledge_graph", knowledge_graph_agent)
 
     # ── Set entry point ──────────────────────────────────────────────────
     graph.set_entry_point("router")
@@ -126,7 +137,8 @@ def build_qa_graph() -> StateGraph:
     )
 
     # ── Linear retrieval chain ───────────────────────────────────────────
-    graph.add_edge("retriever", "reranker")
+    graph.add_edge("retriever", "knowledge_graph")
+    graph.add_edge("knowledge_graph", "reranker")
     graph.add_edge("reranker", "answer")
 
     # ── Critic loop ──────────────────────────────────────────────────────

@@ -72,7 +72,12 @@ elif current_page == "crm_sync":
     from page_modules.crm_sync import render as render_crm_sync
 
     render_crm_sync()
+elif current_page == "knowledge_graph":
+    from page_modules.knowledge_graph import render as render_knowledge_graph
+
+    render_knowledge_graph()
 elif current_page == "pipeline":
     from page_modules.pipeline import render as render_pipeline
 
     render_pipeline()
+

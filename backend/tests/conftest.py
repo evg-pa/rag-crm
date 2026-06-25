@@ -145,6 +145,14 @@ async def _override_get_db_session() -> AsyncGenerator[AsyncSession, None]:
 # Override the FastAPI dependency BEFORE any test collects
 app.dependency_overrides = {}
 
+# Monkey-patch vector_store's _session_factory to use the test SQLite DB.
+# Without this, get_vector_store() would create its own sessions pointing
+# to the real PostgreSQL, which doesn't have the test tables.
+import app.retrieval.vector_store as _vs_module  # noqa: E402
+_vs_module._session_factory = TEST_SESSION_FACTORY
+# Clear LRU cache on get_vector_store so it picks up the test session factory
+_vs_module.get_vector_store.cache_clear()
+
 import uuid
 
 from sqlalchemy import select
@@ -152,6 +160,7 @@ from sqlalchemy import select
 from app.core.dependencies import get_db_session  # noqa: E402
 from app.core.auth import get_current_user, hash_password  # noqa: E402
 from app.retrieval.embeddings import EmbeddingModel, get_embedding_model  # noqa: E402
+from app.retrieval.pgvector_repository import PgVectorRepository  # noqa: E402
 
 app.dependency_overrides[get_db_session] = _override_get_db_session
 

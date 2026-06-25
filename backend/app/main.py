@@ -85,7 +85,29 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
 
     asyncio.create_task(_preload_models())
 
+    # Initialize Neo4j knowledge graph schema (fire and forget)
+    async def _init_neo4j() -> None:
+        try:
+            from app.knowledge_graph.driver import get_neo4j_driver
+            from app.knowledge_graph.graph_service import GraphService
+            gs = GraphService(settings)
+            await gs.initialize_schema()
+            logger.info("Neo4j knowledge graph schema initialized")
+        except Exception as exc:
+            logger.warning("Neo4j schema init failed: %s", exc)
+
+    asyncio.create_task(_init_neo4j())
+
     yield
+
+    # Cleanup Neo4j driver on shutdown
+    try:
+        from app.knowledge_graph.driver import close_neo4j_driver
+
+        await close_neo4j_driver()
+    except Exception as exc:
+        logger.warning("Neo4j driver cleanup failed: %s", exc)
+
     logger.info("shutting down application")
 
 

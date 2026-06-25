@@ -69,6 +69,11 @@ class Settings(BaseSettings):
     VECTOR_STORE: str = "pgvector"  # "pgvector" or "qdrant"
     QDRANT_URL: str = "http://localhost:6333"
 
+    # Neo4j Knowledge Graph
+    NEO4J_URI: str = "bolt://neo4j:7687"
+    NEO4J_USER: str = "neo4j"
+    NEO4J_PASSWORD: str = "rag_neo4j_pass"
+
     # Auth
     JWT_SECRET_KEY: str = ""
     JWT_ALGORITHM: str = "HS256"

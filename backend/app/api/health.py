@@ -79,6 +79,15 @@ async def health_ready(
     except Exception:
         embedding_ready = "not ready"
 
+    neo4j_ready = "ready"
+    try:
+        from app.knowledge_graph.driver import check_neo4j_connection
+        connected = await check_neo4j_connection(settings)
+        if not connected:
+            neo4j_ready = "not ready"
+    except Exception:
+        neo4j_ready = "not ready"
+
     all_ready = (
         db_ready == "ready"
         and redis_ready == "ready"
@@ -94,6 +103,7 @@ async def health_ready(
         "redis": redis_ready,
         "embedding_model": embedding_ready,
         "vector_store": qdrant_ready,
+        "neo4j": neo4j_ready,
     }
 
 

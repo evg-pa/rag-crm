@@ -51,6 +51,10 @@ class AgentState(TypedDict, total=False):
     memory_type: str  # "working" | "episodic" | "semantic" | "none"
     extracted_facts: list[dict[str, Any]]  # facts for semantic memory
 
+    # ── Knowledge Graph output ───────────────────────────────────────
+    graph_entities: list[dict[str, Any]]  # expanded entities from graph
+    graph_augmented_chunks: list[dict[str, Any]]  # chunks with graph scores
+
     # ── Synthesizer output ────────────────────────────────────────────
     final_response: str
 

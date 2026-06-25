@@ -353,6 +353,56 @@ async def _persist_and_embed(
 
     asyncio.create_task(_generate_wiki(document.id))
 
+    # Trigger knowledge graph entity extraction as a background task
+    async def _extract_kg_entities(doc_id: uuid.UUID, doc_filename: str) -> None:
+        try:
+            from app.knowledge_graph.entity_extractor import process_document_entities
+            from app.knowledge_graph.relationship_extractor import process_document_relationships
+            from app.knowledge_graph.graph_service import GraphService
+
+            full_text = " ".join(chunk_texts)
+            gs = GraphService()
+
+            # Extract entities
+            entity_result = await process_document_entities(
+                text=full_text,
+                document_id=str(doc_id),
+                filename=doc_filename,
+                chunks=[
+                    {"id": chunk_map.get(cr.index, ""), "content": cr.content, "chunk_index": cr.index}
+                    for cr in chunk_results
+                ],
+                graph_service=gs,
+            )
+
+            # Extract relationships from entities
+            if entity_result.get("entities", 0) > 0:
+                doc_entities = await gs.get_document_entities(str(doc_id))
+                entity_list = [
+                    {"entity_id": e["entity_id"], "name": e["name"], "type": e["type"]}
+                    for e in doc_entities
+                ]
+                if entity_list:
+                    await process_document_relationships(
+                        entities=entity_list,
+                        text=full_text,
+                        document_id=str(doc_id),
+                        chunks=[
+                            {"id": chunk_map.get(cr.index, ""), "content": cr.content, "chunk_index": cr.index}
+                            for cr in chunk_results
+                        ],
+                        graph_service=gs,
+                    )
+
+            logger.info(
+                "Knowledge graph extraction complete for document %s: %d entities",
+                doc_id, entity_result.get("entities", 0),
+            )
+        except Exception as exc:
+            logger.warning("Knowledge graph extraction failed for document %s: %s", doc_id, exc)
+
+    asyncio.create_task(_extract_kg_entities(document.id, filename))
+
     await db.refresh(document, attribute_names=["chunks"])
     return document
 

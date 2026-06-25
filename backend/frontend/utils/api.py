@@ -264,15 +264,46 @@ def get_crm_presets() -> dict[str, Any]:
     return r.json()  # type: ignore[no-any-return]
 
 
-def crm_quick_query(
-    query: str,
-    preset: str | None = None,
-    limit: int = 10,
+# ── Knowledge Graph ─────────────────────────────────────────────────────────
+
+
+def get_graph_stats() -> dict[str, Any]:
+    """GET /graph/stats — knowledge graph statistics."""
+    r = _get_client().get("/graph/stats")
+    r.raise_for_status()
+    return r.json()  # type: ignore[no-any-return]
+
+
+def search_graph_entities(
+    search_term: str,
+    entity_type: str | None = None,
+    limit: int = 20,
 ) -> dict[str, Any]:
-    """POST /qa/crm/quick-query — direct CRM database lookup."""
-    body: dict[str, Any] = {"query": query, "limit": limit}
-    if preset:
-        body["preset"] = preset
-    r = _get_client().post("/qa/crm/quick-query", json=body)
+    """GET /graph/entities — search entities by name."""
+    params: dict[str, Any] = {"q": search_term, "limit": limit}
+    if entity_type:
+        params["type"] = entity_type
+    r = _get_client().get("/graph/entities", params=params)
+    r.raise_for_status()
+    return r.json()  # type: ignore[no-any-return]
+
+
+def get_graph_entity_subgraph(entity_id: str, depth: int = 2) -> dict[str, Any]:
+    """GET /graph/entities/{id} — entity subgraph for visualization."""
+    r = _get_client().get(f"/graph/entities/{entity_id}", params={"depth": depth})
+    r.raise_for_status()
+    return r.json()  # type: ignore[no-any-return]
+
+
+def expand_graph_query(query: str) -> dict[str, Any]:
+    """GET /graph/expand — expand query with related entities."""
+    r = _get_client().get("/graph/expand", params={"q": query})
+    r.raise_for_status()
+    return r.json()  # type: ignore[no-any-return]
+
+
+def get_document_entities(document_id: str) -> dict[str, Any]:
+    """GET /graph/documents/{id}/entities — entities for a document."""
+    r = _get_client().get(f"/graph/documents/{document_id}/entities")
     r.raise_for_status()
     return r.json()  # type: ignore[no-any-return]

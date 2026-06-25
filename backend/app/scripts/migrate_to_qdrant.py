@@ -15,6 +15,7 @@ from __future__ import annotations
 
 import argparse
 import asyncio
+import contextlib
 import logging
 import sys
 import time
@@ -49,10 +50,8 @@ async def migrate(dry_run: bool = False, batch_size: int = 100) -> dict:
 
     if dry_run:
         target_count = -1
-        try:
+        with contextlib.suppress(Exception):
             target_count = await target.count()
-        except Exception:
-            pass
         logger.info(
             "DRY RUN: would migrate %d vectors from pgvector to Qdrant "
             "(target currently has %d vectors)",

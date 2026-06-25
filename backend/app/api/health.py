@@ -39,6 +39,7 @@ async def health_ready(
     Checks:
     - Database is reachable
     - Redis is reachable (if configured)
+    - Qdrant is reachable (if configured as vector store)
     - Embedding model is loaded and producing embeddings
     """
     db_ready = "ready"
@@ -57,6 +58,16 @@ async def health_ready(
     except Exception:
         redis_ready = "not ready"
 
+    qdrant_ready = "disabled"
+    if settings.VECTOR_STORE.lower() == "qdrant":
+        try:
+            from app.retrieval.vector_store import get_vector_store
+            store = get_vector_store()
+            count = await store.count()
+            qdrant_ready = "ready" if count >= 0 else "not ready"
+        except Exception:
+            qdrant_ready = "not ready"
+
     embedding_ready = "ready"
     try:
         from app.retrieval.embeddings import get_embedding_model
@@ -72,6 +83,7 @@ async def health_ready(
         db_ready == "ready"
         and redis_ready == "ready"
         and embedding_ready == "ready"
+        and (qdrant_ready in ("ready", "disabled"))
     )
     overall = "ready" if all_ready else "degraded"
 
@@ -81,6 +93,7 @@ async def health_ready(
         "database": db_ready,
         "redis": redis_ready,
         "embedding_model": embedding_ready,
+        "vector_store": qdrant_ready,
     }
 
 

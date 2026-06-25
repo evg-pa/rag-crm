@@ -15,6 +15,7 @@ from app.retrieval.embeddings import EmbeddingModel
 from app.retrieval.hybrid import hybrid_search
 from app.retrieval.keyword import BM25Index
 from app.retrieval.semantic import semantic_search
+from app.retrieval.vector_store import get_vector_store
 
 # Number of candidates to retrieve before fusion/re-ranking
 _CANDIDATE_K = 30
@@ -27,7 +28,8 @@ async def _run_semantic(
 ) -> list[dict[str, Any]]:
     """Run semantic (vector) search."""
     query_embedding = await model.embed(query)
-    return await semantic_search(db, query_embedding, top_k=_CANDIDATE_K)
+    vector_store = get_vector_store()
+    return await semantic_search(db, query_embedding, top_k=_CANDIDATE_K, vector_store=vector_store)
 
 
 async def _run_keyword(
@@ -45,7 +47,8 @@ async def _run_hybrid(
 ) -> list[dict[str, Any]]:
     """Run hybrid (semantic + BM25 fusion) search."""
     query_embedding = await model.embed(query)
-    semantic_results = await semantic_search(db, query_embedding, top_k=_CANDIDATE_K)
+    vector_store = get_vector_store()
+    semantic_results = await semantic_search(db, query_embedding, top_k=_CANDIDATE_K, vector_store=vector_store)
     bm25_results = await BM25Index.search(query, top_k=_CANDIDATE_K, db=db)
     return await hybrid_search(
         semantic_results=semantic_results,

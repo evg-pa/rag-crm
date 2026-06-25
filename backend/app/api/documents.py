@@ -289,10 +289,37 @@ async def _persist_and_embed(
 
     await db.commit()
 
-    # Generate embeddings outside the DB session (no greenlet conflict)
+    # Generate embeddings and store via vector repository
     try:
         model = get_embedding_model()
         embeddings = await asyncio.gather(*[model.embed(t) for t in chunk_texts])
+
+        # Store in vector repository (pgvector or Qdrant depending on config)
+        from app.retrieval.vector_store import get_vector_store
+        vector_store = get_vector_store()
+
+        # Collect chunk ids (they were flushed to DB above)
+        chunk_rows = await db.execute(
+            select(Chunk.id, Chunk.chunk_index)
+            .where(Chunk.document_id == document.id)
+            .order_by(Chunk.chunk_index)
+        )
+        chunk_map = {row.chunk_index: str(row.id) for row in chunk_rows}
+
+        chunk_ids = [chunk_map[cr.index] for cr in chunk_results]
+        contents = [cr.content for cr in chunk_results]
+        doc_ids = [str(document.id)] * len(chunk_results)
+        indices = [cr.index for cr in chunk_results]
+
+        await vector_store.upsert_embeddings(
+            chunk_ids=chunk_ids,
+            embeddings=list(embeddings),
+            contents=contents,
+            document_ids=doc_ids,
+            chunk_indices=indices,
+        )
+
+        # Also store in pgvector column for backward compatibility
         for (chunk_result, emb) in zip(chunk_results, embeddings, strict=True):
             await db.execute(
                 Chunk.__table__.update()
@@ -574,6 +601,16 @@ async def delete_document(
 
     await db.delete(document)
     await db.commit()
+
+    # Delete vectors from the configured vector store (Qdrant / pgvector).
+    # pgvector embeddings are cascade-deleted with the chunks, but
+    # Qdrant stores vectors independently and needs an explicit delete.
+    try:
+        from app.retrieval.vector_store import get_vector_store
+        vector_store = get_vector_store()
+        await vector_store.delete_by_document(str(document_id))
+    except Exception as exc:
+        logger.warning("Failed to delete vectors for document %s: %s", document_id, exc)
 
     # Rebuild BM25 index so deleted chunks are removed
     try:

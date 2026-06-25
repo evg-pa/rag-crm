@@ -65,6 +65,10 @@ class Settings(BaseSettings):
     CRM_REST_BASE_URL: str = ""  # Base URL for the REST CRM adapter
     CRM_REST_API_KEY: str = ""  # API key for the REST CRM adapter
 
+    # Vector store
+    VECTOR_STORE: str = "pgvector"  # "pgvector" or "qdrant"
+    QDRANT_URL: str = "http://localhost:6333"
+
     # Auth
     JWT_SECRET_KEY: str = ""
     JWT_ALGORITHM: str = "HS256"

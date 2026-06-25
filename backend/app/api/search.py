@@ -18,6 +18,7 @@ from app.retrieval.hybrid import DEFAULT_BM25_WEIGHT, DEFAULT_SEMANTIC_WEIGHT, h
 from app.retrieval.keyword import BM25Index
 from app.retrieval.reranker import Reranker
 from app.retrieval.semantic import semantic_search
+from app.retrieval.vector_store import get_vector_store
 
 router = APIRouter(prefix="/search", tags=["search"])
 
@@ -79,8 +80,9 @@ async def search(
     # Generate query embedding
     query_embedding = await model.embed(q)
 
-    # Search pgvector
-    results = await semantic_search(db, query_embedding, top_k=top_k)
+    # Search via vector store (pgvector or Qdrant depending on config)
+    vector_store = get_vector_store()
+    results = await semantic_search(db, query_embedding, top_k=top_k, vector_store=vector_store)
 
     return SearchResponse(
         query=q,
@@ -131,7 +133,8 @@ async def search_hybrid(
 
     # 1. Semantic search
     query_embedding = await model.embed(q)
-    semantic_results = await semantic_search(db, query_embedding, top_k=candidate_k)
+    vector_store = get_vector_store()
+    semantic_results = await semantic_search(db, query_embedding, top_k=candidate_k, vector_store=vector_store)
 
     # 2. BM25 keyword search
     bm25_results = await BM25Index.search(q, top_k=candidate_k, db=db)

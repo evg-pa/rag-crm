@@ -1,8 +1,7 @@
-"""Semantic search via pgvector cosine distance.
+"""Semantic search via the configured vector store (pgvector or Qdrant).
 
-Uses the pgvector `<=>` operator for cosine distance, which is equivalent
-to ``1 - cosine_similarity``.  Results are ordered by ascending distance
-(= descending similarity).
+When a ``VectorRepository`` is provided it is used directly; otherwise
+falls back to pgvector via SQLAlchemy for backward compatibility.
 """
 
 from __future__ import annotations
@@ -13,29 +12,41 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.chunk import Chunk
+from app.retrieval.vector_repository import VectorRepository
 
 
 async def semantic_search(
     db: AsyncSession,
     query_embedding: list[float],
     top_k: int = 10,
+    vector_store: VectorRepository | None = None,
 ) -> list[dict[str, Any]]:
     """Return the *top_k* chunks most similar to *query_embedding* by cosine distance.
 
+    If *vector_store* is provided, delegates to it for the search.
+    Otherwise uses pgvector directly (existing behaviour, for backward compat).
+
     Items are ordered by ascending distance (most similar first).  Each
     result dict contains ``id``, ``content``, ``document_id``,
-    ``chunk_index``, and ``similarity`` (1 − distance).
-
-    Notes
-    -----
-    - Requires the pgvector extension to be enabled in the target database.
-    - Runs a sequential scan over all chunks — for production workloads with
-      many chunks, add an IVFFlat index on ``embedding``.
+    ``chunk_index``, and ``similarity``.
     """
     if not query_embedding:
         raise ValueError("query_embedding must not be empty")
 
-    # pgvector <=> is cosine distance: 1 − cosine_similarity
+    if vector_store is not None:
+        results = await vector_store.search(query_embedding, top_k=top_k)
+        return [
+            {
+                "id": r.id,
+                "content": r.content,
+                "document_id": r.document_id,
+                "chunk_index": r.chunk_index,
+                "similarity": r.similarity,
+            }
+            for r in results
+        ]
+
+    # pgvector direct path (backward compatible)
     distance = Chunk.embedding.cosine_distance(query_embedding).label("distance")
 
     stmt = (

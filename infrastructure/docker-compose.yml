@@ -49,6 +49,7 @@ services:
       CRM_ADAPTER: ${CRM_ADAPTER:-mock}
       CRM_SYNC_FREQUENCY: ${CRM_SYNC_FREQUENCY:-manual}
       CRM_RAG_BRIDGE: ${CRM_RAG_BRIDGE:-false}
+      PYTEST_ASYNCIO_MODE: auto
     ports:
       - "8000:8000"
     depends_on:
@@ -64,11 +65,12 @@ services:
       start_period: 10s
 
   prometheus:
-    image: prom/prometheus:v2.52.0
+    build:
+      context: ./prometheus
+      dockerfile: Dockerfile
+    image: rag-prometheus:latest
     container_name: rag-prometheus
     volumes:
-      - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
-      - ./prometheus/alerts.yml:/etc/prometheus/alerts.yml:ro
       - prometheus_data:/prometheus
     command:
       - "--config.file=/etc/prometheus/prometheus.yml"

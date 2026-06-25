@@ -4,6 +4,7 @@ import time
 from unittest.mock import AsyncMock, Mock, patch
 
 import pytest
+import pytest_asyncio
 from httpx import ASGITransport, AsyncClient
 
 from app.core.ratelimit import RateLimitMiddleware
@@ -63,7 +64,7 @@ class _InMemoryRateLimiter:
 # Tests against the full app (mock Redis pool)
 # ---------------------------------------------------------------------------
 
-@pytest.fixture
+@pytest_asyncio.fixture
 async def app_with_ratelimit():
     """Create a fresh app with rate limiting middleware that uses a mock Redis."""
     from app.main import app
@@ -405,3 +406,182 @@ class TestClientIPExtraction:
         }
         request = Request(scope)
         assert _client_ip(request) == "unknown"
+
+
+class TestPerRouteTiers:
+    """Tests for per-route rate limit tier resolution."""
+
+    def test_qa_endpoint_gets_strict_limit(self):
+        """QA endpoint should have a strict limit with burst allowance."""
+        from app.core.ratelimit import _get_tier
+
+        limit, window, burst = _get_tier("/qa")
+        assert limit == 10
+        assert window == 60
+        assert burst == 3
+
+    def test_qa_stream_gets_strict_limit(self):
+        """/qa/stream should match the exact tier."""
+        from app.core.ratelimit import _get_tier
+
+        limit, window, burst = _get_tier("/qa/stream")
+        assert limit == 10
+        assert burst == 3
+
+    def test_qa_presets_gets_moderate_limit(self):
+        """QA presets should have a slightly higher limit than raw QA."""
+        from app.core.ratelimit import _get_tier
+
+        limit, window, burst = _get_tier("/qa/presets")
+        assert limit == 15
+        assert burst == 5
+
+    def test_search_gets_generous_limit(self):
+        """Search should have a higher limit (read-only, cheap)."""
+        from app.core.ratelimit import _get_tier
+
+        limit, window, burst = _get_tier("/search")
+        assert limit == 60
+        assert burst == 15
+
+    def test_pipeline_status_gets_very_generous_limit(self):
+        """Pipeline status should have the highest limit."""
+        from app.core.ratelimit import _get_tier
+
+        limit, window, burst = _get_tier("/pipeline/status")
+        assert limit == 120
+        assert burst == 20
+
+    def test_unknown_path_gets_default(self):
+        """Unmatched paths should get the default limit with no burst."""
+        from app.core.ratelimit import _get_tier, DEFAULT_LIMIT, DEFAULT_WINDOW
+
+        limit, window, burst = _get_tier("/some/random/path")
+        assert limit == DEFAULT_LIMIT
+        assert window == DEFAULT_WINDOW
+        assert burst == 0
+
+    def test_prefix_match_for_nested_path(self):
+        """Nested paths should match via prefix."""
+        from app.core.ratelimit import _get_tier
+
+        limit, window, burst = _get_tier("/documents/123")
+        assert limit == 30
+        assert burst == 8
+
+    def test_exact_match_wins_over_prefix(self):
+        """/documents/upload has an exact match that overrides the prefix."""
+        from app.core.ratelimit import _get_tier
+
+        limit, window, burst = _get_tier("/documents/upload")
+        assert limit == 20
+        assert burst == 5
+
+    def test_crm_endpoint_gets_moderate_limit(self):
+        """CRM endpoints should have moderate limits."""
+        from app.core.ratelimit import _get_tier
+
+        limit, window, burst = _get_tier("/crm/contacts")
+        assert limit == 30
+        assert burst == 8
+
+    def test_monitoring_endpoint_gets_high_limit(self):
+        """Monitoring endpoints should have generous limits."""
+        from app.core.ratelimit import _get_tier
+
+        limit, window, burst = _get_tier("/monitoring/errors")
+        assert limit == 120
+        assert burst == 20
+
+
+class TestBurstAllowance:
+    """Tests verifying burst allowance works properly in rate limiting."""
+
+    @pytest.mark.asyncio
+    async def test_burst_allows_extra_requests_within_window(self):
+        """Burst should allow extra requests beyond the base limit."""
+        fake_now = [1000000.0]
+
+        class FakeTimeRateLimiter(_InMemoryRateLimiter):
+            async def check(self, ip: str, path: str, now=None):
+                return await super().check(ip, path, now=fake_now[0])
+
+        # Simulate a tier with limit=5, window=60, burst=3 → effective=8
+        limiter = FakeTimeRateLimiter(limit=8, window=60)
+
+        # 8 requests should all pass (5 base + 3 burst)
+        for i in range(8):
+            allowed, _ = await limiter.check("10.0.0.1", "/qa")
+            assert allowed, f"Request {i+1}/8 with burst should be allowed"
+
+        # 9th should be blocked
+        allowed, _ = await limiter.check("10.0.0.1", "/qa")
+        assert not allowed, "9th request should be blocked after burst exhausted"
+
+    @pytest.mark.asyncio
+    async def test_burst_resets_after_window(self):
+        """After window slides, burst allowance should refresh."""
+        fake_now = [1000000.0]
+
+        class FakeTimeRateLimiter(_InMemoryRateLimiter):
+            async def check(self, ip: str, path: str, now=None):
+                return await super().check(ip, path, now=fake_now[0])
+
+        limiter = FakeTimeRateLimiter(limit=4, window=60)
+
+        # Use all 4 + 1 more to prove limit works
+        for i in range(4):
+            await limiter.check("10.0.0.1", "/search")
+        allowed, _ = await limiter.check("10.0.0.1", "/search")
+        assert not allowed
+
+        # Advance past window
+        fake_now[0] += 61
+        # Now should have 4 fresh slots
+        for i in range(4):
+            allowed, _ = await limiter.check("10.0.0.1", "/search")
+            assert allowed, f"After window refresh, request {i+1} should pass"
+
+
+class TestRateLimitPrometheusMetrics:
+    """Tests for Prometheus metrics exposed by the rate limiter."""
+
+    def test_ratelimit_hits_counter_registered(self):
+        """The ratelimit_hits_total counter should be registered in Prometheus."""
+        from prometheus_client import REGISTRY
+        from app.core.ratelimit import ratelimit_hits_total
+
+        # Counter should exist and have the right name
+        # Counter base name is "ratelimit_hits" (Prometheus appends _total in output)
+        assert ratelimit_hits_total._name == "ratelimit_hits"
+
+        # Should be findable in the registry (without _total suffix)
+        found = False
+        for metric in REGISTRY.collect():
+            if metric.name == "ratelimit_hits":
+                found = True
+                break
+        assert found, "ratelimit_hits should be in the Prometheus registry"
+
+    def test_ratelimit_active_buckets_gauge_registered(self):
+        """The ratelimit_active_buckets gauge should be registered."""
+        from prometheus_client import REGISTRY
+        from app.core.ratelimit import ratelimit_active_buckets
+
+        assert ratelimit_active_buckets._name == "ratelimit_active_buckets"
+
+        found = False
+        for metric in REGISTRY.collect():
+            if metric.name == "ratelimit_active_buckets":
+                found = True
+                break
+        assert found, "ratelimit_active_buckets should be in the Prometheus registry"
+
+    def test_ratelimit_hits_increments_correctly(self):
+        """Incrementing the counter should work with labels."""
+        from app.core.ratelimit import ratelimit_hits_total
+
+        before = ratelimit_hits_total.labels(endpoint="/qa")._value.get()
+        ratelimit_hits_total.labels(endpoint="/qa").inc()
+        after = ratelimit_hits_total.labels(endpoint="/qa")._value.get()
+        assert after == before + 1

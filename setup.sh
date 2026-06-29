@@ -39,6 +39,8 @@ PROVIDER_URL["openrouter"]="https://openrouter.ai/api/v1"
 PROVIDER_MODEL["openrouter"]="openai/gpt-4o-mini"
 PROVIDER_URL["deepseekv4"]="https://api.deepseek.com/v1"
 PROVIDER_MODEL["deepseekv4"]="deepseek-v4-flash"
+PROVIDER_URL["openmodel"]="https://api.openmodel.ai"
+PROVIDER_MODEL["openmodel"]="openai/gpt-4o"
 
 # Parse flags
 API_KEY=''
@@ -134,9 +136,10 @@ else
   echo "  ${CYAN}4${NC}) Together AI  -- https://api.together.xyz"
   echo "  ${CYAN}5${NC}) Groq         -- https://api.groq.com/openai"
   echo "  ${CYAN}6${NC}) OpenRouter   -- https://openrouter.ai/api/v1"
-  echo "  ${CYAN}7${NC}) Custom URL   -- enter your own"
+  echo "  ${CYAN}7${NC}) OpenModel    -- https://api.openmodel.ai (unified gateway)"
+  echo "  ${CYAN}8${NC}) Custom URL   -- enter your own"
   echo ""
-  read -r -p "  Choose [1-7] (default: 1): " provider_choice
+  read -r -p "  Choose [1-8] (default: 1): " provider_choice
 
   case "${provider_choice:-1}" in
     1) PROVIDER="deepseek"    ;;
@@ -145,7 +148,8 @@ else
     4) PROVIDER="together"    ;;
     5) PROVIDER="groq"        ;;
     6) PROVIDER="openrouter"  ;;
-    7) PROVIDER="custom"      ;;
+    7) PROVIDER="openmodel"   ;;
+    8) PROVIDER="custom"      ;;
     *) PROVIDER="deepseek"    ;;
   esac
 

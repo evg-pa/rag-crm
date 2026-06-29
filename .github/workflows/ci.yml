@@ -9,6 +9,7 @@ on:
 
 env:
   COMPOSE_FILE: infrastructure/docker-compose.yml
+  COMPOSE_FILE_CI: infrastructure/docker-compose.yml -f infrastructure/docker-compose.dev.yml
   PYTHON_VERSION: "3.12"
 
 jobs:
@@ -73,10 +74,10 @@ jobs:
           EOF
 
       - name: Build containers
-        run: docker compose -f $COMPOSE_FILE build
+        run: docker compose -f $COMPOSE_FILE_CI build
 
       - name: Start services
-        run: docker compose -f $COMPOSE_FILE up -d
+        run: docker compose -f $COMPOSE_FILE_CI up -d
 
       - name: Wait for healthy
         run: |
@@ -92,16 +93,16 @@ jobs:
 
       - name: Run tests
         run: |
-          docker compose -f $COMPOSE_FILE exec -T backend pytest -v --tb=short --ignore=tests/test_langgraph_pipeline.py
+          docker compose -f $COMPOSE_FILE_CI exec -T backend pytest -v --tb=short --ignore=tests/test_langgraph_pipeline.py
 
       - name: Docker logs (on failure)
         if: failure()
         run: |
-          docker compose -f $COMPOSE_FILE logs --tail=200
+          docker compose -f $COMPOSE_FILE_CI logs --tail=200
 
       - name: Cleanup
         if: always()
-        run: docker compose -f $COMPOSE_FILE down -v
+        run: docker compose -f $COMPOSE_FILE_CI down -v
 
   # ────────────────────────────────────────────────────────────────
   # Build & Push Docker Images
@@ -147,6 +148,12 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
+      - name: Set backend package visibility to public
+        run: |
+          gh api --method PATCH /user/packages/container/rag-crm-backend/visibility \
+            -f visibility=public \
+            --silent 2>/dev/null || echo "Package already public or needs different scope"
+
       - name: Docker metadata (frontend)
         id: meta-frontend
         uses: docker/metadata-action@v5
@@ -167,6 +174,12 @@ jobs:
           labels: ${{ steps.meta-frontend.outputs.labels }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
+
+      - name: Set frontend package visibility to public
+        run: |
+          gh api --method PATCH /user/packages/container/rag-crm-frontend/visibility \
+            -f visibility=public \
+            --silent 2>/dev/null || echo "Package already public or needs different scope"
 
   # ────────────────────────────────────────────────────────────────
   # Deploy (placeholder — customize for your target)

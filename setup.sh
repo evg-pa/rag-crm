@@ -178,8 +178,11 @@ fi
 echo -e "\n${YELLOW}[4/5]${NC} Starting Docker stack..."
 cp .env infrastructure/.env 2>/dev/null || true
 
-docker compose -f infrastructure/docker-compose.yml up -d --wait --wait-timeout 120 2>&1 || \
-  docker compose -f infrastructure/docker-compose.yml up -d 2>&1
+# Pull pre-built images (fast!) — fall back to local build if pull fails
+docker compose -f infrastructure/docker-compose.yml pull 2>&1 || \
+  echo -e "  ${YELLOW}Image pull failed — will build locally (takes 5-15 min)${NC}"
+
+docker compose -f infrastructure/docker-compose.yml up -d --wait --wait-timeout 180 2>&1
 
 echo -e "  ${GREEN}Y${NC} Stack started"
 

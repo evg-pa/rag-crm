@@ -48,10 +48,7 @@ services:
     restart: unless-stopped
 
   backend:
-    build:
-      context: ../backend
-      dockerfile: Dockerfile
-    image: rag-backend:fixed
+    image: ghcr.io/evg-pa/rag-crm-backend:latest
     container_name: rag-backend
     environment:
       DATABASE_URL: postgresql+asyncpg://rag_user:rag_pass@postgres:5432/rag_crm
@@ -138,9 +135,7 @@ services:
       retries: 3
 
   frontend:
-    build:
-      context: ../backend/frontend
-      dockerfile: Dockerfile
+    image: ghcr.io/evg-pa/rag-crm-frontend:latest
     container_name: rag-frontend
     environment:
       BACKEND_URL: http://rag-backend:8000

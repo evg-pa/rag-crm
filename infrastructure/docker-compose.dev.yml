@@ -1,0 +1,22 @@
+# ───────────────────────────────────────────────────────────────────────
+# Development override — build images locally instead of pulling
+#
+# Usage:
+#   docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d
+#
+# This rebuilds backend and frontend from local source code.
+# Useful for development, testing changes before pushing, or offline use.
+# ───────────────────────────────────────────────────────────────────────
+
+services:
+  backend:
+    build:
+      context: ../backend
+      dockerfile: Dockerfile
+    image: rag-backend:dev
+
+  frontend:
+    build:
+      context: ../backend/frontend
+      dockerfile: Dockerfile
+    image: rag-frontend:dev

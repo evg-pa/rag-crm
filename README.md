@@ -12,33 +12,37 @@ Retrieval-Augmented Generation CRM — a multi-agent RAG system that understands
 ## ✨ One-command setup
 
 ```bash
+chmod +x setup.sh
 ./setup.sh
 ```
 
 You'll be guided to pick an **LLM provider** and paste your API key — this connects a neural network so RAG can answer your questions about documents.
 
-**Supported providers:** DeepSeek, OpenAI, Together AI, Groq, OpenRouter, or any custom OpenAI-compatible endpoint.
+**Supported providers:** DeepSeek, DeepSeek V4 Flash, OpenAI, Together AI, Groq, OpenRouter, or any custom OpenAI-compatible endpoint.
 
 ### Quick examples
 
 ```bash
 # Interactive (choose provider from a menu)
-./setup.sh
+chmod +x setup.sh && ./setup.sh
 
 # DeepSeek (default)
-./setup.sh -k ***
+./setup.sh -k sk-xxx
+
+# DeepSeek V4 Flash (Nous Research fine-tune)
+./setup.sh -k sk-xxx -u https://api.deepseek.com/v1 -m deepseek-v4-flash
 
 # OpenAI
-./setup.sh -k *** -u https://api.openai.com -m gpt-4o-mini
+./setup.sh -k sk-xxx -u https://api.openai.com -m gpt-4o-mini
 
 # Together AI
-./setup.sh -k *** -u https://api.together.xyz -m mistralai/Mixtral-8x7B-Instruct-v0.1
+./setup.sh -k sk-xxx -u https://api.together.xyz -m mistralai/Mixtral-8x7B-Instruct-v0.1
 
 # Groq
-./setup.sh -k *** -u https://api.groq.com/openai -m llama3-70b-8192
+./setup.sh -k gsk-xxx -u https://api.groq.com/openai -m llama3-70b-8192
 
-# OpenRouter
-./setup.sh -k *** -u https://openrouter.ai/api/v1 -m openai/gpt-4o-mini
+# OpenRouter (any model from their catalog)
+./setup.sh -k sk-xxx -u https://openrouter.ai/api/v1 -m openai/gpt-4o-mini
 ```
 
 The script handles everything: creates the config, starts all services, and waits for everything to be healthy.

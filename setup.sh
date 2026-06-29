@@ -37,6 +37,8 @@ PROVIDER_URL["groq"]="https://api.groq.com/openai"
 PROVIDER_MODEL["groq"]="llama3-70b-8192"
 PROVIDER_URL["openrouter"]="https://openrouter.ai/api/v1"
 PROVIDER_MODEL["openrouter"]="openai/gpt-4o-mini"
+PROVIDER_URL["deepseekv4"]="https://api.deepseek.com/v1"
+PROVIDER_MODEL["deepseekv4"]="deepseek-v4-flash"
 
 # Parse flags
 API_KEY=''
@@ -126,22 +128,24 @@ else
   echo "  RAG needs an LLM to understand your documents."
   echo "  Pick a provider or enter a custom endpoint:"
   echo ""
-  echo "  ${CYAN}1${NC}) DeepSeek    -- https://api.deepseek.com"
-  echo "  ${CYAN}2${NC}) OpenAI      -- https://api.openai.com"
-  echo "  ${CYAN}3${NC}) Together AI -- https://api.together.xyz"
-  echo "  ${CYAN}4${NC}) Groq        -- https://api.groq.com/openai"
-  echo "  ${CYAN}5${NC}) OpenRouter  -- https://openrouter.ai/api/v1"
-  echo "  ${CYAN}6${NC}) Custom URL  -- enter your own"
+  echo "  ${CYAN}1${NC}) DeepSeek      -- https://api.deepseek.com (deepseek-chat)"
+  echo "  ${CYAN}2${NC}) DeepSeek V4  -- https://api.deepseek.com/v1 (deepseek-v4-flash)"
+  echo "  ${CYAN}3${NC}) OpenAI       -- https://api.openai.com"
+  echo "  ${CYAN}4${NC}) Together AI  -- https://api.together.xyz"
+  echo "  ${CYAN}5${NC}) Groq         -- https://api.groq.com/openai"
+  echo "  ${CYAN}6${NC}) OpenRouter   -- https://openrouter.ai/api/v1"
+  echo "  ${CYAN}7${NC}) Custom URL   -- enter your own"
   echo ""
-  read -r -p "  Choose [1-6] (default: 1): " provider_choice
+  read -r -p "  Choose [1-7] (default: 1): " provider_choice
 
   case "${provider_choice:-1}" in
     1) PROVIDER="deepseek"    ;;
-    2) PROVIDER="openai"      ;;
-    3) PROVIDER="together"    ;;
-    4) PROVIDER="groq"        ;;
-    5) PROVIDER="openrouter"  ;;
-    6) PROVIDER="custom"      ;;
+    2) PROVIDER="deepseekv4"  ;;
+    3) PROVIDER="openai"      ;;
+    4) PROVIDER="together"    ;;
+    5) PROVIDER="groq"        ;;
+    6) PROVIDER="openrouter"  ;;
+    7) PROVIDER="custom"      ;;
     *) PROVIDER="deepseek"    ;;
   esac
 

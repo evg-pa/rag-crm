@@ -204,6 +204,7 @@ echo -e "${CYAN}━━━━━━━━━━━━━━━━━━━━━�
 echo ""
 echo -e "  Dashboard:  ${CYAN}http://localhost:8501${NC}"
 echo -e "  API docs:   ${CYAN}http://localhost:8000/docs${NC}"
+echo -e "  Metrics:    ${CYAN}http://localhost:9090${NC}"
 echo ""
 
 if [ "$BACKEND_OK" = false ]; then

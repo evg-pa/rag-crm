@@ -9,9 +9,9 @@ Module layout:
 """
 
 from app.knowledge_graph.driver import (
-    get_neo4j_driver,
     check_neo4j_connection,
     close_neo4j_driver,
+    get_neo4j_driver,
 )
 from app.knowledge_graph.graph_service import GraphService
 

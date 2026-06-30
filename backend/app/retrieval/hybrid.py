@@ -90,9 +90,7 @@ async def hybrid_search(
     raw_semantic: list[float] = [
         semantic_by_id.get(cid, {}).get("similarity", 0.0) for cid in ids_in_order
     ]
-    raw_bm25: list[float] = [
-        bm25_by_id.get(cid, {}).get("bm25_score", 0.0) for cid in ids_in_order
-    ]
+    raw_bm25: list[float] = [bm25_by_id.get(cid, {}).get("bm25_score", 0.0) for cid in ids_in_order]
 
     norm_semantic = _min_max_normalize(raw_semantic)
     norm_bm25 = _min_max_normalize(raw_bm25)
@@ -100,9 +98,7 @@ async def hybrid_search(
     # Fuse scores
     fused: list[dict[str, Any]] = []
     for i, cid in enumerate(ids_in_order):
-        hybrid = (
-            semantic_weight * norm_semantic[i] + bm25_weight * norm_bm25[i]
-        ) / total_weight
+        hybrid = (semantic_weight * norm_semantic[i] + bm25_weight * norm_bm25[i]) / total_weight
 
         # Prefer semantic result metadata when available (more complete),
         # fall back to BM25 metadata

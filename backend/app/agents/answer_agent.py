@@ -6,14 +6,12 @@ app.retrieval.qa.AnswerAgent, adapted as a LangGraph node.
 
 from __future__ import annotations
 
-import json
 from typing import Any
 
 from app.agents.state import AgentState
 from app.core.config import Settings
 from app.retrieval.qa import AnswerAgent as LegacyAnswerAgent
 from app.retrieval.qa import AnswerResult
-from app.retrieval.qa import build_context_prompt
 
 
 async def answer_agent(state: AgentState) -> dict:

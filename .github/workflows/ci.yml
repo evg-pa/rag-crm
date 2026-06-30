@@ -36,11 +36,10 @@ jobs:
           python -m pip install --upgrade pip
           pip install ruff mypy
 
-      - name: ruff (linter)
-        run: ruff check --fix app/ tests/
-
-      - name: ruff (formatter check)
-        run: ruff format --check app/ tests/
+      - name: ruff (linter + format)
+        run: |
+          ruff check --fix app/ tests/
+          ruff format app/ tests/
 
       - name: mypy (type check)
         run: mypy app/ --ignore-missing-imports || true

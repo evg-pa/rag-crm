@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import logging
-import uuid
 from typing import Any
 
 from neo4j import AsyncDriver
@@ -230,7 +229,8 @@ class GraphService:
                     related.type AS type,
                     related.entity_id AS entity_id
                 LIMIT $limit
-                """ % max_depth,
+                """
+                % max_depth,
                 name=entity_name,
                 limit=limit,
             )
@@ -387,7 +387,8 @@ class GraphService:
                         confidence: r.confidence,
                         weight: r.weight
                     }) AS edges
-                """ % max_depth,
+                """
+                % max_depth,
                 entity_id=entity_id,
                 rels_limit=limit,
             )

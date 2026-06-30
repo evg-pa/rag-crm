@@ -13,7 +13,7 @@ from unittest.mock import AsyncMock, Mock, patch
 import pytest
 import sqlalchemy as sa
 from httpx import ASGITransport, AsyncClient
-from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker
+from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 
 # ── Mock pgvector BEFORE app imports ──────────────────────────────────────────
 
@@ -33,6 +33,7 @@ class _SQLiteVector(sa.types.UserDefinedType):
 
     def bind_processor(self, dialect):
         """Convert list[float] to bytes for SQLite binding."""
+
         def process(value):
             if value is None:
                 return None
@@ -40,11 +41,14 @@ class _SQLiteVector(sa.types.UserDefinedType):
                 return value
             # list[float] -> float32 LE bytes
             import struct
+
             return struct.pack(f"<{len(value)}f", *value)
+
         return process
 
     def result_processor(self, dialect, coltype):
         """Convert bytes back to list[float]."""
+
         def process(value):
             if value is None:
                 return None
@@ -52,7 +56,9 @@ class _SQLiteVector(sa.types.UserDefinedType):
                 return value
             # bytes -> list[float]
             import struct
+
             return list(struct.unpack(f"<{len(value) // 4}f", value))
+
         return process
 
 
@@ -75,8 +81,8 @@ os.environ["DATABASE_URL"] = "sqlite+aiosqlite://"
 
 from app.core.database import Base
 from app.main import app
-from app.memory.models import EMBEDDING_DIM
 from app.memory.models import (  # noqa: F401 — registers models with Base
+    EMBEDDING_DIM,
     EpisodicMemory,
     ProceduralMemory,
     SemanticMemory,

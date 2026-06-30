@@ -9,12 +9,10 @@ Augments search results by:
 
 from __future__ import annotations
 
-import hashlib
 import logging
 from typing import Any
 
 from app.agents.state import AgentState
-from app.knowledge_graph.driver import get_neo4j_driver
 from app.knowledge_graph.entity_extractor import extract_entities_from_text
 from app.knowledge_graph.graph_service import GraphService
 

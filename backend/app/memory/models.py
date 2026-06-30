@@ -13,9 +13,9 @@ from datetime import UTC, datetime
 from typing import TYPE_CHECKING
 
 from pgvector.sqlalchemy import Vector
-from sqlalchemy import DateTime, Float, ForeignKey, Integer, String, Text
+from sqlalchemy import DateTime, Float, Integer, String, Text
 from sqlalchemy.dialects.postgresql import JSONB
-from sqlalchemy.orm import Mapped, mapped_column, relationship
+from sqlalchemy.orm import Mapped, mapped_column
 
 if TYPE_CHECKING:
     from app.models.document import Document  # noqa: F401
@@ -49,14 +49,13 @@ class WorkingMemory(Base):
         primary_key=True,
         default=uuid.uuid4,
     )
-    session_id: Mapped[str] = mapped_column(
-        String(255), nullable=False, index=True
-    )
+    session_id: Mapped[str] = mapped_column(String(255), nullable=False, index=True)
     conversation_id: Mapped[str] = mapped_column(
         String(255), nullable=False, index=True, default="default"
     )
     role: Mapped[str] = mapped_column(
-        String(16), nullable=False  # "user" | "assistant"
+        String(16),
+        nullable=False,  # "user" | "assistant"
     )
     content: Mapped[str] = mapped_column(Text, nullable=False, default="")
     created_at: Mapped[datetime] = mapped_column(
@@ -64,10 +63,7 @@ class WorkingMemory(Base):
     )
 
     def __repr__(self) -> str:
-        return (
-            f"<WorkingMemory id={self.id!r} session={self.session_id!r} "
-            f"role={self.role!r}>"
-        )
+        return f"<WorkingMemory id={self.id!r} session={self.session_id!r} role={self.role!r}>"
 
 
 # ── Episodic Memory ─────────────────────────────────────────────────────────
@@ -86,16 +82,10 @@ class EpisodicMemory(Base):
         primary_key=True,
         default=uuid.uuid4,
     )
-    session_id: Mapped[str] = mapped_column(
-        String(255), nullable=False, unique=True, index=True
-    )
+    session_id: Mapped[str] = mapped_column(String(255), nullable=False, unique=True, index=True)
     summary: Mapped[str] = mapped_column(Text, nullable=False, default="")
-    topics: Mapped[list[str]] = mapped_column(
-        JSONB, nullable=False, default=list
-    )
-    message_count: Mapped[int] = mapped_column(
-        Integer, nullable=False, default=0
-    )
+    topics: Mapped[list[str]] = mapped_column(JSONB, nullable=False, default=list)
+    message_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     started_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, default=utcnow
     )
@@ -110,10 +100,7 @@ class EpisodicMemory(Base):
     )
 
     def __repr__(self) -> str:
-        return (
-            f"<EpisodicMemory session={self.session_id!r} "
-            f"topics={self.topics!r}>"
-        )
+        return f"<EpisodicMemory session={self.session_id!r} topics={self.topics!r}>"
 
 
 # ── Semantic Memory ─────────────────────────────────────────────────────────
@@ -135,18 +122,20 @@ class SemanticMemory(Base):
     )
     fact: Mapped[str] = mapped_column(Text, nullable=False)
     embedding: Mapped[list[float]] = mapped_column(
-        Vector(EMBEDDING_DIM), nullable=True  # type: ignore[arg-type]
+        Vector(EMBEDDING_DIM),
+        nullable=True,  # type: ignore[arg-type]
     )
     source: Mapped[str] = mapped_column(
-        String(64), nullable=False, default="conversation"
+        String(64),
+        nullable=False,
+        default="conversation",
         # "conversation" | "document" | "manual"
     )
     source_id: Mapped[str | None] = mapped_column(
-        String(255), nullable=True  # document_id or session_id
+        String(255),
+        nullable=True,  # document_id or session_id
     )
-    confidence: Mapped[float] = mapped_column(
-        Float, nullable=False, default=1.0
-    )
+    confidence: Mapped[float] = mapped_column(Float, nullable=False, default=1.0)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, default=utcnow, index=True
     )
@@ -177,21 +166,14 @@ class ProceduralMemory(Base):
         primary_key=True,
         default=uuid.uuid4,
     )
-    name: Mapped[str] = mapped_column(
-        String(255), nullable=False, unique=True, index=True
-    )
-    description: Mapped[str] = mapped_column(
-        Text, nullable=False, default=""
-    )
+    name: Mapped[str] = mapped_column(String(255), nullable=False, unique=True, index=True)
+    description: Mapped[str] = mapped_column(Text, nullable=False, default="")
     content: Mapped[str] = mapped_column(
-        Text, nullable=False  # markdown procedure
+        Text,
+        nullable=False,  # markdown procedure
     )
-    tags: Mapped[list[str]] = mapped_column(
-        JSONB, nullable=False, default=list
-    )
-    usage_count: Mapped[int] = mapped_column(
-        Integer, nullable=False, default=0
-    )
+    tags: Mapped[list[str]] = mapped_column(JSONB, nullable=False, default=list)
+    usage_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, default=utcnow
     )
@@ -200,7 +182,4 @@ class ProceduralMemory(Base):
     )
 
     def __repr__(self) -> str:
-        return (
-            f"<ProceduralMemory name={self.name!r} "
-            f"tags={self.tags!r}>"
-        )
+        return f"<ProceduralMemory name={self.name!r} tags={self.tags!r}>"

@@ -11,14 +11,13 @@ Covers:
 from __future__ import annotations
 
 import uuid
-from typing import Any
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from app.retrieval.vector_repository import VectorRepository, VectorSearchResult
 from app.retrieval.pgvector_repository import PgVectorRepository
 from app.retrieval.qdrant_repository import QdrantRepository
+from app.retrieval.vector_repository import VectorRepository, VectorSearchResult
 
 # ── Test data ────────────────────────────────────────────────────────────────
 
@@ -30,6 +29,7 @@ SAMPLE_CHUNK_INDICES = list(range(5))
 
 
 # ── Helper to create mock Qdrant client results ─────────────────────────────
+
 
 def _make_scored_point(
     point_id: str | uuid.UUID,
@@ -93,9 +93,7 @@ def test_vector_search_result_fields():
 
 def test_vector_search_result_defaults():
     """VectorSearchResult metadata defaults to empty dict."""
-    result = VectorSearchResult(
-        id="x", content="c", document_id="d", chunk_index=0, similarity=1.0
-    )
+    result = VectorSearchResult(id="x", content="c", document_id="d", chunk_index=0, similarity=1.0)
     assert result.metadata == {}
 
 
@@ -151,9 +149,7 @@ class TestQdrantRepository:
     # ── Upsert ─────────────────────────────────────────────────────────
 
     @pytest.mark.asyncio
-    async def test_upsert_calls_client(
-        self, qdrant_repo: QdrantRepository, mock_client: MagicMock
-    ):
+    async def test_upsert_calls_client(self, qdrant_repo: QdrantRepository, mock_client: MagicMock):
         """upsert_embeddings should call qdrant_client.upsert."""
         await qdrant_repo.upsert_embeddings(
             chunk_ids=SAMPLE_CHUNK_IDS,
@@ -170,9 +166,7 @@ class TestQdrantRepository:
         assert points[0].payload["content"] == "Chunk 0 content"
 
     @pytest.mark.asyncio
-    async def test_upsert_empty_list(
-        self, qdrant_repo: QdrantRepository, mock_client: MagicMock
-    ):
+    async def test_upsert_empty_list(self, qdrant_repo: QdrantRepository, mock_client: MagicMock):
         """upsert_embeddings with empty lists should be a no-op."""
         await qdrant_repo.upsert_embeddings(
             chunk_ids=[],
@@ -215,9 +209,7 @@ class TestQdrantRepository:
             await qdrant_repo.search([], top_k=10)
 
     @pytest.mark.asyncio
-    async def test_search_passes_top_k(
-        self, qdrant_repo: QdrantRepository, mock_client: MagicMock
-    ):
+    async def test_search_passes_top_k(self, qdrant_repo: QdrantRepository, mock_client: MagicMock):
         """search should pass top_k as limit."""
         mock_client.search = AsyncMock(return_value=[])
         await qdrant_repo.search([0.1] * 384, top_k=15)
@@ -227,9 +219,7 @@ class TestQdrantRepository:
     # ── Delete ────────────────────────────────────────────────────────
 
     @pytest.mark.asyncio
-    async def test_delete_by_document(
-        self, qdrant_repo: QdrantRepository, mock_client: MagicMock
-    ):
+    async def test_delete_by_document(self, qdrant_repo: QdrantRepository, mock_client: MagicMock):
         """delete_by_document should count then delete."""
         mock_client.count = AsyncMock(return_value=MagicMock(count=3))
         deleted = await qdrant_repo.delete_by_document("doc-1")
@@ -250,9 +240,7 @@ class TestQdrantRepository:
     # ── Count ─────────────────────────────────────────────────────────
 
     @pytest.mark.asyncio
-    async def test_count(
-        self, qdrant_repo: QdrantRepository, mock_client: MagicMock
-    ):
+    async def test_count(self, qdrant_repo: QdrantRepository, mock_client: MagicMock):
         """count should return the collection size."""
         mock_client.count = AsyncMock(return_value=MagicMock(count=42))
         assert await qdrant_repo.count() == 42
@@ -268,9 +256,7 @@ class TestQdrantRepository:
     # ── List chunk ids ────────────────────────────────────────────────
 
     @pytest.mark.asyncio
-    async def test_list_chunk_ids(
-        self, qdrant_repo: QdrantRepository, mock_client: MagicMock
-    ):
+    async def test_list_chunk_ids(self, qdrant_repo: QdrantRepository, mock_client: MagicMock):
         """list_chunk_ids should enumerate all point ids."""
         mock_points = [MagicMock(id="id-1"), MagicMock(id="id-2")]
         mock_client.scroll = AsyncMock(
@@ -282,9 +268,7 @@ class TestQdrantRepository:
     # ── Get chunk data ────────────────────────────────────────────────
 
     @pytest.mark.asyncio
-    async def test_get_chunk_data(
-        self, qdrant_repo: QdrantRepository, mock_client: MagicMock
-    ):
+    async def test_get_chunk_data(self, qdrant_repo: QdrantRepository, mock_client: MagicMock):
         """get_chunk_data should return full chunk info with embeddings."""
         test_vec = [0.1] * 384
         mock_records = [
@@ -319,9 +303,7 @@ class TestQdrantRepository:
         qdrant_repo._collection_initialized = False
         qdrant_repo._client = None  # Redo mock
 
-        mock_client.get_collection = AsyncMock(
-            side_effect=Exception("not found")
-        )
+        mock_client.get_collection = AsyncMock(side_effect=Exception("not found"))
         qdrant_repo._client = mock_client
 
         # First call: should create
@@ -341,7 +323,8 @@ class TestQdrantRepository:
         with patch("app.retrieval.qdrant_repository.AsyncQdrantClient") as mock_cls:
             mock_cls.return_value = MagicMock()
             import asyncio
-            client = asyncio.run(qdrant_repo._get_client())
+
+            asyncio.run(qdrant_repo._get_client())
             mock_cls.assert_called_once_with(url="http://localhost:6333")
 
 
@@ -361,9 +344,7 @@ class TestVectorStoreFactory:
 
         mock_settings.return_value.VECTOR_STORE = "pgvector"
 
-        with patch.object(
-            PgVectorRepository, "__init__", return_value=None
-        ) as mock_init:
+        with patch.object(PgVectorRepository, "__init__", return_value=None):
             result = get_vector_store()
             assert result is not None
 
@@ -380,9 +361,7 @@ class TestVectorStoreFactory:
         mock_settings.return_value.VECTOR_STORE = "qdrant"
         mock_settings.return_value.QDRANT_URL = "http://qdrant:6333"
 
-        with patch.object(
-            QdrantRepository, "__init__", return_value=None
-        ) as mock_init:
+        with patch.object(QdrantRepository, "__init__", return_value=None):
             result = get_vector_store()
             assert result is not None
 
@@ -399,9 +378,7 @@ class TestVectorStoreFactory:
         mock_settings.return_value.VECTOR_STORE = "QdRaNt"
         mock_settings.return_value.QDRANT_URL = "http://qdrant:6333"
 
-        with patch.object(
-            QdrantRepository, "__init__", return_value=None
-        ):
+        with patch.object(QdrantRepository, "__init__", return_value=None):
             result = get_vector_store()
             assert result is not None
 
@@ -422,8 +399,10 @@ class TestMigrationScript:
 
         with (
             patch.object(PgVectorRepository, "count", new_callable=AsyncMock) as mock_count,
-            patch.object(PgVectorRepository, "list_chunk_ids", new_callable=AsyncMock) as mock_list,
-            patch.object(QdrantRepository, "upsert_embeddings", new_callable=AsyncMock) as mock_upsert,
+            patch.object(PgVectorRepository, "list_chunk_ids", new_callable=AsyncMock),
+            patch.object(
+                QdrantRepository, "upsert_embeddings", new_callable=AsyncMock
+            ) as mock_upsert,
             patch.object(QdrantRepository, "count", new_callable=AsyncMock) as mock_qcount,
         ):
             mock_count.return_value = 10
@@ -463,8 +442,12 @@ class TestMigrationScript:
             mock_scount.return_value = 5
             mock_tcount.return_value = 5
 
-            r1 = VectorSearchResult(id="a", content="", document_id="d", chunk_index=0, similarity=1.0)
-            r2 = VectorSearchResult(id="a", content="", document_id="d", chunk_index=0, similarity=0.99)
+            r1 = VectorSearchResult(
+                id="a", content="", document_id="d", chunk_index=0, similarity=1.0
+            )
+            r2 = VectorSearchResult(
+                id="a", content="", document_id="d", chunk_index=0, similarity=0.99
+            )
             mock_ssearch.return_value = [r1]
             mock_tsearch.return_value = [r2]
 

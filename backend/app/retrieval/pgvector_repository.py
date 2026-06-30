@@ -61,9 +61,7 @@ class PgVectorRepository(VectorRepository):
                 # Use raw SQL for efficient, targeted update without
                 # loading the full object into the session.
                 await db.execute(
-                    text(
-                        "UPDATE chunks SET embedding = :emb WHERE id = :cid"
-                    ),
+                    text("UPDATE chunks SET embedding = :emb WHERE id = :cid"),
                     {"emb": embedding, "cid": chunk_id},
                 )
             await db.commit()
@@ -80,9 +78,7 @@ class PgVectorRepository(VectorRepository):
             raise ValueError("query_embedding must not be empty")
 
         async with self._session_factory() as db:
-            distance = Chunk.embedding.cosine_distance(query_embedding).label(
-                "distance"
-            )
+            distance = Chunk.embedding.cosine_distance(query_embedding).label("distance")
 
             stmt = (
                 select(
@@ -118,9 +114,7 @@ class PgVectorRepository(VectorRepository):
         """
         async with self._session_factory() as db:
             result = await db.execute(
-                text(
-                    "UPDATE chunks SET embedding = NULL WHERE document_id = :did"
-                ),
+                text("UPDATE chunks SET embedding = NULL WHERE document_id = :did"),
                 {"did": document_id},
             )
             await db.commit()
@@ -146,17 +140,13 @@ class PgVectorRepository(VectorRepository):
             )
             return [str(row[0]) for row in result.all()]
 
-    async def get_chunk_data(
-        self, chunk_ids: list[str]
-    ) -> list[dict[str, Any]]:
+    async def get_chunk_data(self, chunk_ids: list[str]) -> list[dict[str, Any]]:
         """Return full chunk data for the given ids."""
         if not chunk_ids:
             return []
 
         async with self._session_factory() as db:
-            result = await db.execute(
-                select(Chunk).where(Chunk.id.in_(chunk_ids))
-            )
+            result = await db.execute(select(Chunk).where(Chunk.id.in_(chunk_ids)))
             chunks = result.scalars().all()
 
             return [

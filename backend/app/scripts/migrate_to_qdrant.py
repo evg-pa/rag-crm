@@ -178,9 +178,7 @@ async def verify() -> dict:
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(
-        description="Migrate pgvector embeddings to Qdrant"
-    )
+    parser = argparse.ArgumentParser(description="Migrate pgvector embeddings to Qdrant")
     parser.add_argument(
         "--dry-run",
         action="store_true",
@@ -198,7 +196,8 @@ def main() -> None:
         help="Number of vectors per batch (default: 100)",
     )
     parser.add_argument(
-        "--verbose", "-v",
+        "--verbose",
+        "-v",
         action="store_true",
         help="Enable debug logging",
     )
@@ -216,6 +215,7 @@ def main() -> None:
             result = await migrate(dry_run=args.dry_run, batch_size=args.batch_size)
 
         import json
+
         print(json.dumps(result, indent=2))
 
         if result.get("errors", 0) > 0:

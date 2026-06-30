@@ -12,8 +12,6 @@ Covers:
   9. Reject upload with unsupported Content-Type header — verify 415
 """
 
-import os
-
 import pytest
 from httpx import AsyncClient
 
@@ -213,8 +211,10 @@ class TestValidateUploadSize:
     def test_rejects_oversized_content_length(self):
         """413 when Content-Length > max_bytes."""
         from unittest.mock import Mock
-        from app.api.documents import _validate_upload_size
+
         from fastapi import HTTPException
+
+        from app.api.documents import _validate_upload_size
 
         request = Mock()
         request.headers = {"Content-Length": "2000000"}
@@ -226,6 +226,7 @@ class TestValidateUploadSize:
     def test_allows_valid_content_length(self):
         """No exception when Content-Length <= max_bytes."""
         from unittest.mock import Mock
+
         from app.api.documents import _validate_upload_size
 
         request = Mock()
@@ -237,6 +238,7 @@ class TestValidateUploadSize:
     def test_allows_missing_content_length(self):
         """No exception when Content-Length is missing."""
         from unittest.mock import Mock
+
         from app.api.documents import _validate_upload_size
 
         request = Mock()
@@ -248,8 +250,10 @@ class TestValidateUploadSize:
     def test_rejects_invalid_content_length(self):
         """400 when Content-Length is not an integer."""
         from unittest.mock import Mock
-        from app.api.documents import _validate_upload_size
+
         from fastapi import HTTPException
+
+        from app.api.documents import _validate_upload_size
 
         request = Mock()
         request.headers = {"Content-Length": "not-a-number"}
@@ -264,8 +268,9 @@ class TestCheckSizeAfterRead:
 
     def test_rejects_oversized_body(self):
         """413 when actual body size > max_bytes."""
-        from app.api.documents import _check_size_after_read
         from fastapi import HTTPException
+
+        from app.api.documents import _check_size_after_read
 
         with pytest.raises(HTTPException) as exc_info:
             _check_size_after_read(b"x" * 2000, max_bytes=1000, filename="test.txt")
@@ -284,8 +289,9 @@ class TestValidateContentType:
 
     def test_rejects_unsupported_content_type(self):
         """415 when Content-Type is not in the whitelist."""
-        from app.api.documents import _validate_content_type
         from fastapi import HTTPException
+
+        from app.api.documents import _validate_content_type
 
         with pytest.raises(HTTPException) as exc_info:
             _validate_content_type("application/octet-stream", "data.bin")

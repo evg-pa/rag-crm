@@ -48,7 +48,9 @@ async def _run_hybrid(
     """Run hybrid (semantic + BM25 fusion) search."""
     query_embedding = await model.embed(query)
     vector_store = get_vector_store()
-    semantic_results = await semantic_search(db, query_embedding, top_k=_CANDIDATE_K, vector_store=vector_store)
+    semantic_results = await semantic_search(
+        db, query_embedding, top_k=_CANDIDATE_K, vector_store=vector_store
+    )
     bm25_results = await BM25Index.search(query, top_k=_CANDIDATE_K, db=db)
     return await hybrid_search(
         semantic_results=semantic_results,
@@ -71,7 +73,7 @@ async def retriever_agent(state: AgentState) -> dict:
     """
     query: str = state.get("query", "")
     query_type: str = state.get("query_type", "hybrid")
-    db: AsyncSession | None = state.get("_db_session")         # type: ignore[typeddict-item]
+    db: AsyncSession | None = state.get("_db_session")  # type: ignore[typeddict-item]
     model: EmbeddingModel | None = state.get("_embedding_model")  # type: ignore[typeddict-item]
 
     chunks: list[dict[str, Any]] = []

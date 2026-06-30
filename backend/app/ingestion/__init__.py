@@ -13,7 +13,8 @@ from app.ingestion.parsers.registry import (
 
 
 async def ingest_document(
-    content: bytes, filename: str,
+    content: bytes,
+    filename: str,
 ) -> tuple[str, dict[str, Any], list[ChunkResult]]:
     """Parse content and chunk it. Returns (parsed_text, metadata, chunks).
 

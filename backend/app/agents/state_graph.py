@@ -22,7 +22,6 @@ from app.agents.state import AgentState
 from app.agents.synthesizer_agent import synthesizer_agent
 from app.knowledge_graph.graph_agent import knowledge_graph_agent
 
-
 # ── Routing helpers ──────────────────────────────────────────────────────────
 
 

@@ -12,7 +12,6 @@ import time
 from collections.abc import Awaitable, Callable
 
 from prometheus_client import Counter, Histogram
-from prometheus_client import generate_latest as _generate_latest
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.requests import Request
 from starlette.responses import Response

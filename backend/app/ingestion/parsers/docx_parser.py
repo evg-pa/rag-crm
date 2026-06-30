@@ -21,9 +21,11 @@ class DocxParser:
     """
 
     SUPPORTED_EXTENSIONS: frozenset[str] = frozenset({".docx"})
-    SUPPORTED_TYPES: frozenset[str] = frozenset({
-        "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-    })
+    SUPPORTED_TYPES: frozenset[str] = frozenset(
+        {
+            "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        }
+    )
 
     # Regex to match paragraph styles like "Heading 1", "Heading 2", … "Heading 9"
     _HEADING_STYLE_RE: re.Pattern[str] = re.compile(r"^[Hh]eading\s+(\d{1,2})$")

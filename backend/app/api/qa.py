@@ -18,7 +18,7 @@ from app.agents.state_graph import build_qa_graph
 from app.core.config import Settings
 from app.core.dependencies import get_db_session, get_settings
 from app.retrieval.embeddings import EmbeddingModel, get_embedding_model
-from app.retrieval.qa import AnswerResult, Citation
+from app.retrieval.qa import Citation
 
 router = APIRouter(prefix="/qa", tags=["qa"])
 crm_router = APIRouter(prefix="/qa/crm", tags=["qa"])
@@ -178,6 +178,7 @@ async def crm_quick_query(
 
     # Detect intent from preset or free-form query
     from app.agents.crm_context import classify_crm_intent
+
     intent = classify_crm_intent(query)
 
     # Default empty response
@@ -206,14 +207,16 @@ async def crm_quick_query(
                     contact = c_result.scalar_one_or_none()
                     contact_name = contact.name if contact else "N/A"
 
-                deal_list.append({
-                    "id": str(d.id),
-                    "name": d.name,
-                    "value": d.value,
-                    "stage": d.stage,
-                    "close_date": d.close_date.isoformat() if d.close_date else None,
-                    "contact": contact_name,
-                })
+                deal_list.append(
+                    {
+                        "id": str(d.id),
+                        "name": d.name,
+                        "value": d.value,
+                        "stage": d.stage,
+                        "close_date": d.close_date.isoformat() if d.close_date else None,
+                        "contact": contact_name,
+                    }
+                )
 
             total_value = sum(d.value or 0 for d in deals)
             response.data = {
@@ -239,13 +242,15 @@ async def crm_quick_query(
                     contact = c_result.scalar_one_or_none()
                     contact_name = contact.name if contact else "N/A"
 
-                activity_list.append({
-                    "id": str(a.id),
-                    "type": a.type,
-                    "description": a.description[:200],
-                    "date": a.date.isoformat(),
-                    "contact": contact_name,
-                })
+                activity_list.append(
+                    {
+                        "id": str(a.id),
+                        "type": a.type,
+                        "description": a.description[:200],
+                        "date": a.date.isoformat(),
+                        "contact": contact_name,
+                    }
+                )
 
             response.data = {"activities": activity_list, "total_count": len(activity_list)}
             response.summary = f"Found {len(activity_list)} recent activities."
@@ -290,7 +295,8 @@ async def crm_quick_query(
         elif body.preset == "hot_leads":
             late_stages = ("negotiation", "closed won", "closed_won")
             result = await db.execute(
-                select(CrmDeal).where(CrmDeal.stage.in_(late_stages))
+                select(CrmDeal)
+                .where(CrmDeal.stage.in_(late_stages))
                 .order_by(CrmDeal.value.desc().nullslast())
             )
             deals = list(result.scalars().all())
@@ -305,13 +311,15 @@ async def crm_quick_query(
                     contact = c_result.scalar_one_or_none()
                     contact_name = contact.name if contact else "N/A"
 
-                hot_list.append({
-                    "id": str(d.id),
-                    "name": d.name,
-                    "value": d.value,
-                    "stage": d.stage,
-                    "contact": contact_name,
-                })
+                hot_list.append(
+                    {
+                        "id": str(d.id),
+                        "name": d.name,
+                        "value": d.value,
+                        "stage": d.stage,
+                        "contact": contact_name,
+                    }
+                )
 
             response.data = {"hot_leads": hot_list, "total_count": len(hot_list)}
             response.summary = f"Found {len(hot_list)} hot leads in late stages."
@@ -320,7 +328,9 @@ async def crm_quick_query(
             result = await db.execute(select(CrmDeal))
             deals = list(result.scalars().all())
 
-            open_deals = [d for d in deals if d.stage not in ("closed lost", "closed_won", "cancelled")]
+            open_deals = [
+                d for d in deals if d.stage not in ("closed lost", "closed_won", "cancelled")
+            ]
             total_value = sum(d.value or 0 for d in deals)
             open_value = sum(d.value or 0 for d in open_deals)
             avg_value = (total_value / len(deals)) if deals else 0
@@ -349,7 +359,11 @@ async def crm_quick_query(
                             parts = [f"{k}: {v}" for k, v in item.items() if v is not None]
                             lines.append(f"- {', '.join(parts[:4])}")
                 elif isinstance(value, (int, float)):
-                    lines.append(f"\n**{key.replace('_', ' ').title()}:** {value:,.2f}" if isinstance(value, float) else f"\n**{key.replace('_', ' ').title()}:** {value}")
+                    lines.append(
+                        f"\n**{key.replace('_', ' ').title()}:** {value:,.2f}"
+                        if isinstance(value, float)
+                        else f"\n**{key.replace('_', ' ').title()}:** {value}"
+                    )
                 else:
                     lines.append(f"\n**{key.replace('_', ' ').title()}:** {value}")
             response.formatted = "\n".join(lines)
@@ -386,9 +400,9 @@ async def ask_question(
         "query": body.query,
         "session_id": body.session_id,
         "top_k": body.top_k,
-        "_db_session": db,           # type: ignore[typeddict-item]
-        "_embedding_model": model,   # type: ignore[typeddict-item]
-        "_settings": settings,       # type: ignore[typeddict-item]
+        "_db_session": db,  # type: ignore[typeddict-item]
+        "_embedding_model": model,  # type: ignore[typeddict-item]
+        "_settings": settings,  # type: ignore[typeddict-item]
     }
 
     graph = _get_graph()

@@ -9,7 +9,6 @@ Replaces the previous in-memory store with persistent storage:
 
 from __future__ import annotations
 
-from datetime import UTC, datetime
 from typing import Any
 
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -72,9 +71,7 @@ async def memory_agent(state: AgentState) -> dict[str, Any]:
                 exc_info=True,
             )
     else:
-        logger.warning(
-            "No DB session available — working memory not persisted"
-        )
+        logger.warning("No DB session available — working memory not persisted")
 
     # Build history in the format expected by downstream agents
     formatted_history: list[dict[str, str]] = [
@@ -127,9 +124,7 @@ def _auto_summarize(history: list[dict[str, str]]) -> str:
         return ""
 
     # Extract the first user query as the topic
-    user_messages = [
-        h["content"] for h in history if h.get("role") == "user"
-    ]
+    user_messages = [h["content"] for h in history if h.get("role") == "user"]
     if user_messages:
         first_query = user_messages[0]
         if len(first_query) > 120:
@@ -142,9 +137,7 @@ def _auto_summarize(history: list[dict[str, str]]) -> str:
 def _extract_topics(history: list[dict[str, str]]) -> list[str]:
     """Extract basic topics from conversation history."""
     # Simple keyword extraction from user messages
-    user_messages = [
-        h["content"] for h in history if h.get("role") == "user"
-    ]
+    user_messages = [h["content"] for h in history if h.get("role") == "user"]
     topics: set[str] = set()
     for msg in user_messages:
         words = msg.lower().split()
@@ -166,14 +159,10 @@ async def get_working_history(
 ) -> list[dict[str, str]]:
     """Retrieve the working memory history for a session."""
     service = WorkingMemoryService(db)
-    return await service.get_history(
-        session_id=session_id, limit=limit
-    )
+    return await service.get_history(session_id=session_id, limit=limit)
 
 
-async def clear_working_memory(
-    db: AsyncSession, session_id: str
-) -> int:
+async def clear_working_memory(db: AsyncSession, session_id: str) -> int:
     """Clear working memory for a session."""
     service = WorkingMemoryService(db)
     return await service.clear_session(session_id=session_id)

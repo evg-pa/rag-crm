@@ -7,15 +7,14 @@ Extracts relationships between entities using:
 
 from __future__ import annotations
 
-import hashlib
 import json
 import logging
 import re
 from collections import Counter
 from typing import Any
 
-from app.retrieval.qa import AnswerAgent
 from app.knowledge_graph.graph_service import GraphService
+from app.retrieval.qa import AnswerAgent
 
 logger = logging.getLogger(__name__)
 
@@ -61,11 +60,12 @@ async def extract_relationships_llm(
         entity_by_name[name_lower] = ent
 
     entity_list_str = "\n".join(
-        f"- {e['name']} (type: {e['type']}, id: {e['entity_id']})"
-        for e in entities[:30]
+        f"- {e['name']} (type: {e['type']}, id: {e['entity_id']})" for e in entities[:30]
     )
 
-    user_prompt = f"Entities found in document:\n{entity_list_str}\n\nDocument text (excerpt):\n{text[:3000]}"
+    user_prompt = (
+        f"Entities found in document:\n{entity_list_str}\n\nDocument text (excerpt):\n{text[:3000]}"
+    )
 
     agent = AnswerAgent()
     try:
@@ -147,14 +147,16 @@ def _parse_relationship_response(
             continue
         seen_pairs.add(pair_key)
 
-        relationships.append({
-            "source_id": source_ent["entity_id"],
-            "target_id": target_ent["entity_id"],
-            "type": rel_type,
-            "confidence": confidence,
-            "evidence": str(rel.get("evidence", ""))[:200],
-            "method": "llm",
-        })
+        relationships.append(
+            {
+                "source_id": source_ent["entity_id"],
+                "target_id": target_ent["entity_id"],
+                "type": rel_type,
+                "confidence": confidence,
+                "evidence": str(rel.get("evidence", ""))[:200],
+                "method": "llm",
+            }
+        )
 
     return relationships
 
@@ -171,7 +173,7 @@ def extract_relationships_cooccurrence(
         return []
 
     # Build entity_id set for lookup
-    entity_ids = {e["entity_id"] for e in entities}
+    {e["entity_id"] for e in entities}
     entity_map = {e["entity_id"]: e for e in entities}
 
     # Count co-occurrences in chunks
@@ -207,18 +209,20 @@ def extract_relationships_cooccurrence(
         # Normalize confidence
         confidence = min(1.0, count / 10.0)
 
-        e1 = entity_map.get(eid1, {})
-        e2 = entity_map.get(eid2, {})
+        entity_map.get(eid1, {})
+        entity_map.get(eid2, {})
 
-        relationships.append({
-            "source_id": eid1,
-            "target_id": eid2,
-            "type": "COOCCURS_WITH",
-            "confidence": round(confidence, 2),
-            "weight": count,
-            "method": "cooccurrence",
-            "evidence": f"Co-occurs in {count} chunks",
-        })
+        relationships.append(
+            {
+                "source_id": eid1,
+                "target_id": eid2,
+                "type": "COOCCURS_WITH",
+                "confidence": round(confidence, 2),
+                "weight": count,
+                "method": "cooccurrence",
+                "evidence": f"Co-occurs in {count} chunks",
+            }
+        )
 
     return relationships
 

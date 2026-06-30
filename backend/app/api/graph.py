@@ -12,7 +12,7 @@ from __future__ import annotations
 import logging
 from typing import Any
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Query, status
 
 from app.knowledge_graph.graph_service import GraphService
 
@@ -24,7 +24,9 @@ router = APIRouter(prefix="/graph", tags=["knowledge-graph"])
 @router.get("/entities")
 async def search_entities(
     q: str = Query(..., min_length=1, description="Search term for entity names"),
-    type: str | None = Query(None, description="Filter by entity type (PERSON, ORGANIZATION, etc.)"),
+    type: str | None = Query(
+        None, description="Filter by entity type (PERSON, ORGANIZATION, etc.)"
+    ),
     limit: int = Query(20, ge=1, le=100),
 ) -> dict[str, Any]:
     """Search for entities by name (fuzzy match)."""

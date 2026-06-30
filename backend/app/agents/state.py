@@ -65,6 +65,6 @@ class AgentState(TypedDict, total=False):
     error: str
 
     # ── Dependency injection (runtime only, not serialised) ───────────
-    _db_session: Any       # AsyncSession (injected at call site)
+    _db_session: Any  # AsyncSession (injected at call site)
     _embedding_model: Any  # EmbeddingModel (injected at call site)
-    _settings: Any         # Settings (injected at call site)
+    _settings: Any  # Settings (injected at call site)

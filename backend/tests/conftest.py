@@ -35,25 +35,31 @@ class _SQLiteVector(sa.types.UserDefinedType):
 
     def bind_processor(self, dialect):
         """Convert list[float] to bytes for SQLite binding."""
+
         def process(value):
             if value is None:
                 return None
             if isinstance(value, bytes):
                 return value
             import struct
+
             return struct.pack(f"<{len(value)}f", *value)
+
         return process
 
     def result_processor(self, dialect, coltype):
         """Convert bytes back to list[float]."""
+
         def process(value):
             if value is None:
                 return None
             if isinstance(value, list):
                 return value
             import struct
+
             n = len(value) // 4
             return list(struct.unpack(f"<{n}f", value))
+
         return process
 
     class comparator_factory(sa.types.UserDefinedType.Comparator):  # noqa: N801
@@ -83,6 +89,7 @@ sys.modules["pgvector.sqlalchemy"] = _pg_sqlalchemy_mock
 # PostgreSQL JSONB dialect type doesn't work with SQLite. Replace it with
 # the standard JSON type from sqlalchemy.
 from sqlalchemy import JSON as _SA_JSON
+
 _sa_mock = Mock()
 _sa_mock.JSONB = _SA_JSON
 sys.modules["sqlalchemy.dialects.postgresql"] = _sa_mock
@@ -91,20 +98,20 @@ sys.modules["sqlalchemy.dialects.postgresql"] = _sa_mock
 os.environ["DATABASE_URL"] = "sqlite+aiosqlite://"
 
 from app.core.database import Base  # noqa: E402
-from app.main import app  # noqa: E402
-
-# Ensure all models are imported so create_all sees them
-from app.models.chunk import Chunk  # noqa: E402, F401
-from app.models.crm import CrmActivity, CrmContact, CrmDeal  # noqa: E402, F401
-from app.models.document import Document  # noqa: E402, F401
-from app.models.user import User  # noqa: E402, F401
 from app.knowledge.models import WikiEntry  # noqa: E402, F401
+from app.main import app  # noqa: E402
 from app.memory.models import (  # noqa: E402, F401
     EpisodicMemory,
     ProceduralMemory,
     SemanticMemory,
     WorkingMemory,
 )
+
+# Ensure all models are imported so create_all sees them
+from app.models.chunk import Chunk  # noqa: E402, F401
+from app.models.crm import CrmActivity, CrmContact, CrmDeal  # noqa: E402, F401
+from app.models.document import Document  # noqa: E402, F401
+from app.models.user import User  # noqa: E402, F401
 
 TEST_ENGINE = create_async_engine(
     "sqlite+aiosqlite:///file::memory:?cache=shared&mode=memory&uri=true",
@@ -149,12 +156,15 @@ app.dependency_overrides = {}
 # Without this, get_vector_store() would create its own sessions pointing
 # to the real PostgreSQL, which doesn't have the test tables.
 import app.retrieval.vector_store as _vs_module  # noqa: E402
+
 _vs_module._session_factory = TEST_SESSION_FACTORY
 # Clear LRU cache on get_vector_store so it picks up the test session factory
 _vs_module.get_vector_store.cache_clear()
 # Clear related caches for test isolation
 from app.core.dependencies import get_settings as _get_settings
+
 _get_settings.cache_clear()
+
 
 # Also clear before every test session to handle test ordering edge cases
 def pytest_sessionstart() -> None:
@@ -162,14 +172,11 @@ def pytest_sessionstart() -> None:
     _vs_module.get_vector_store.cache_clear()
 
 
-import uuid
-
 from sqlalchemy import select
 
-from app.core.dependencies import get_db_session  # noqa: E402
 from app.core.auth import get_current_user, hash_password  # noqa: E402
+from app.core.dependencies import get_db_session  # noqa: E402
 from app.retrieval.embeddings import EmbeddingModel, get_embedding_model  # noqa: E402
-from app.retrieval.pgvector_repository import PgVectorRepository  # noqa: E402
 
 app.dependency_overrides[get_db_session] = _override_get_db_session
 
@@ -232,11 +239,10 @@ async def client(_setup_database, _clean_db, test_user) -> AsyncIterator[AsyncCl
     ``test_user``, so existing endpoint tests (documents, etc.) work
     without explicit auth headers.
     """
+
     async def _override_get_current_user() -> User:
         async with TEST_SESSION_FACTORY() as session:
-            result = await session.execute(
-                select(User).where(User.email == "test@example.com")
-            )
+            result = await session.execute(select(User).where(User.email == "test@example.com"))
             return result.scalar_one()
 
     original = app.dependency_overrides.get(get_current_user)

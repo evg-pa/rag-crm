@@ -4,7 +4,6 @@ from unittest.mock import patch
 
 import structlog
 
-
 # ── Structured Logging Unit Tests ─────────────────────────────────────────────
 
 
@@ -62,9 +61,8 @@ def test_setup_logging_development_uses_console_renderer() -> None:
     structlog.reset_defaults()
     from app.core.logging import setup_logging
 
-    with patch("sys.stdout.isatty", return_value=True):
-        with patch("logging.basicConfig"):
-            setup_logging(log_level="DEBUG")
+    with patch("sys.stdout.isatty", return_value=True), patch("logging.basicConfig"):
+        setup_logging(log_level="DEBUG")
 
     assert structlog.is_configured()
 
@@ -74,9 +72,8 @@ def test_setup_logging_production_uses_json() -> None:
     structlog.reset_defaults()
     from app.core.logging import setup_logging
 
-    with patch("sys.stdout.isatty", return_value=False):
-        with patch("logging.basicConfig"):
-            setup_logging(log_level="INFO")
+    with patch("sys.stdout.isatty", return_value=False), patch("logging.basicConfig"):
+        setup_logging(log_level="INFO")
 
     assert structlog.is_configured()
 

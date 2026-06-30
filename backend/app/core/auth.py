@@ -14,13 +14,13 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import Settings
-from app.core.dependencies import get_db_session, get_settings
+from app.core.dependencies import get_db_session
 from app.models.user import User
 
 # ── Constants ────────────────────────────────────────────────────────────────
 
 ALGORITHM = "HS256"
-ACCESS_TOKEN_EXPIRE_MINUTES=60
+ACCESS_TOKEN_EXPIRE_MINUTES = 60
 REFRESH_TOKEN_EXPIRE_DAYS = 7
 
 # ── Password hashing ─────────────────────────────────────────────────────────

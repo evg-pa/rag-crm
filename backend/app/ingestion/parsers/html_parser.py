@@ -30,17 +30,42 @@ class HtmlParser:
     SUPPORTED_TYPES: frozenset[str] = frozenset({"text/html", "application/xhtml+xml"})
 
     # Tags whose text content we skip entirely
-    _SKIP_TAGS: frozenset[str] = frozenset({
-        "script", "style", "noscript", "svg", "canvas",
-        "nav", "footer", "header", "aside",
-    })
+    _SKIP_TAGS: frozenset[str] = frozenset(
+        {
+            "script",
+            "style",
+            "noscript",
+            "svg",
+            "canvas",
+            "nav",
+            "footer",
+            "header",
+            "aside",
+        }
+    )
 
     # Block-level tags that get a newline before/after
-    _BLOCK_TAGS: frozenset[str] = frozenset({
-        "p", "div", "section", "article", "main", "li",
-        "h1", "h2", "h3", "h4", "h5", "h6",
-        "br", "hr", "tr", "blockquote", "pre",
-    })
+    _BLOCK_TAGS: frozenset[str] = frozenset(
+        {
+            "p",
+            "div",
+            "section",
+            "article",
+            "main",
+            "li",
+            "h1",
+            "h2",
+            "h3",
+            "h4",
+            "h5",
+            "h6",
+            "br",
+            "hr",
+            "tr",
+            "blockquote",
+            "pre",
+        }
+    )
 
     @staticmethod
     def supports(filename: str) -> bool:
@@ -127,7 +152,7 @@ class HtmlParser:
         # Try charset detection from meta tag first (scan first 4096 bytes)
         head_bytes = content[:4096]
         charset_pattern = re.compile(
-            br'<meta[^>]+charset=["\']?([a-zA-Z0-9_\-]+)',
+            rb'<meta[^>]+charset=["\']?([a-zA-Z0-9_\-]+)',
             re.IGNORECASE,
         )
         match = charset_pattern.search(head_bytes)
@@ -183,6 +208,7 @@ class HtmlParser:
         result = " ".join(texts)
         # Collapse multiple spaces
         import re
+
         result = re.sub(r"[ \t]+", " ", result)
         # Collapse multiple blank lines into double newline
         result = re.sub(r"\n{3,}", "\n\n", result)

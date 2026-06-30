@@ -6,8 +6,6 @@ Covers:
   3. SessionOptions are configured from Settings
 """
 
-import pytest
-
 
 class TestOptimizationLevelMapping:
     """Unit tests for _get_optimization_level name-to-constant mapping."""

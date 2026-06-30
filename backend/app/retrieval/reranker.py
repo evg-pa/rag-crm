@@ -44,12 +44,11 @@ class Reranker:
         if cls._loaded:
             return
 
+        import torch  # type: ignore[import-not-found]
         from transformers import (  # type: ignore[import-not-found,unused-ignore]
             AutoModelForSequenceClassification,
             AutoTokenizer,
         )
-
-        import torch  # type: ignore[import-not-found]
 
         settings = get_settings()
         model_name = settings.RERANKER_MODEL
@@ -66,10 +65,8 @@ class Reranker:
         async with lock:
             if not self._loaded:
                 try:
-                    await asyncio.wait_for(
-                        asyncio.to_thread(self._ensure_loaded), timeout=60.0
-                    )
-                except asyncio.TimeoutError:
+                    await asyncio.wait_for(asyncio.to_thread(self._ensure_loaded), timeout=60.0)
+                except TimeoutError:
                     # Model not loaded — will fall back to un-reranked results
                     pass
 
@@ -113,9 +110,7 @@ class Reranker:
         scores = await asyncio.to_thread(self._rerank_sync, query, limited)
 
         # Pair scores with original candidates, sort descending, take top_k
-        scored: list[tuple[float, dict[str, Any]]] = list(
-            zip(scores, limited, strict=True)
-        )
+        scored: list[tuple[float, dict[str, Any]]] = list(zip(scores, limited, strict=True))
         scored.sort(key=lambda pair: pair[0], reverse=True)
 
         return [

@@ -229,9 +229,7 @@ class QdrantRepository(VectorRepository):
 
         return ids[:limit]
 
-    async def get_chunk_data(
-        self, chunk_ids: list[str]
-    ) -> list[dict[str, Any]]:
+    async def get_chunk_data(self, chunk_ids: list[str]) -> list[dict[str, Any]]:
         """Return full chunk data including embeddings from Qdrant."""
         if not chunk_ids:
             return []

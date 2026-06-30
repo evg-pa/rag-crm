@@ -132,9 +132,7 @@ class VectorRepository(ABC):
         ...
 
     @abstractmethod
-    async def get_chunk_data(
-        self, chunk_ids: list[str]
-    ) -> list[dict[str, Any]]:
+    async def get_chunk_data(self, chunk_ids: list[str]) -> list[dict[str, Any]]:
         """Return full chunk data (content, document_id, chunk_index, embedding).
 
         Used by the migration script to copy data between backends.

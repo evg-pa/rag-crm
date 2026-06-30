@@ -8,21 +8,20 @@ GET  /connectors/crm/activities   — paginated activity list
 
 from __future__ import annotations
 
-import asyncio
 import uuid
 from datetime import UTC, datetime
 from typing import Any
 
-from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query, status
+from fastapi import APIRouter, BackgroundTasks, Depends, Query, status
 from pydantic import BaseModel, ConfigDict
-from sqlalchemy import select, func
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.connectors.adapters.base import BaseCRMAdapter
+from app.connectors.crm import CRMOrchestrator, _get_adapter
 from app.core.config import Settings
 from app.core.dependencies import get_db_session, get_settings
 from app.core.logging import get_logger
-from app.connectors.adapters.base import BaseCRMAdapter, ContactData, DealData, ActivityData
-from app.connectors.crm import CRMOrchestrator, _get_adapter
 from app.models.crm import CrmActivity, CrmContact, CrmDeal, CrmSyncRun
 
 logger = get_logger(__name__)
@@ -104,6 +103,7 @@ class SyncResponse(BaseModel):
 
 class SyncStatusOut(BaseModel):
     """Full sync status for the status widget."""
+
     model_config = ConfigDict(from_attributes=True)
 
     id: uuid.UUID
@@ -123,6 +123,7 @@ class SyncStatusOut(BaseModel):
 
 
 # ── Shared adapter getter ──────────────────────────────────────────────────
+
 
 def _get_crm_adapter(settings: Settings = Depends(get_settings)) -> BaseCRMAdapter:
     return _get_adapter(settings)
@@ -173,9 +174,7 @@ async def get_sync_status(
 
     # Latest sync run
     result = await db.execute(
-        select(CrmSyncRun)
-        .order_by(CrmSyncRun.completed_at.desc().nullslast())
-        .limit(1)
+        select(CrmSyncRun).order_by(CrmSyncRun.completed_at.desc().nullslast()).limit(1)
     )
     latest = result.scalar_one_or_none()
 

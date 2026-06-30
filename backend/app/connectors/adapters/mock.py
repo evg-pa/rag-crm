@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import random
-import uuid
 from datetime import UTC, datetime, timedelta
 
 from app.connectors.adapters.base import (
@@ -17,20 +16,52 @@ from app.connectors.adapters.base import (
 random.seed(42)
 
 FIRST_NAMES = [
-    "Alice", "Bob", "Charlie", "Diana", "Edward", "Fiona",
-    "George", "Hannah", "Ivan", "Julia", "Kevin", "Laura",
+    "Alice",
+    "Bob",
+    "Charlie",
+    "Diana",
+    "Edward",
+    "Fiona",
+    "George",
+    "Hannah",
+    "Ivan",
+    "Julia",
+    "Kevin",
+    "Laura",
 ]
 LAST_NAMES = [
-    "Anderson", "Brown", "Clark", "Davis", "Evans", "Foster",
-    "Garcia", "Harris", "Ito", "Johnson", "Kim", "Lee",
+    "Anderson",
+    "Brown",
+    "Clark",
+    "Davis",
+    "Evans",
+    "Foster",
+    "Garcia",
+    "Harris",
+    "Ito",
+    "Johnson",
+    "Kim",
+    "Lee",
 ]
 COMPANIES = [
-    "Acme Corp", "Globex Inc", "Initech", "Umbrella Co",
-    "Stark Industries", "Wayne Enterprises", "Wonka Industries",
-    "Cyberdyne Systems", "Massive Dynamic", "Soylent Corp",
+    "Acme Corp",
+    "Globex Inc",
+    "Initech",
+    "Umbrella Co",
+    "Stark Industries",
+    "Wayne Enterprises",
+    "Wonka Industries",
+    "Cyberdyne Systems",
+    "Massive Dynamic",
+    "Soylent Corp",
 ]
 STAGES = [
-    "lead", "qualified", "proposal", "negotiation", "closed_won", "closed_lost",
+    "lead",
+    "qualified",
+    "proposal",
+    "negotiation",
+    "closed_won",
+    "closed_lost",
 ]
 ACTIVITY_TYPES = ["call", "email", "meeting", "note"]
 
@@ -74,7 +105,9 @@ class MockCRMAdapter(BaseCRMAdapter):
 
     @staticmethod
     def _gen_deals(
-        contacts: list[ContactData], *, count: int = 30,
+        contacts: list[ContactData],
+        *,
+        count: int = 30,
     ) -> list[DealData]:
         deals: list[DealData] = []
         for i in range(count):
@@ -95,7 +128,9 @@ class MockCRMAdapter(BaseCRMAdapter):
 
     @staticmethod
     def _gen_activities(
-        contacts: list[ContactData], *, count: int = 50,
+        contacts: list[ContactData],
+        *,
+        count: int = 50,
     ) -> list[ActivityData]:
         return [
             ActivityData(
@@ -127,7 +162,8 @@ class MockCRMAdapter(BaseCRMAdapter):
         if search:
             q = search.lower()
             contacts = [
-                c for c in contacts
+                c
+                for c in contacts
                 if q in c.name.lower()
                 or (c.email and q in c.email.lower())
                 or (c.company and q in c.company.lower())
@@ -168,9 +204,6 @@ class MockCRMAdapter(BaseCRMAdapter):
         contacts = self._gen_contacts(10)
         activities = self._gen_activities(contacts, count=50)
         if contact_external_id:
-            activities = [
-                a for a in activities
-                if a.contact_external_id == contact_external_id
-            ]
+            activities = [a for a in activities if a.contact_external_id == contact_external_id]
         total = len(activities)
         return activities[offset : offset + limit], total

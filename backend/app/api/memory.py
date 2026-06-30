@@ -7,7 +7,7 @@ from typing import Any
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.dependencies import _session_factory, get_settings
+from app.core.dependencies import get_settings
 from app.memory.service import (
     EpisodicMemoryService,
     ProceduralMemoryService,
@@ -183,9 +183,7 @@ async def delete_fact(
     service = SemanticMemoryService(db)
     deleted = await service.delete_fact(fact_id=fact_id)
     if not deleted:
-        raise HTTPException(
-            status_code=404, detail=f"Fact {fact_id!r} not found"
-        )
+        raise HTTPException(status_code=404, detail=f"Fact {fact_id!r} not found")
     return {"deleted": True, "fact_id": fact_id}
 
 
@@ -226,9 +224,7 @@ async def get_procedure(
     service = ProceduralMemoryService(db)
     entry = await service.get_by_name(name=name)
     if entry is None:
-        raise HTTPException(
-            status_code=404, detail=f"Procedure {name!r} not found"
-        )
+        raise HTTPException(status_code=404, detail=f"Procedure {name!r} not found")
     return {
         "id": str(entry.id),
         "name": entry.name,

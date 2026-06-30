@@ -1,12 +1,11 @@
 """Tests for CRM connector: adapters, orchestrator, upsert logic."""
 
-import pytest
 from sqlalchemy import select
 
 from app.connectors.adapters.mock import MockCRMAdapter
 from app.connectors.crm import CRMOrchestrator, _get_adapter
 from app.core.config import Settings
-from app.models.crm import CrmActivity, CrmContact, CrmDeal
+from app.models.crm import CrmContact
 
 
 class TestMockCRMAdapter:
@@ -48,7 +47,9 @@ class TestMockCRMAdapter:
     async def test_get_activities_filter_by_contact(self):
         adapter = MockCRMAdapter(seed=42)
         items, total = await adapter.get_activities(
-            offset=0, limit=50, contact_external_id="mock-contact-0",
+            offset=0,
+            limit=50,
+            contact_external_id="mock-contact-0",
         )
         assert all(a.contact_external_id == "mock-contact-0" for a in items)
 
@@ -96,9 +97,9 @@ class TestCRMOrchestrator:
 
     async def test_rag_bridge_enabled(self, _setup_database, _clean_db, client):
         """When CRM_RAG_BRIDGE=true, Document+Chunk rows are created."""
-        from tests.conftest import TEST_SESSION_FACTORY
         from app.models.chunk import Chunk
         from app.models.document import Document
+        from tests.conftest import TEST_SESSION_FACTORY
 
         settings = Settings(CRM_ADAPTER="mock", CRM_RAG_BRIDGE=True)
         async with TEST_SESSION_FACTORY() as db:

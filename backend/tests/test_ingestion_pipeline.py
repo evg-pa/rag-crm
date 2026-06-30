@@ -50,9 +50,7 @@ async def _upload_and_assert(
         "/documents/upload",
         files={"file": (filename, content, expected_content_type)},
     )
-    assert response.status_code == 201, (
-        f"Expected 201, got {response.status_code}: {response.text}"
-    )
+    assert response.status_code == 201, f"Expected 201, got {response.status_code}: {response.text}"
 
     data = response.json()
     doc = data["document"]
@@ -257,9 +255,7 @@ async def test_scrape_url_extracts_content_and_stores(
             json={"url": "https://example.com/rag-article"},
         )
 
-    assert response.status_code == 201, (
-        f"Expected 201, got {response.status_code}: {response.text}"
-    )
+    assert response.status_code == 201, f"Expected 201, got {response.status_code}: {response.text}"
 
     data = response.json()
 
@@ -297,9 +293,7 @@ async def test_upload_unsupported_format_returns_415(
         "/documents/upload",
         files={"file": ("unknown.xyz", b"some binary content here")},
     )
-    assert response.status_code == 415, (
-        f"Expected 415, got {response.status_code}: {response.text}"
-    )
+    assert response.status_code == 415, f"Expected 415, got {response.status_code}: {response.text}"
 
     detail = response.json()["detail"]
     assert "Unsupported file type" in detail

@@ -10,6 +10,8 @@ Tests cover:
 
 from __future__ import annotations
 
+from datetime import UTC
+
 import pytest
 
 from app.agents.crm_context import (
@@ -19,7 +21,6 @@ from app.agents.crm_context import (
     extract_entity_names,
     is_crm_query,
 )
-
 
 # ── CRM query detection ──────────────────────────────────────────────────────
 
@@ -158,7 +159,6 @@ class TestBuildCRMContext:
 
     def test_deal_context(self) -> None:
         """Test building context for deal intent."""
-        from datetime import datetime, timezone
         from app.models.crm import CrmDeal
 
         deals = [
@@ -176,7 +176,8 @@ class TestBuildCRMContext:
 
     def test_activity_context(self) -> None:
         """Test building context for activity intent."""
-        from datetime import datetime, timezone
+        from datetime import datetime
+
         from app.models.crm import CrmActivity
 
         activities = [
@@ -184,7 +185,7 @@ class TestBuildCRMContext:
                 external_id="a1",
                 type="call",
                 description="Discussed contract terms",
-                date=datetime.now(timezone.utc),
+                date=datetime.now(UTC),
             ),
         ]
         context = build_crm_context([], [], activities, "activity")
@@ -202,7 +203,13 @@ class TestBuildCRMContext:
         from app.models.crm import CrmContact
 
         contacts = [
-            CrmContact(external_id="c1", name="Bob Builder", email="bob@build.com", phone="", company="Build Co"),
+            CrmContact(
+                external_id="c1",
+                name="Bob Builder",
+                email="bob@build.com",
+                phone="",
+                company="Build Co",
+            ),
         ]
         # "quick_query" intent should fall back to summary
         context = build_crm_context(contacts, [], [], "quick_query")
@@ -260,7 +267,9 @@ class TestBuildCrossReferences:
         assert refs[1]["entity"] in ("Acme Corp", "John Doe")
 
     def test_empty_inputs(self) -> None:
-        assert build_cross_references([], [{"id": "c1", "document_id": "d1", "content": "test"}]) == []
+        assert (
+            build_cross_references([], [{"id": "c1", "document_id": "d1", "content": "test"}]) == []
+        )
         assert build_cross_references([{"name": "test"}], []) == []
 
 
@@ -295,8 +304,9 @@ class TestCRMPresets:
             assert is_crm_query(query), f"Preset {key} query is not CRM-related: {query!r}"
 
     def test_crm_preset_schema(self) -> None:
-        from app.api.qa import CRMPresetOut, CRMPresetsResponse
         from pydantic import ValidationError
+
+        from app.api.qa import CRMPresetOut, CRMPresetsResponse
 
         # Valid preset
         preset = CRMPresetOut(key="test", label="Test", description="A test", query="Show contacts")
@@ -311,8 +321,9 @@ class TestCRMPresets:
         assert len(resp.presets) == 1
 
     def test_quick_query_schema(self) -> None:
-        from app.api.qa import CRMQuickQueryRequest, CRMQuickQueryResponse
         from pydantic import ValidationError
+
+        from app.api.qa import CRMQuickQueryRequest, CRMQuickQueryResponse
 
         # Valid request with minimal fields
         req = CRMQuickQueryRequest(query="Show me deals")

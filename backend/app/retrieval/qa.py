@@ -68,8 +68,7 @@ def build_context_prompt(chunks: list[dict[str, Any]]) -> str:
         document_id = chunk.get("document_id", "unknown")
         content = chunk.get("content", "")
         parts.append(
-            f"[Chunk {i}] (chunk_id: {chunk_id}, document_id: {document_id})\n"
-            f"Content: {content}"
+            f"[Chunk {i}] (chunk_id: {chunk_id}, document_id: {document_id})\nContent: {content}"
         )
     return "\n\n".join(parts)
 
@@ -147,18 +146,17 @@ class AnswerAgent:
 
         # Call LLM with overall timeout
         try:
-            llm_response = await asyncio.wait_for(
-                self._call_llm(query, context), timeout=45.0
+            llm_response = await asyncio.wait_for(self._call_llm(query, context), timeout=45.0)
+        except TimeoutError:
+            llm_response = json.dumps(
+                {
+                    "answer_text": (
+                        "The AI model took too long to respond. Please try asking again."
+                    ),
+                    "citations": [],
+                    "confidence_score": 0.0,
+                }
             )
-        except asyncio.TimeoutError:
-            llm_response = json.dumps({
-                "answer_text": (
-                    "The AI model took too long to respond. "
-                    "Please try asking again."
-                ),
-                "citations": [],
-                "confidence_score": 0.0,
-            })
 
         # Parse LLM response
         result = self._parse_llm_response(llm_response, selected)
@@ -230,11 +228,7 @@ class AnswerAgent:
         ]
 
         # Try LLM (any OpenAI-compatible provider)
-        api_key = (
-            self._settings.LLM_API_KEY
-            or self._settings.DEEPSEEK_API_KEY
-            or ""
-        )
+        api_key = self._settings.LLM_API_KEY or self._settings.DEEPSEEK_API_KEY or ""
         if api_key and api_key != "***":
             try:
                 return await self._call_llm_api(messages)
@@ -248,16 +242,18 @@ class AnswerAgent:
             pass
 
         # Neither LLM is reachable — return honest fallback
-        return json.dumps({
-            "answer_text": (
-                "I found relevant documents in the knowledge base, but the AI model "
-                "was not available to generate a proper answer. "
-                "Here are the raw search results for you to browse:\n\n"
-                f"{context[:500]}"
-            ),
-            "citations": [],
-            "confidence_score": 0.5,
-        })
+        return json.dumps(
+            {
+                "answer_text": (
+                    "I found relevant documents in the knowledge base, but the AI model "
+                    "was not available to generate a proper answer. "
+                    "Here are the raw search results for you to browse:\n\n"
+                    f"{context[:500]}"
+                ),
+                "citations": [],
+                "confidence_score": 0.5,
+            }
+        )
 
     async def _call_llm_api(self, messages: list[dict[str, str]]) -> str:
         """Call any OpenAI-compatible chat completions API.

@@ -10,7 +10,6 @@ duplicated across sync runs.
 from __future__ import annotations
 
 import uuid
-from datetime import datetime
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -33,9 +32,11 @@ def _get_adapter(settings: Settings) -> BaseCRMAdapter:
     adapter_name = settings.CRM_ADAPTER
     if adapter_name == "rest":
         from app.connectors.adapters.rest import RestCRMAdapter
+
         return RestCRMAdapter(base_url=settings.CRM_REST_BASE_URL)
     else:
         from app.connectors.adapters.mock import MockCRMAdapter
+
         return MockCRMAdapter()
 
 
@@ -133,7 +134,9 @@ class CRMOrchestrator:
                 if d.contact_external_id and d.contact_external_id in contact_map:
                     existing.contact_id = contact_map[d.contact_external_id]
             else:
-                contact_id = contact_map.get(d.contact_external_id) if d.contact_external_id else None
+                contact_id = (
+                    contact_map.get(d.contact_external_id) if d.contact_external_id else None
+                )
                 self._db.add(
                     CrmDeal(
                         external_id=d.external_id,
@@ -175,7 +178,9 @@ class CRMOrchestrator:
                 if a.contact_external_id and a.contact_external_id in contact_map:
                     existing.contact_id = contact_map[a.contact_external_id]
             else:
-                contact_id = contact_map.get(a.contact_external_id) if a.contact_external_id else None
+                contact_id = (
+                    contact_map.get(a.contact_external_id) if a.contact_external_id else None
+                )
                 self._db.add(
                     CrmActivity(
                         external_id=a.external_id,
@@ -199,8 +204,6 @@ class CRMOrchestrator:
         Chunk is created per entity so the existing hybrid search can
         pick them up.
         """
-        from app.models.chunk import Chunk
-        from app.models.document import Document
 
         stats = {"rag_documents_created": 0, "rag_chunks_created": 0}
 
@@ -226,8 +229,9 @@ class CRMOrchestrator:
         deals_result = await self._db.execute(select(CrmDeal))
         for deal in deals_result.scalars().all():
             text = (
-                f"CRM Deal: {deal.name}\n"
-                f"Value: ${deal.value:,.2f}" if deal.value else "Value: N/A" + "\n"
+                f"CRM Deal: {deal.name}\nValue: ${deal.value:,.2f}"
+                if deal.value
+                else "Value: N/A" + "\n"
                 f"Stage: {deal.stage}\n"
                 f"Close Date: {deal.close_date.isoformat() if deal.close_date else 'N/A'}"
             )
@@ -280,9 +284,7 @@ class CRMOrchestrator:
 
         filename = f"crm://{source}/{external_id}"
 
-        existing = await self._db.execute(
-            select(Document).where(Document.filename == filename)
-        )
+        existing = await self._db.execute(select(Document).where(Document.filename == filename))
         if existing.scalar_one_or_none() is not None:
             return  # Already bridged
 

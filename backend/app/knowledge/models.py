@@ -6,7 +6,7 @@ import uuid
 from datetime import UTC, datetime
 from typing import TYPE_CHECKING
 
-from sqlalchemy import DateTime, ForeignKey, JSON, Text
+from sqlalchemy import JSON, DateTime, ForeignKey, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 if TYPE_CHECKING:
@@ -40,9 +40,7 @@ class WikiEntry(Base):
         index=True,
     )
     summary: Mapped[str] = mapped_column(Text, nullable=False, default="")
-    topics: Mapped[list[str]] = mapped_column(
-        JSON, nullable=False, default=list
-    )
+    topics: Mapped[list[str]] = mapped_column(JSON, nullable=False, default=list)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, default=utcnow
     )
@@ -54,7 +52,4 @@ class WikiEntry(Base):
     document: Mapped[Document] = relationship("Document")
 
     def __repr__(self) -> str:
-        return (
-            f"<WikiEntry id={self.id!r} document_id={self.document_id!r} "
-            f"topics={self.topics!r}>"
-        )
+        return f"<WikiEntry id={self.id!r} document_id={self.document_id!r} topics={self.topics!r}>"

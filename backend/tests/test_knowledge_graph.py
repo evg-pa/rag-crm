@@ -2,10 +2,9 @@
 
 from __future__ import annotations
 
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock
 
 import pytest
-
 
 # ── Entity Extractor tests ────────────────────────────────────────────────────
 
@@ -266,7 +265,12 @@ class TestGraphAgent:
         state = {
             "query": "What does Alice work on?",
             "retrieved_chunks": [
-                {"id": "chunk1", "content": "Alice works on project X.", "document_id": "doc1", "similarity": 0.9},
+                {
+                    "id": "chunk1",
+                    "content": "Alice works on project X.",
+                    "document_id": "doc1",
+                    "similarity": 0.9,
+                },
             ],
         }
 
@@ -286,7 +290,12 @@ class TestGraphAgent:
         state = {
             "query": "test query about artificial intelligence",
             "retrieved_chunks": [
-                {"id": "chunk1", "content": "AI is transforming industries.", "document_id": "doc1", "similarity": 0.9},
+                {
+                    "id": "chunk1",
+                    "content": "AI is transforming industries.",
+                    "document_id": "doc1",
+                    "similarity": 0.9,
+                },
             ],
         }
 
@@ -307,6 +316,7 @@ class TestKnowledgeGraphAPI:
     async def test_stats_endpoint_graceful(self, client):
         """Stats endpoint should return gracefully when Neo4j unavailable."""
         import logging
+
         logger = logging.getLogger("app.knowledge_graph.graph_service")
         logger.setLevel(logging.CRITICAL)
 
@@ -455,7 +465,7 @@ class TestGraphService:
 
         async def _side_effect(*args, **kwargs):
             nonlocal call_count
-            query_str = str(args[0]) if args else ""
+            str(args[0]) if args else ""
             call_count += 1
             result = AsyncMock()
             if call_count == 1:
@@ -470,10 +480,12 @@ class TestGraphService:
                 return result
             else:
                 # Type breakdown
-                data_mock = AsyncMock(return_value=[
-                    {"type": "PERSON", "count": 30},
-                    {"type": "ORGANIZATION", "count": 12},
-                ])
+                data_mock = AsyncMock(
+                    return_value=[
+                        {"type": "PERSON", "count": 30},
+                        {"type": "ORGANIZATION", "count": 12},
+                    ]
+                )
                 result.data = data_mock
                 return result
 

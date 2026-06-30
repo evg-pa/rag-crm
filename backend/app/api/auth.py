@@ -2,10 +2,8 @@
 
 from __future__ import annotations
 
-import uuid
-
 from fastapi import APIRouter, Depends, HTTPException, status
-from pydantic import BaseModel, EmailStr
+from pydantic import BaseModel
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -89,9 +87,7 @@ async def register(
         )
 
     # Check for duplicate email
-    existing = await db.execute(
-        select(User).where(User.email == body.email.lower().strip())
-    )
+    existing = await db.execute(select(User).where(User.email == body.email.lower().strip()))
     if existing.scalar_one_or_none() is not None:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
@@ -121,9 +117,7 @@ async def login(
     settings: Settings = Depends(get_settings),
 ) -> TokenResponse:
     """Authenticate and receive JWT tokens."""
-    result = await db.execute(
-        select(User).where(User.email == body.email.lower().strip())
-    )
+    result = await db.execute(select(User).where(User.email == body.email.lower().strip()))
     user = result.scalar_one_or_none()
 
     if user is None or not verify_password(body.password, user.hashed_password):

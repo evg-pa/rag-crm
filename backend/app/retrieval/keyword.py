@@ -51,9 +51,7 @@ class BM25Index:
             if cls._loaded:
                 return
             if db is None:
-                raise RuntimeError(
-                    "BM25Index not loaded and no database session provided."
-                )
+                raise RuntimeError("BM25Index not loaded and no database session provided.")
             await cls._build_index(db)
 
     @classmethod

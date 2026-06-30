@@ -106,7 +106,6 @@ class TestCRMStandalone:
     def test_crm_api_imports_no_rag(self):
         """The connectors API module should not import anything from retrieval/agents."""
         import ast
-        import sys
 
         with open("app/api/connectors.py") as f:
             tree = ast.parse(f.read())
@@ -118,9 +117,8 @@ class TestCRMStandalone:
                     assert alias.name.split(".")[0] not in rag_modules, (
                         f"connectors.py imports {alias.name} — CRM must be RAG-free"
                     )
-            elif isinstance(node, ast.ImportFrom):
-                if node.module:
-                    root = node.module.split(".")[0]
-                    assert root not in rag_modules, (
-                        f"connectors.py imports from {node.module} — CRM must be RAG-free"
-                    )
+            elif isinstance(node, ast.ImportFrom) and node.module:
+                root = node.module.split(".")[0]
+                assert root not in rag_modules, (
+                    f"connectors.py imports from {node.module} — CRM must be RAG-free"
+                )

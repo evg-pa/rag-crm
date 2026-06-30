@@ -17,29 +17,28 @@ Covers:
 
 from __future__ import annotations
 
-import json
 from collections.abc import AsyncGenerator
 from typing import Any
 from unittest.mock import AsyncMock, MagicMock, patch
 
-import httpx
 import pytest
 from httpx import ASGITransport, AsyncClient
 
-from app.agents.router_agent import classify_query
+from app.agents.answer_agent import answer_agent as langgraph_answer_agent
 from app.agents.critic_agent import (
     MAX_CRITIC_RETRIES,
-    _has_citations,
     _claims_supported,
+    _has_citations,
     critic_agent,
 )
 from app.agents.memory_agent import (
     clear_all as memory_clear_all,
+)
+from app.agents.memory_agent import (
     get_history as memory_get_history,
 )
+from app.agents.router_agent import classify_query
 from app.agents.synthesizer_agent import synthesizer_agent
-from app.agents.answer_agent import answer_agent as langgraph_answer_agent
-
 
 # ── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -82,8 +81,8 @@ async def langgraph_client() -> AsyncGenerator[AsyncClient, None]:
     from app.main import app
     from app.retrieval.embeddings import get_embedding_model
     from app.retrieval.keyword import BM25Index
-    from app.retrieval.reranker import Reranker
     from app.retrieval.qa import AnswerAgent
+    from app.retrieval.reranker import Reranker
 
     # Save the existing override so we can restore it after the test
     _prev_embedding_override = app.dependency_overrides.get(get_embedding_model)
@@ -131,8 +130,7 @@ async def langgraph_client() -> AsyncGenerator[AsyncClient, None]:
             top_k: int = 10,
         ) -> list[dict[str, Any]]:
             return [
-                {**c, "reranker_score": 1.0 - i * 0.01}
-                for i, c in enumerate(candidates[:top_k])
+                {**c, "reranker_score": 1.0 - i * 0.01} for i, c in enumerate(candidates[:top_k])
             ]
 
         Reranker.rerank = fake_rerank  # type: ignore[method-assign]
@@ -230,8 +228,19 @@ class TestCriticAgent:
         """Critic passes an answer with citations and supported claims."""
         state = _make_state(
             answer_text="RAG combines retrieval with generation for accurate answers.",
-            citations=[{"chunk_id": "c1", "document_id": "d1", "content_snippet": "RAG combines retrieval and generation"}],
-            reranked_chunks=[{"id": "c1", "content": "RAG combines retrieval and generation to produce accurate responses."}],
+            citations=[
+                {
+                    "chunk_id": "c1",
+                    "document_id": "d1",
+                    "content_snippet": "RAG combines retrieval and generation",
+                }
+            ],
+            reranked_chunks=[
+                {
+                    "id": "c1",
+                    "content": "RAG combines retrieval and generation to produce accurate responses.",
+                }
+            ],
         )
         result = await critic_agent(state)
         assert result["critic_passed"] is True
@@ -244,7 +253,12 @@ class TestCriticAgent:
         state = _make_state(
             answer_text="RAG is a technique that improves LLM output.",
             citations=[],
-            reranked_chunks=[{"id": "c1", "content": "RAG combines retrieval and generation to produce accurate responses."}],
+            reranked_chunks=[
+                {
+                    "id": "c1",
+                    "content": "RAG combines retrieval and generation to produce accurate responses.",
+                }
+            ],
         )
         result = await critic_agent(state)
         assert result["critic_passed"] is False
@@ -257,7 +271,12 @@ class TestCriticAgent:
         state = _make_state(
             answer_text="Machine learning is a subset of artificial intelligence that uses neural networks.",
             citations=[{"chunk_id": "c1"}],
-            reranked_chunks=[{"id": "c1", "content": "RAG combines retrieval and generation to produce accurate responses."}],
+            reranked_chunks=[
+                {
+                    "id": "c1",
+                    "content": "RAG combines retrieval and generation to produce accurate responses.",
+                }
+            ],
         )
         result = await critic_agent(state)
         assert result["critic_passed"] is False
@@ -354,7 +373,11 @@ class TestSynthesizerAgent:
             query_type="hybrid",
             answer_text="RAG is a technique for augmenting LLMs.",
             citations=[
-                {"chunk_id": "c1", "document_id": "d1", "content_snippet": "RAG combines retrieval"},
+                {
+                    "chunk_id": "c1",
+                    "document_id": "d1",
+                    "content_snippet": "RAG combines retrieval",
+                },
             ],
             confidence_score=0.9,
         )
@@ -426,9 +449,7 @@ class TestQAEndpoint:
     """Integration tests for POST /qa via LangGraph pipeline."""
 
     @pytest.mark.asyncio
-    async def test_qa_endpoint_returns_result(
-        self, langgraph_client: AsyncClient
-    ) -> None:
+    async def test_qa_endpoint_returns_result(self, langgraph_client: AsyncClient) -> None:
         """POST /qa returns a full QAResponse with citations."""
         response = await langgraph_client.post(
             "/qa",

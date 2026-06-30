@@ -10,7 +10,6 @@ from typing import Any
 
 from app.agents.state import AgentState
 
-
 # ── Greeting responses ───────────────────────────────────────────────────────
 
 _GREETING_RESPONSES: dict[str, str] = {
@@ -119,9 +118,7 @@ async def synthesizer_agent(state: AgentState) -> dict:
 
         # Critic note (if the answer was accepted despite failing checks)
         if critic_feedback and not state.get("critic_passed", True):
-            parts.append(
-                f"\n> ⚠️ **Quality note:** {critic_feedback}"
-            )
+            parts.append(f"\n> ⚠️ **Quality note:** {critic_feedback}")
 
         # Conversation history context
         history_block = _format_history_context(history)

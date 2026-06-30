@@ -17,46 +17,60 @@ from app.agents.state import AgentState
 # ── Greeting patterns ────────────────────────────────────────────────────────
 
 _GREETING_PATTERNS = [
-    r"^hi\b", r"^hello\b", r"^hey\b", r"^good\s*(morning|afternoon|evening)",
-    r"^howdy\b", r"^greetings\b", r"^yo\b",
+    r"^hi\b",
+    r"^hello\b",
+    r"^hey\b",
+    r"^good\s*(morning|afternoon|evening)",
+    r"^howdy\b",
+    r"^greetings\b",
+    r"^yo\b",
     r"^(thanks|thank\s*you|thx|ty)\b",
     r"^(bye|goodbye|see\s*ya|cya)\b",
-    r"^what('s| is) up\b", r"^how are you\b",
+    r"^what('s| is) up\b",
+    r"^how are you\b",
     r"^\??\s*$",  # empty or just question marks
 ]
 
 # ── Irrelevant / off-topic patterns ──────────────────────────────────────────
 
 _IRRELEVANT_PATTERNS = [
-    r"^[^a-zA-Z0-9\s]{5,}$",                          # mostly non-alphanumeric gibberish
+    r"^[^a-zA-Z0-9\s]{5,}$",  # mostly non-alphanumeric gibberish
     r"^(asdf|qwer|zxcv|foo|bar|baz|hjkl|tyui|bnmv)",  # keyboard mashing (prefix match)
-    r"^.{1,2}$",                                        # one or two characters
+    r"^.{1,2}$",  # one or two characters
 ]
 
 # ── Keyword-heavy query indicators ───────────────────────────────────────────
 
 _KEYWORD_INDICATORS = [
-    r"\bdefine\b", r"\bdefinition\b", r"\bwhat is\b",
-    r"\bmeaning of\b", r"\babbreviation\b",
-    r"\bhow to\b", r"\bsteps?\b", r"\bprocedure\b",
+    r"\bdefine\b",
+    r"\bdefinition\b",
+    r"\bwhat is\b",
+    r"\bmeaning of\b",
+    r"\babbreviation\b",
+    r"\bhow to\b",
+    r"\bsteps?\b",
+    r"\bprocedure\b",
 ]
 
 # ── Semantic-heavy query indicators ──────────────────────────────────────────
 
 _SEMANTIC_INDICATORS = [
-    r"\brelate(d|s|tion)\b", r"\bsimilar\b", r"\bcompare\b",
-    r"\bwhy\b", r"\bhow does\b", r"\bexplain\b",
-    r"\boverview\b", r"\bsummar(y|ize)\b", r"\bdescribe\b",
+    r"\brelate(d|s|tion)\b",
+    r"\bsimilar\b",
+    r"\bcompare\b",
+    r"\bwhy\b",
+    r"\bhow does\b",
+    r"\bexplain\b",
+    r"\boverview\b",
+    r"\bsummar(y|ize)\b",
+    r"\bdescribe\b",
 ]
 
 
 def _matches_any(text: str, patterns: list[str]) -> bool:
     """Return True if *text* matches any compiled regex in *patterns*."""
     t = text.lower().strip()
-    for pat in patterns:
-        if re.search(pat, t):
-            return True
-    return False
+    return any(re.search(pat, t) for pat in patterns)
 
 
 def classify_query(query: str) -> str:

@@ -8,6 +8,7 @@ GET  /documents/{id}            — get a single document with its chunks
 """
 
 import asyncio
+import contextlib
 import hashlib
 import uuid
 from typing import Any
@@ -56,9 +57,7 @@ class DocumentOut(BaseModel):
     filename: str
     content_type: str
     file_size: int
-    metadata: dict[str, object] | None = Field(
-        default=None, validation_alias="doc_metadata"
-    )
+    metadata: dict[str, object] | None = Field(default=None, validation_alias="doc_metadata")
     chunks: list[ChunkOut] = Field(default_factory=list)
 
 
@@ -71,9 +70,7 @@ class DocumentListOut(BaseModel):
     filename: str
     content_type: str
     file_size: int
-    metadata: dict[str, object] | None = Field(
-        default=None, validation_alias="doc_metadata"
-    )
+    metadata: dict[str, object] | None = Field(default=None, validation_alias="doc_metadata")
 
 
 class UploadResponse(BaseModel):
@@ -81,9 +78,7 @@ class UploadResponse(BaseModel):
 
     document: DocumentOut
     chunk_count: int
-    metadata: dict[str, object] | None = Field(
-        default=None, validation_alias="doc_metadata"
-    )
+    metadata: dict[str, object] | None = Field(default=None, validation_alias="doc_metadata")
 
 
 class ScrapeRequest(BaseModel):
@@ -256,6 +251,7 @@ async def _persist_and_embed(
 
     # Check for existing document with same content hash
     from sqlalchemy import select as sa_select
+
     existing = await db.execute(
         sa_select(Document.id).where(Document.content_hash == content_hash).limit(1)
     )
@@ -263,8 +259,8 @@ async def _persist_and_embed(
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
             detail=(
-                f"A document with identical content already exists in the knowledge base. "
-                f"Skipping duplicate."
+                "A document with identical content already exists in the knowledge base. "
+                "Skipping duplicate."
             ),
         )
 
@@ -296,6 +292,7 @@ async def _persist_and_embed(
 
         # Store in vector repository (pgvector or Qdrant depending on config)
         from app.retrieval.vector_store import get_vector_store
+
         vector_store = get_vector_store()
 
         # Collect chunk ids (they were flushed to DB above)
@@ -320,7 +317,7 @@ async def _persist_and_embed(
         )
 
         # Also store in pgvector column for backward compatibility
-        for (chunk_result, emb) in zip(chunk_results, embeddings, strict=True):
+        for chunk_result, emb in zip(chunk_results, embeddings, strict=True):
             await db.execute(
                 Chunk.__table__.update()
                 .where(Chunk.document_id == document.id)
@@ -345,9 +342,7 @@ async def _persist_and_embed(
             try:
                 await service.create_or_update_wiki(doc_id)
             except Exception as exc:
-                logger.warning(
-                    "Background wiki generation failed for document %s: %s", doc_id, exc
-                )
+                logger.warning("Background wiki generation failed for document %s: %s", doc_id, exc)
             finally:
                 await service.close()
 
@@ -357,8 +352,8 @@ async def _persist_and_embed(
     async def _extract_kg_entities(doc_id: uuid.UUID, doc_filename: str) -> None:
         try:
             from app.knowledge_graph.entity_extractor import process_document_entities
-            from app.knowledge_graph.relationship_extractor import process_document_relationships
             from app.knowledge_graph.graph_service import GraphService
+            from app.knowledge_graph.relationship_extractor import process_document_relationships
 
             full_text = " ".join(chunk_texts)
             gs = GraphService()
@@ -369,7 +364,11 @@ async def _persist_and_embed(
                 document_id=str(doc_id),
                 filename=doc_filename,
                 chunks=[
-                    {"id": chunk_map.get(cr.index, ""), "content": cr.content, "chunk_index": cr.index}
+                    {
+                        "id": chunk_map.get(cr.index, ""),
+                        "content": cr.content,
+                        "chunk_index": cr.index,
+                    }
                     for cr in chunk_results
                 ],
                 graph_service=gs,
@@ -388,7 +387,11 @@ async def _persist_and_embed(
                         text=full_text,
                         document_id=str(doc_id),
                         chunks=[
-                            {"id": chunk_map.get(cr.index, ""), "content": cr.content, "chunk_index": cr.index}
+                            {
+                                "id": chunk_map.get(cr.index, ""),
+                                "content": cr.content,
+                                "chunk_index": cr.index,
+                            }
                             for cr in chunk_results
                         ],
                         graph_service=gs,
@@ -396,7 +399,8 @@ async def _persist_and_embed(
 
             logger.info(
                 "Knowledge graph extraction complete for document %s: %d entities",
-                doc_id, entity_result.get("entities", 0),
+                doc_id,
+                entity_result.get("entities", 0),
             )
         except Exception as exc:
             logger.warning("Knowledge graph extraction failed for document %s: %s", doc_id, exc)
@@ -537,6 +541,7 @@ async def scrape_url(
 
     # Generate a filename from the URL
     from urllib.parse import urlparse
+
     parsed = urlparse(body.url)
     safe_host = parsed.hostname.replace(".", "_") if parsed.hostname else "scraped"
     safe_path = parsed.path.strip("/").replace("/", "_") or "index"
@@ -544,6 +549,7 @@ async def scrape_url(
 
     # Chunk the extracted text
     from app.ingestion.chunkers.recursive import RecursiveChunker
+
     chunker = RecursiveChunker()
     chunk_results = chunker.chunk(result.text)
 
@@ -558,6 +564,7 @@ async def scrape_url(
 
     # Extract metadata from the scraped page
     from app.ingestion.parsers.html_parser import HtmlParser
+
     html_meta = HtmlParser.extract_metadata(result.text.encode("utf-8"))
     metadata: dict[str, Any] = {}
     if result.title:
@@ -600,10 +607,7 @@ async def list_documents(
     db: AsyncSession = Depends(get_db_session),
 ) -> Any:
     """List all documents (without chunk content for brevity)."""
-    result = await db.execute(
-        select(Document)
-        .order_by(Document.created_at.desc())
-    )
+    result = await db.execute(select(Document).order_by(Document.created_at.desc()))
     documents = result.scalars().all()
     return documents
 
@@ -615,9 +619,7 @@ async def get_document(
 ) -> Any:
     """Get a single document with its chunks, ordered by chunk_index."""
     result = await db.execute(
-        select(Document)
-        .where(Document.id == document_id)
-        .options(selectinload(Document.chunks))
+        select(Document).where(Document.id == document_id).options(selectinload(Document.chunks))
     )
     document = result.scalar_one_or_none()
     if document is None:
@@ -638,10 +640,7 @@ async def delete_document(
 
     Rebuilds the BM25 index after deletion so removed chunks are no longer searchable.
     """
-    result = await db.execute(
-        select(Document)
-        .where(Document.id == document_id)
-    )
+    result = await db.execute(select(Document).where(Document.id == document_id))
     document = result.scalar_one_or_none()
     if document is None:
         raise HTTPException(
@@ -657,15 +656,14 @@ async def delete_document(
     # Qdrant stores vectors independently and needs an explicit delete.
     try:
         from app.retrieval.vector_store import get_vector_store
+
         vector_store = get_vector_store()
         await vector_store.delete_by_document(str(document_id))
     except Exception as exc:
         logger.warning("Failed to delete vectors for document %s: %s", document_id, exc)
 
     # Rebuild BM25 index so deleted chunks are removed
-    try:
+    with contextlib.suppress(Exception):
         await BM25Index.rebuild(db)
-    except Exception:
-        pass
 
     return {"status": "deleted", "document_id": str(document_id)}

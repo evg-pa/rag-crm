@@ -11,12 +11,11 @@ from __future__ import annotations
 from datetime import UTC, datetime, timedelta
 from typing import Any
 
-from sqlalchemy import delete, select, text
+from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.logging import get_logger
 from app.memory.models import (
-    EMBEDDING_DIM,
     EpisodicMemory,
     ProceduralMemory,
     SemanticMemory,
@@ -82,14 +81,9 @@ class WorkingMemoryService:
         )
         result = await self.db.execute(stmt)
         rows = result.scalars().all()
-        return [
-            {"role": r.role, "content": r.content, "id": str(r.id)}
-            for r in rows
-        ]
+        return [{"role": r.role, "content": r.content, "id": str(r.id)} for r in rows]
 
-    async def clear_session(
-        self, session_id: str, conversation_id: str = "default"
-    ) -> int:
+    async def clear_session(self, session_id: str, conversation_id: str = "default") -> int:
         """Delete all working memory for a session/conversation."""
         stmt = delete(WorkingMemory).where(
             WorkingMemory.session_id == session_id,
@@ -106,9 +100,7 @@ class WorkingMemoryService:
         await self.db.commit()
         return result.rowcount  # type: ignore[return-value]
 
-    async def _prune(
-        self, session_id: str, conversation_id: str
-    ) -> None:
+    async def _prune(self, session_id: str, conversation_id: str) -> None:
         """Keep only the last MAX_WORKING_ENTRIES for the session."""
         # Count current entries
         count_stmt = (
@@ -149,9 +141,7 @@ class EpisodicMemoryService:
         message_count: int,
     ) -> EpisodicMemory:
         """Create or update an episodic memory entry for a session."""
-        stmt = select(EpisodicMemory).where(
-            EpisodicMemory.session_id == session_id
-        )
+        stmt = select(EpisodicMemory).where(EpisodicMemory.session_id == session_id)
         result = await self.db.execute(stmt)
         existing = result.scalar_one_or_none()
 
@@ -174,19 +164,13 @@ class EpisodicMemoryService:
         await self.db.refresh(entry)
         return entry
 
-    async def get_by_session(
-        self, session_id: str
-    ) -> EpisodicMemory | None:
+    async def get_by_session(self, session_id: str) -> EpisodicMemory | None:
         """Return the episodic memory for a session, if any."""
-        stmt = select(EpisodicMemory).where(
-            EpisodicMemory.session_id == session_id
-        )
+        stmt = select(EpisodicMemory).where(EpisodicMemory.session_id == session_id)
         result = await self.db.execute(stmt)
         return result.scalar_one_or_none()
 
-    async def list_recent(
-        self, limit: int = 20, offset: int = 0
-    ) -> list[EpisodicMemory]:
+    async def list_recent(self, limit: int = 20, offset: int = 0) -> list[EpisodicMemory]:
         """Return the most recent episodic memories."""
         stmt = (
             select(EpisodicMemory)
@@ -197,9 +181,7 @@ class EpisodicMemoryService:
         result = await self.db.execute(stmt)
         return list(result.scalars().all())
 
-    async def search_by_topics(
-        self, topics: list[str], limit: int = 10
-    ) -> list[EpisodicMemory]:
+    async def search_by_topics(self, topics: list[str], limit: int = 10) -> list[EpisodicMemory]:
         """Find episodic memories matching any of the given topics."""
         stmt = (
             select(EpisodicMemory)
@@ -213,9 +195,7 @@ class EpisodicMemoryService:
     async def prune_old(self, days: int = DEFAULT_TTL_DAYS) -> int:
         """Delete episodic memories older than *days*."""
         cutoff = datetime.now(UTC) - timedelta(days=days)
-        stmt = delete(EpisodicMemory).where(
-            EpisodicMemory.updated_at < cutoff
-        )
+        stmt = delete(EpisodicMemory).where(EpisodicMemory.updated_at < cutoff)
         result = await self.db.execute(stmt)
         await self.db.commit()
         return result.rowcount  # type: ignore[return-value]
@@ -263,19 +243,22 @@ class SemanticMemoryService:
         # Use ORM-level query to let SQLAlchemy handle vector type casting
         from sqlalchemy import select as sa_select
 
-        stmt = sa_select(
-            SemanticMemory.id,
-            SemanticMemory.fact,
-            SemanticMemory.source,
-            SemanticMemory.source_id,
-            SemanticMemory.confidence,
-            (1 - SemanticMemory.embedding.cosine_distance(embedding)).label("similarity"),
-        ).where(
-            SemanticMemory.confidence >= min_confidence,
-            SemanticMemory.embedding.isnot(None),
-        ).order_by(
-            SemanticMemory.embedding.cosine_distance(embedding)
-        ).limit(limit)
+        stmt = (
+            sa_select(
+                SemanticMemory.id,
+                SemanticMemory.fact,
+                SemanticMemory.source,
+                SemanticMemory.source_id,
+                SemanticMemory.confidence,
+                (1 - SemanticMemory.embedding.cosine_distance(embedding)).label("similarity"),
+            )
+            .where(
+                SemanticMemory.confidence >= min_confidence,
+                SemanticMemory.embedding.isnot(None),
+            )
+            .order_by(SemanticMemory.embedding.cosine_distance(embedding))
+            .limit(limit)
+        )
 
         result = await self.db.execute(stmt)
         rows = result.fetchall()
@@ -291,9 +274,7 @@ class SemanticMemoryService:
             for r in rows
         ]
 
-    async def list_facts(
-        self, limit: int = 50, offset: int = 0
-    ) -> list[SemanticMemory]:
+    async def list_facts(self, limit: int = 50, offset: int = 0) -> list[SemanticMemory]:
         """Return recent facts."""
         stmt = (
             select(SemanticMemory)
@@ -306,9 +287,7 @@ class SemanticMemoryService:
 
     async def delete_fact(self, fact_id: str) -> bool:
         """Delete a fact by ID. Returns True if found and deleted."""
-        stmt = select(SemanticMemory).where(
-            SemanticMemory.id == fact_id
-        )
+        stmt = select(SemanticMemory).where(SemanticMemory.id == fact_id)
         result = await self.db.execute(stmt)
         entry = result.scalar_one_or_none()
         if entry is None:
@@ -317,20 +296,14 @@ class SemanticMemoryService:
         await self.db.commit()
         return True
 
-    async def prune_low_confidence(
-        self, threshold: float = 0.3
-    ) -> int:
+    async def prune_low_confidence(self, threshold: float = 0.3) -> int:
         """Delete facts below a confidence threshold."""
-        stmt = delete(SemanticMemory).where(
-            SemanticMemory.confidence < threshold
-        )
+        stmt = delete(SemanticMemory).where(SemanticMemory.confidence < threshold)
         result = await self.db.execute(stmt)
         await self.db.commit()
         return result.rowcount  # type: ignore[return-value]
 
-    async def _compute_embedding(
-        self, text: str
-    ) -> list[float] | None:
+    async def _compute_embedding(self, text: str) -> list[float] | None:
         """Compute an embedding vector for the given text."""
         try:
             model = get_embedding_model()
@@ -368,19 +341,13 @@ class ProceduralMemoryService:
         await self.db.refresh(entry)
         return entry
 
-    async def get_by_name(
-        self, name: str
-    ) -> ProceduralMemory | None:
+    async def get_by_name(self, name: str) -> ProceduralMemory | None:
         """Look up a procedure by name."""
-        stmt = select(ProceduralMemory).where(
-            ProceduralMemory.name == name
-        )
+        stmt = select(ProceduralMemory).where(ProceduralMemory.name == name)
         result = await self.db.execute(stmt)
         return result.scalar_one_or_none()
 
-    async def search_by_tags(
-        self, tags: list[str], limit: int = 10
-    ) -> list[ProceduralMemory]:
+    async def search_by_tags(self, tags: list[str], limit: int = 10) -> list[ProceduralMemory]:
         """Find procedures matching any tag."""
         stmt = (
             select(ProceduralMemory)
@@ -393,18 +360,14 @@ class ProceduralMemoryService:
 
     async def increment_usage(self, name: str) -> None:
         """Increment the usage counter for a procedure."""
-        stmt = select(ProceduralMemory).where(
-            ProceduralMemory.name == name
-        )
+        stmt = select(ProceduralMemory).where(ProceduralMemory.name == name)
         result = await self.db.execute(stmt)
         entry = result.scalar_one_or_none()
         if entry:
             entry.usage_count = (entry.usage_count or 0) + 1
             await self.db.commit()
 
-    async def list_all(
-        self, limit: int = 50, offset: int = 0
-    ) -> list[ProceduralMemory]:
+    async def list_all(self, limit: int = 50, offset: int = 0) -> list[ProceduralMemory]:
         """List all procedures, most used first."""
         stmt = (
             select(ProceduralMemory)

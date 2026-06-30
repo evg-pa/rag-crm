@@ -24,7 +24,6 @@ from httpx import AsyncClient
 
 from tests.conftest import get_auth_headers
 
-
 # ── Registration ──────────────────────────────────────────────────────────
 
 
@@ -220,16 +219,13 @@ async def test_get_me_without_token(unauth_client: AsyncClient) -> None:
 
 
 @pytest.mark.asyncio
-async def test_admin_list_users(
-    unauth_client: AsyncClient, admin_user
-) -> None:
+async def test_admin_list_users(unauth_client: AsyncClient, admin_user) -> None:
     """GET /admin/users as admin returns user list."""
-    register_resp = await unauth_client.post(
+    await unauth_client.post(
         "/auth/register",
         json={"email": "someuser@example.com", "password": "securepass123"},
     )
     # Login as admin
-    admin_tokens = register_resp  # won't work, admin was created by fixture
     # We need to register + login admin from fixture, or login the fixture user
 
     # Actually, the admin_user fixture creates a user with a known password
@@ -252,9 +248,7 @@ async def test_admin_list_users(
 
 
 @pytest.mark.asyncio
-async def test_admin_get_user(
-    unauth_client: AsyncClient, admin_user
-) -> None:
+async def test_admin_get_user(unauth_client: AsyncClient, admin_user) -> None:
     """GET /admin/users/{id} as admin returns a single user."""
     # Register a user to look up
     reg_resp = await unauth_client.post(
@@ -282,9 +276,7 @@ async def test_admin_get_user(
 
 
 @pytest.mark.asyncio
-async def test_admin_update_user(
-    unauth_client: AsyncClient, admin_user
-) -> None:
+async def test_admin_update_user(unauth_client: AsyncClient, admin_user) -> None:
     """PATCH /admin/users/{id} as admin updates a user's fields."""
     # Register a regular user
     reg_resp = await unauth_client.post(
@@ -322,9 +314,7 @@ async def test_admin_update_user(
 
 
 @pytest.mark.asyncio
-async def test_admin_delete_user(
-    unauth_client: AsyncClient, admin_user
-) -> None:
+async def test_admin_delete_user(unauth_client: AsyncClient, admin_user) -> None:
     """DELETE /admin/users/{id} as admin removes a user."""
     reg_resp = await unauth_client.post(
         "/auth/register",
@@ -342,9 +332,7 @@ async def test_admin_delete_user(
     admin_token = login_resp.json()["access_token"]
     headers = get_auth_headers(admin_token)
 
-    response = await unauth_client.delete(
-        f"/admin/users/{target_id}", headers=headers
-    )
+    response = await unauth_client.delete(f"/admin/users/{target_id}", headers=headers)
     assert response.status_code == 200, response.text
     assert response.json()["status"] == "deleted"
 
@@ -357,9 +345,7 @@ async def test_admin_delete_user(
 
 
 @pytest.mark.asyncio
-async def test_admin_cannot_delete_self(
-    unauth_client: AsyncClient, admin_user
-) -> None:
+async def test_admin_cannot_delete_self(unauth_client: AsyncClient, admin_user) -> None:
     """DELETE /admin/users/{self_id} as admin returns 422."""
     login_resp = await unauth_client.post(
         "/auth/login",
@@ -371,16 +357,12 @@ async def test_admin_cannot_delete_self(
     me_resp = await unauth_client.get("/auth/me", headers=headers)
     admin_id = me_resp.json()["id"]
 
-    response = await unauth_client.delete(
-        f"/admin/users/{admin_id}", headers=headers
-    )
+    response = await unauth_client.delete(f"/admin/users/{admin_id}", headers=headers)
     assert response.status_code == 422, response.text
 
 
 @pytest.mark.asyncio
-async def test_admin_cannot_demote_self(
-    unauth_client: AsyncClient, admin_user
-) -> None:
+async def test_admin_cannot_demote_self(unauth_client: AsyncClient, admin_user) -> None:
     """PATCH /admin/users/{self_id} with is_admin=false returns 422."""
     login_resp = await unauth_client.post(
         "/auth/login",
@@ -401,9 +383,7 @@ async def test_admin_cannot_demote_self(
 
 
 @pytest.mark.asyncio
-async def test_non_admin_cannot_access_admin_endpoints(
-    unauth_client: AsyncClient
-) -> None:
+async def test_non_admin_cannot_access_admin_endpoints(unauth_client: AsyncClient) -> None:
     """Non-admin users get 403 on /admin/* endpoints."""
     reg_resp = await unauth_client.post(
         "/auth/register",

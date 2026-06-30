@@ -29,17 +29,25 @@ class CrmContact(Base):
         default=uuid.uuid4,
     )
     external_id: Mapped[str] = mapped_column(
-        String(255), unique=True, nullable=False, index=True,
+        String(255),
+        unique=True,
+        nullable=False,
+        index=True,
     )
     name: Mapped[str] = mapped_column(String(255), nullable=False)
     email: Mapped[str | None] = mapped_column(String(255), nullable=True, default=None)
     phone: Mapped[str | None] = mapped_column(String(50), nullable=True, default=None)
     company: Mapped[str | None] = mapped_column(String(255), nullable=True, default=None)
     created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), nullable=False, default=utcnow,
+        DateTime(timezone=True),
+        nullable=False,
+        default=utcnow,
     )
     updated_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), nullable=False, default=utcnow, onupdate=utcnow,
+        DateTime(timezone=True),
+        nullable=False,
+        default=utcnow,
+        onupdate=utcnow,
     )
 
     def __repr__(self) -> str:
@@ -56,13 +64,18 @@ class CrmDeal(Base):
         default=uuid.uuid4,
     )
     external_id: Mapped[str] = mapped_column(
-        String(255), unique=True, nullable=False, index=True,
+        String(255),
+        unique=True,
+        nullable=False,
+        index=True,
     )
     name: Mapped[str] = mapped_column(String(255), nullable=False)
     value: Mapped[float | None] = mapped_column(Float, nullable=True, default=None)
     stage: Mapped[str] = mapped_column(String(100), nullable=False, default="open")
     close_date: Mapped[datetime | None] = mapped_column(
-        DateTime(timezone=True), nullable=True, default=None,
+        DateTime(timezone=True),
+        nullable=True,
+        default=None,
     )
     contact_id: Mapped[uuid.UUID | None] = mapped_column(
         ForeignKey("crm_contacts.id", ondelete="SET NULL"),
@@ -70,10 +83,15 @@ class CrmDeal(Base):
         default=None,
     )
     created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), nullable=False, default=utcnow,
+        DateTime(timezone=True),
+        nullable=False,
+        default=utcnow,
     )
     updated_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), nullable=False, default=utcnow, onupdate=utcnow,
+        DateTime(timezone=True),
+        nullable=False,
+        default=utcnow,
+        onupdate=utcnow,
     )
 
     def __repr__(self) -> str:
@@ -90,13 +108,19 @@ class CrmSyncRun(Base):
         default=uuid.uuid4,
     )
     status: Mapped[str] = mapped_column(
-        String(20), nullable=False, default="pending",
+        String(20),
+        nullable=False,
+        default="pending",
     )  # pending | running | success | error
     started_at: Mapped[datetime | None] = mapped_column(
-        DateTime(timezone=True), nullable=True, default=None,
+        DateTime(timezone=True),
+        nullable=True,
+        default=None,
     )
     completed_at: Mapped[datetime | None] = mapped_column(
-        DateTime(timezone=True), nullable=True, default=None,
+        DateTime(timezone=True),
+        nullable=True,
+        default=None,
     )
     contacts_synced: Mapped[int] = mapped_column(default=0)
     deals_synced: Mapped[int] = mapped_column(default=0)
@@ -119,12 +143,17 @@ class CrmActivity(Base):
         default=uuid.uuid4,
     )
     external_id: Mapped[str] = mapped_column(
-        String(255), unique=True, nullable=False, index=True,
+        String(255),
+        unique=True,
+        nullable=False,
+        index=True,
     )
     type: Mapped[str] = mapped_column(String(50), nullable=False)
     description: Mapped[str] = mapped_column(Text, nullable=False, default="")
     date: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), nullable=False, default=utcnow,
+        DateTime(timezone=True),
+        nullable=False,
+        default=utcnow,
     )
     contact_id: Mapped[uuid.UUID | None] = mapped_column(
         ForeignKey("crm_contacts.id", ondelete="SET NULL"),
@@ -132,10 +161,15 @@ class CrmActivity(Base):
         default=None,
     )
     created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), nullable=False, default=utcnow,
+        DateTime(timezone=True),
+        nullable=False,
+        default=utcnow,
     )
     updated_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), nullable=False, default=utcnow, onupdate=utcnow,
+        DateTime(timezone=True),
+        nullable=False,
+        default=utcnow,
+        onupdate=utcnow,
     )
 
     def __repr__(self) -> str:

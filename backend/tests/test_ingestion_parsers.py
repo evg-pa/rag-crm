@@ -12,12 +12,10 @@ Covers:
 import io
 import uuid
 from collections.abc import AsyncIterator
-from pathlib import Path
 
 import pytest
 from httpx import ASGITransport, AsyncClient
 
-from app.api.documents import ALLOWED_EXTENSIONS
 from app.ingestion.parsers.docx_parser import DocxParser
 from app.ingestion.parsers.html_parser import HtmlParser
 from app.ingestion.parsers.pdf_parser import PdfParser
@@ -28,7 +26,6 @@ from app.ingestion.parsers.registry import (
 )
 from app.ingestion.parsers.text_parser import TextParser
 from app.main import app
-
 
 # ── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -59,7 +56,6 @@ def _make_docx_bytes(
     paragraph; 1–9 means "Heading N" style.
     """
     from docx import Document
-    from docx.enum.style import WD_STYLE_TYPE
 
     doc = Document()
     for i, para_text in enumerate(paragraphs):
@@ -148,6 +144,7 @@ class TestPdfParser:
     @pytest.mark.asyncio
     async def test_parse_empty_pdf(self) -> None:
         import fitz
+
         doc = fitz.open()
         page = doc.new_page()
         page.insert_text((72, 72), "", fontsize=12)  # empty page text
@@ -270,9 +267,7 @@ class TestHtmlParser:
 
     @pytest.mark.asyncio
     async def test_parse_simple_html(self) -> None:
-        html = (
-            b"<html><body><h1>Title</h1><p>Hello <b>World</b>.</p></body></html>"
-        )
+        html = b"<html><body><h1>Title</h1><p>Hello <b>World</b>.</p></body></html>"
         result = await HtmlParser.parse(html, "page.html")
         assert "Title" in result
         assert "Hello World" in result
@@ -290,12 +285,7 @@ class TestHtmlParser:
 
     @pytest.mark.asyncio
     async def test_parse_preserves_paragraph_breaks(self) -> None:
-        html = (
-            b"<html><body>"
-            b"<p>First paragraph.</p>"
-            b"<p>Second paragraph.</p>"
-            b"</body></html>"
-        )
+        html = b"<html><body><p>First paragraph.</p><p>Second paragraph.</p></body></html>"
         result = await HtmlParser.parse(html, "page.html")
         # Paragraphs should be separated by newlines
         assert "First paragraph" in result
@@ -439,24 +429,30 @@ class TestWebScraperUnit:
 
     def test_rejects_localhost(self) -> None:
         from app.ingestion.parsers.scraper import WebScraper
+
         assert not WebScraper._is_safe_url("http://localhost:8080/page")
 
     def test_rejects_127_0_0_1(self) -> None:
         from app.ingestion.parsers.scraper import WebScraper
+
         assert not WebScraper._is_safe_url("http://127.0.0.1/admin")
 
     def test_rejects_private_10(self) -> None:
         from app.ingestion.parsers.scraper import WebScraper
+
         assert not WebScraper._is_safe_url("http://10.0.0.1/internal")
 
     def test_rejects_private_192_168(self) -> None:
         from app.ingestion.parsers.scraper import WebScraper
+
         assert not WebScraper._is_safe_url("http://192.168.1.1/router")
 
     def test_rejects_private_172_16(self) -> None:
         from app.ingestion.parsers.scraper import WebScraper
+
         assert not WebScraper._is_safe_url("http://172.16.0.1/internal")
 
     def test_accepts_public_https(self) -> None:
         from app.ingestion.parsers.scraper import WebScraper
+
         assert WebScraper._is_safe_url("https://example.com/page")

@@ -69,6 +69,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     async def _preload_models() -> None:
         try:
             from app.retrieval.embeddings import get_embedding_model
+
             m = get_embedding_model()
             await m.embed("warmup")
             logger.info("Embedding model loaded on startup")
@@ -77,6 +78,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
 
         try:
             from app.retrieval.reranker import Reranker
+
             r = Reranker()
             await r.rerank("warmup", [{"id": "1", "content": "warmup"}], top_k=1)
             logger.info("Reranker model loaded on startup")
@@ -88,8 +90,8 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     # Initialize Neo4j knowledge graph schema (fire and forget)
     async def _init_neo4j() -> None:
         try:
-            from app.knowledge_graph.driver import get_neo4j_driver
             from app.knowledge_graph.graph_service import GraphService
+
             gs = GraphService(settings)
             await gs.initialize_schema()
             logger.info("Neo4j knowledge graph schema initialized")
@@ -156,7 +158,6 @@ def create_app() -> FastAPI:
         client errors (4xx) and server errors (5xx) per endpoint.
         """
         from prometheus_client import REGISTRY
-        from app.core.metrics import requests_total
 
         errors: dict[str, dict[str, int]] = {}
 
@@ -195,21 +196,25 @@ def create_app() -> FastAPI:
             total = counts["total"]
             error_count = counts["4xx"] + counts["5xx"]
             error_rate = round(error_count / total * 100, 2) if total > 0 else 0.0
-            summary.append({
-                "endpoint": endpoint,
-                "total_requests": total,
-                "client_errors_4xx": counts["4xx"],
-                "server_errors_5xx": counts["5xx"],
-                "error_rate_percent": error_rate,
-            })
+            summary.append(
+                {
+                    "endpoint": endpoint,
+                    "total_requests": total,
+                    "client_errors_4xx": counts["4xx"],
+                    "server_errors_5xx": counts["5xx"],
+                    "error_rate_percent": error_rate,
+                }
+            )
 
-        return JSONResponse(content={
-            "summary": summary,
-            "overall": {
-                "total_requests": sum(c["total"] for c in errors.values()),
-                "total_errors": sum(c["4xx"] + c["5xx"] for c in errors.values()),
-            },
-        })
+        return JSONResponse(
+            content={
+                "summary": summary,
+                "overall": {
+                    "total_requests": sum(c["total"] for c in errors.values()),
+                    "total_errors": sum(c["4xx"] + c["5xx"] for c in errors.values()),
+                },
+            }
+        )
 
     # Register global exception handlers for structured error logging
     @app.exception_handler(Exception)

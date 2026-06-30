@@ -12,8 +12,8 @@ import logging
 import re
 from typing import Any
 
-from app.retrieval.qa import AnswerAgent
 from app.knowledge_graph.graph_service import GraphService
+from app.retrieval.qa import AnswerAgent
 
 logger = logging.getLogger(__name__)
 
@@ -75,9 +75,7 @@ async def extract_entities_from_text(
             {"role": "user", "content": user_prompt},
         ]
 
-        api_key = (
-            agent._settings.LLM_API_KEY or agent._settings.DEEPSEEK_API_KEY or ""
-        )
+        api_key = agent._settings.LLM_API_KEY or agent._settings.DEEPSEEK_API_KEY or ""
         if api_key and api_key != "***":
             try:
                 response_text = await agent._call_llm_api(messages)
@@ -98,9 +96,7 @@ async def extract_entities_from_text(
     return _parse_entity_response(response_text, chunk_id)
 
 
-def _parse_entity_response(
-    raw_response: str, chunk_id: str | None = None
-) -> list[dict[str, Any]]:
+def _parse_entity_response(raw_response: str, chunk_id: str | None = None) -> list[dict[str, Any]]:
     """Parse the LLM JSON response into entity dicts."""
     # Try to extract JSON from markdown code fences
     json_match = re.search(r"```(?:json)?\s*([\s\S]*?)\s*```", raw_response)
@@ -142,28 +138,26 @@ def _parse_entity_response(
             continue
 
         # Generate deterministic entity_id from name+type
-        entity_id = hashlib.md5(
-            f"{name.lower()}|{entity_type.lower()}".encode()
-        ).hexdigest()[:16]
+        entity_id = hashlib.md5(f"{name.lower()}|{entity_type.lower()}".encode()).hexdigest()[:16]
 
         if entity_id in seen_entity_ids:
             continue
         seen_entity_ids.add(entity_id)
 
-        entities.append({
-            "entity_id": entity_id,
-            "name": name,
-            "type": entity_type,
-            "confidence": confidence,
-            "context": context,
-        })
+        entities.append(
+            {
+                "entity_id": entity_id,
+                "name": name,
+                "type": entity_type,
+                "confidence": confidence,
+                "context": context,
+            }
+        )
 
     return entities
 
 
-def _regex_entity_extraction(
-    text: str, chunk_id: str | None = None
-) -> list[dict[str, Any]]:
+def _regex_entity_extraction(text: str, chunk_id: str | None = None) -> list[dict[str, Any]]:
     """Fallback: regex-based entity extraction when LLM unavailable.
 
     Uses simple patterns for people, organizations, locations, dates.
@@ -175,13 +169,21 @@ def _regex_entity_extraction(
         # Person names (Mr./Ms./Dr. + capitalized words)
         (r"(?:Mr\.|Mrs\.|Ms\.|Dr\.|Prof\.)\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)+)", "PERSON", 0.7),
         # Organizations (capitalized, ends with Inc, Corp, LLC, etc.)
-        (r"([A-Z][a-zA-Z0-9&]*(?:\s+[A-Z][a-zA-Z0-9&]*)*)\s+(?:Inc\.?|Corp\.?|LLC|Ltd\.?|GmbH|S\.A\.|AG)", "ORGANIZATION", 0.8),
+        (
+            r"([A-Z][a-zA-Z0-9&]*(?:\s+[A-Z][a-zA-Z0-9&]*)*)\s+(?:Inc\.?|Corp\.?|LLC|Ltd\.?|GmbH|S\.A\.|AG)",
+            "ORGANIZATION",
+            0.8,
+        ),
         # Locations (capitalized places)
         (r"(?:in|at|from|to)\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+){0,2})", "LOCATION", 0.5),
         # Email addresses
         (r"([a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,})", "PERSON", 0.6),
         # Dates
-        (r"((?:January|February|March|April|May|June|July|August|September|October|November|December)\s+\d{1,2},?\s+\d{4})", "DATE", 0.9),
+        (
+            r"((?:January|February|March|April|May|June|July|August|September|October|November|December)\s+\d{1,2},?\s+\d{4})",
+            "DATE",
+            0.9,
+        ),
         # Technical concepts (all-caps acronyms)
         (r"\b([A-Z]{2,6})\b", "CONCEPT", 0.4),
     ]
@@ -191,20 +193,22 @@ def _regex_entity_extraction(
             name = match.group(1).strip()
             if len(name) < 2:
                 continue
-            entity_id = hashlib.md5(
-                f"{name.lower()}|{entity_type.lower()}".encode()
-            ).hexdigest()[:16]
+            entity_id = hashlib.md5(f"{name.lower()}|{entity_type.lower()}".encode()).hexdigest()[
+                :16
+            ]
             if entity_id in seen:
                 continue
             seen.add(entity_id)
-            entities.append({
-                "entity_id": entity_id,
-                "name": name,
-                "type": entity_type,
-                "confidence": confidence,
-                "context": text[max(0, match.start() - 40): match.end() + 40],
-                "source": "regex_fallback",
-            })
+            entities.append(
+                {
+                    "entity_id": entity_id,
+                    "name": name,
+                    "type": entity_type,
+                    "confidence": confidence,
+                    "context": text[max(0, match.start() - 40) : match.end() + 40],
+                    "source": "regex_fallback",
+                }
+            )
 
     return entities
 
@@ -271,9 +275,7 @@ async def process_document_entities(
                         confidence=ent.get("confidence", 0.5),
                     )
 
-    logger.info(
-        "Extracted %d entities from document %s", len(entities), document_id
-    )
+    logger.info("Extracted %d entities from document %s", len(entities), document_id)
 
     return {
         "entities": len(entities),

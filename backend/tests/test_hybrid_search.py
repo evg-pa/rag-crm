@@ -127,10 +127,7 @@ def _patch_reranker() -> AsyncGenerator[None, None]:
         top_k: int = 10,
     ) -> list[dict[str, Any]]:
         # Return candidates as-is, but add reranker_score
-        return [
-            {**c, "reranker_score": 1.0 - i * 0.01}
-            for i, c in enumerate(candidates[:top_k])
-        ]
+        return [{**c, "reranker_score": 1.0 - i * 0.01} for i, c in enumerate(candidates[:top_k])]
 
     Reranker.rerank = fake_rerank  # type: ignore[method-assign]
     yield
@@ -158,11 +155,10 @@ async def client_with_hybrid_mocks(
     app.dependency_overrides[get_embedding_model] = lambda: mock_embedding_model_for_hybrid
 
     # Patch BM25Index.search globally (classmethod)
-    with patch.object(
-        BM25Index, "search", new_callable=AsyncMock
-    ) as mock_bm25_search, patch.object(
-        BM25Index, "_ensure_loaded", new_callable=AsyncMock
-    ) as mock_ensure:
+    with (
+        patch.object(BM25Index, "search", new_callable=AsyncMock) as mock_bm25_search,
+        patch.object(BM25Index, "_ensure_loaded", new_callable=AsyncMock) as mock_ensure,
+    ):
         mock_bm25_search.return_value = BM25_RESULTS
         mock_ensure.return_value = None
 
@@ -356,8 +352,10 @@ class TestHybridFusion:
         """Invalid weights raise ValueError."""
         with pytest.raises(ValueError):
             await hybrid_search(
-                SEMANTIC_RESULTS, BM25_RESULTS,
-                semantic_weight=1.5, bm25_weight=0.5,
+                SEMANTIC_RESULTS,
+                BM25_RESULTS,
+                semantic_weight=1.5,
+                bm25_weight=0.5,
             )
 
 
@@ -477,9 +475,7 @@ class TestHybridEndpoint:
         self, client_with_hybrid_mocks: AsyncClient
     ) -> None:
         """semantic_weight=1.5 returns 422 (validation error)."""
-        response = await client_with_hybrid_mocks.get(
-            "/search/hybrid?q=test&semantic_weight=1.5"
-        )
+        response = await client_with_hybrid_mocks.get("/search/hybrid?q=test&semantic_weight=1.5")
         assert response.status_code == 422
 
 

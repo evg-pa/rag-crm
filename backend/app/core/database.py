@@ -23,12 +23,14 @@ def create_engine(settings: Settings) -> Any:
     """
     kwargs: dict[str, Any] = {"echo": False}
     if not settings.DATABASE_URL.startswith("sqlite"):
-        kwargs.update({
-            "pool_size": settings.DB_POOL_SIZE,
-            "max_overflow": settings.DB_MAX_OVERFLOW,
-            "pool_recycle": settings.DB_POOL_RECYCLE,
-            "pool_pre_ping": True,
-        })
+        kwargs.update(
+            {
+                "pool_size": settings.DB_POOL_SIZE,
+                "max_overflow": settings.DB_MAX_OVERFLOW,
+                "pool_recycle": settings.DB_POOL_RECYCLE,
+                "pool_pre_ping": True,
+            }
+        )
     return create_async_engine(settings.DATABASE_URL, **kwargs)
 
 
@@ -56,10 +58,6 @@ async def init_db(settings: Settings) -> None:
     """Create all tables (dev/auto-migrate mode)."""
     engine = create_engine(settings)
     async with engine.begin() as conn:
-        from app.models.chunk import Chunk  # noqa: F401
-        from app.models.crm import CrmActivity, CrmContact, CrmDeal, CrmSyncRun  # noqa: F401
-        from app.models.document import Document  # noqa: F401
-        from app.models.user import User  # noqa: F401
         from app.knowledge.models import WikiEntry  # noqa: F401
         from app.memory.models import (  # noqa: F401
             EpisodicMemory,
@@ -67,6 +65,10 @@ async def init_db(settings: Settings) -> None:
             SemanticMemory,
             WorkingMemory,
         )
+        from app.models.chunk import Chunk  # noqa: F401
+        from app.models.crm import CrmActivity, CrmContact, CrmDeal, CrmSyncRun  # noqa: F401
+        from app.models.document import Document  # noqa: F401
+        from app.models.user import User  # noqa: F401
 
         await conn.run_sync(Base.metadata.create_all)
     await engine.dispose()

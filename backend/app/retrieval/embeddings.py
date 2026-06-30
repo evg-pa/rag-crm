@@ -29,6 +29,7 @@ logger = logging.getLogger(__name__)
 # with lazy mutable dict updates.
 try:
     import onnxruntime as ort
+
     _OPTIMIZATION_LEVEL_MAP: dict[str, Any] = {
         "disable": ort.GraphOptimizationLevel.ORT_DISABLE_ALL,
         "basic": ort.GraphOptimizationLevel.ORT_ENABLE_BASIC,
@@ -156,9 +157,7 @@ class EmbeddingModel:
             # Clean up partial state so a later retry starts fresh.
             cls._tokenizer = None
             cls._model = None
-            logger.exception(
-                "Failed to load embedding model %s", settings.EMBEDDING_MODEL
-            )
+            logger.exception("Failed to load embedding model %s", settings.EMBEDDING_MODEL)
             raise
 
         cls._loaded = True

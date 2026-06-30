@@ -38,9 +38,7 @@ class WebScraper:
     # Request timeout (connect, read, write)
     TIMEOUT_SECONDS: float = 30.0
     # User-Agent string
-    USER_AGENT: str = (
-        "RAG-CRM-Ingestion/0.1 (+https://github.com/rag-crm; indexing bot)"
-    )
+    USER_AGENT: str = "RAG-CRM-Ingestion/0.1 (+https://github.com/rag-crm; indexing bot)"
 
     @staticmethod
     def _is_safe_url(url: str) -> bool:
@@ -64,6 +62,7 @@ class WebScraper:
         match = re.search(r"<title[^>]*>(.*?)</title>", html_str, re.IGNORECASE | re.DOTALL)
         if match:
             from bs4 import BeautifulSoup
+
             # Use BS4 just for the title to handle entities
             title_soup = BeautifulSoup(match.group(1), "html.parser")
             return title_soup.get_text().strip() or None
@@ -134,9 +133,7 @@ class WebScraper:
         for rule in rules:
             # Simple prefix matching (robots.txt spec)
             if path.startswith(rule):
-                logger.warning(
-                    "URL %s disallowed by robots.txt rule: Disallow: %s", url, rule
-                )
+                logger.warning("URL %s disallowed by robots.txt rule: Disallow: %s", url, rule)
                 return False
 
         return True

@@ -58,9 +58,7 @@ class KnowledgeAgent:
     def http_client(self) -> httpx.AsyncClient:
         """Return (and lazily create) the httpx async client."""
         if self._http_client is None:
-            self._http_client = httpx.AsyncClient(
-                timeout=httpx.Timeout(30.0, connect=3.0)
-            )
+            self._http_client = httpx.AsyncClient(timeout=httpx.Timeout(30.0, connect=3.0))
         return self._http_client
 
     async def generate_summary(self, text: str) -> dict[str, Any]:
@@ -118,10 +116,12 @@ class KnowledgeAgent:
             pass
 
         # Neither LLM reachable — return a static fallback
-        return json.dumps({
-            "summary": "Document summary unavailable. Please ensure the LLM API is reachable.",
-            "topics": [],
-        })
+        return json.dumps(
+            {
+                "summary": "Document summary unavailable. Please ensure the LLM API is reachable.",
+                "topics": [],
+            }
+        )
 
     async def _call_llm_api(self, messages: list[dict[str, str]]) -> str:
         """Call any OpenAI-compatible chat completions API.

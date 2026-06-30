@@ -145,8 +145,7 @@ async def qa_client(
             top_k: int = 10,
         ) -> list[dict[str, Any]]:
             return [
-                {**c, "reranker_score": 1.0 - i * 0.01}
-                for i, c in enumerate(candidates[:top_k])
+                {**c, "reranker_score": 1.0 - i * 0.01} for i, c in enumerate(candidates[:top_k])
             ]
 
         Reranker.rerank = fake_rerank  # type: ignore[method-assign]
@@ -462,9 +461,7 @@ class TestQAEndpoint:
     """Integration tests for POST /qa."""
 
     @pytest.mark.asyncio
-    async def test_qa_endpoint_returns_result(
-        self, qa_client: AsyncClient
-    ) -> None:
+    async def test_qa_endpoint_returns_result(self, qa_client: AsyncClient) -> None:
         """POST /qa with a query returns an AnswerResult (LLM call mocked)."""
         from app.retrieval.qa import AnswerAgent
 
@@ -487,9 +484,7 @@ class TestQAEndpoint:
             )
 
         with patch.object(AnswerAgent, "answer", fake_answer):
-            response = await qa_client.post(
-                "/qa", json={"query": "What is RAG?", "top_k": 10}
-            )
+            response = await qa_client.post("/qa", json={"query": "What is RAG?", "top_k": 10})
 
         assert response.status_code == 200
 

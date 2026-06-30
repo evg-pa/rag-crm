@@ -6,13 +6,13 @@ from app.api.admin import router as admin_router
 from app.api.auth import router as auth_router
 from app.api.connectors import router as connectors_router
 from app.api.documents import router as documents_router
+from app.api.graph import router as knowledge_graph_router
 from app.api.health import router as health_router
 from app.api.memory import router as memory_router
-from app.api.qa import router as qa_router
 from app.api.qa import crm_router
+from app.api.qa import router as qa_router
 from app.api.search import router as search_router
 from app.api.wiki import router as wiki_router
-from app.api.graph import router as knowledge_graph_router
 
 # ── Pipeline status endpoint ─────────────────────────────────────────────────
 

@@ -85,7 +85,7 @@ class WikiService:
             result_data = await asyncio.wait_for(
                 self.agent.generate_summary(full_text), timeout=45.0
             )
-        except asyncio.TimeoutError:
+        except TimeoutError:
             logger.warning("Wiki generation timed out for document %s", document_id)
             result_data = {
                 "summary": "Summary generation timed out.",
@@ -139,10 +139,7 @@ class WikiService:
         # Fetch page
         offset = (page - 1) * page_size
         result = await self._db.execute(
-            select(WikiEntry)
-            .order_by(WikiEntry.updated_at.desc())
-            .offset(offset)
-            .limit(page_size)
+            select(WikiEntry).order_by(WikiEntry.updated_at.desc()).offset(offset).limit(page_size)
         )
         entries = result.scalars().all()
         return list(entries), total
@@ -157,9 +154,7 @@ class WikiService:
     async def refresh_entry(self, document_id: uuid.UUID) -> WikiEntry | None:
         """Regenerate the summary for an existing wiki entry."""
         # Check the document and entry both exist
-        doc_result = await self._db.execute(
-            select(Document).where(Document.id == document_id)
-        )
+        doc_result = await self._db.execute(select(Document).where(Document.id == document_id))
         if doc_result.scalar_one_or_none() is None:
             return None
 
@@ -233,9 +228,7 @@ class WikiService:
                     if entry:
                         count += 1
                 except Exception as exc:
-                    logger.warning(
-                        "Backfill failed for document %s: %s", doc.id, exc
-                    )
+                    logger.warning("Backfill failed for document %s: %s", doc.id, exc)
 
         return count
 

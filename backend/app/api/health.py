@@ -62,6 +62,7 @@ async def health_ready(
     if settings.VECTOR_STORE.lower() == "qdrant":
         try:
             from app.retrieval.vector_store import get_vector_store
+
             store = get_vector_store()
             count = await store.count()
             qdrant_ready = "ready" if count >= 0 else "not ready"
@@ -82,6 +83,7 @@ async def health_ready(
     neo4j_ready = "ready"
     try:
         from app.knowledge_graph.driver import check_neo4j_connection
+
         connected = await check_neo4j_connection(settings)
         if not connected:
             neo4j_ready = "not ready"

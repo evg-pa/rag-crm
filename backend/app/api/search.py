@@ -134,7 +134,9 @@ async def search_hybrid(
     # 1. Semantic search
     query_embedding = await model.embed(q)
     vector_store = get_vector_store()
-    semantic_results = await semantic_search(db, query_embedding, top_k=candidate_k, vector_store=vector_store)
+    semantic_results = await semantic_search(
+        db, query_embedding, top_k=candidate_k, vector_store=vector_store
+    )
 
     # 2. BM25 keyword search
     bm25_results = await BM25Index.search(q, top_k=candidate_k, db=db)

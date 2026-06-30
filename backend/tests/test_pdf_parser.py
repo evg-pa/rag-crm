@@ -9,6 +9,7 @@ Covers:
 """
 
 import pytest
+
 from app.ingestion.parsers.pdf_parser import PdfParser
 
 
@@ -29,9 +30,7 @@ def _pdf_with_metadata() -> bytes:
     """Build a minimal PDF with Info metadata and a text stream."""
     # This is a hand-crafted minimal PDF with a content stream and metadata.
     # page content stream (obj 5) contains "Hello PDF World" text
-    content_stream = (
-        b"BT /F1 12 Tf 100 700 Td (Hello PDF World) Tj ET"
-    )
+    content_stream = b"BT /F1 12 Tf 100 700 Td (Hello PDF World) Tj ET"
     obj5 = (
         b"5 0 obj\n<< /Length %d >>\nstream\n" % len(content_stream)
         + content_stream

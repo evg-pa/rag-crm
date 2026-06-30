@@ -24,6 +24,7 @@ COPY --from=builder /usr/local/bin /usr/local/bin
 
 # Copy application code
 COPY app/ ./app/
+COPY tests/ ./tests/
 
 # Pre-download embedding model and reranker
 RUN python3 /app/app/scripts/preload_models.py 2>&1 || echo "preload failed (will download on first use)"

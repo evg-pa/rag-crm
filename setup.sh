@@ -5,7 +5,52 @@ RED='\033[0;31m'
 GREEN='\033[0;32m'
 CYAN='\033[0;36m'
 YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
 NC='\033[0m'
+
+# ── Progress helpers ──────────────────────────────────────────
+BAR_WIDTH=30
+
+timer_start() {
+  __timer_start=$(date +%s)
+}
+
+timer_elapsed() {
+  local elapsed=$(( $(date +%s) - __timer_start ))
+  printf "%02d:%02d" $((elapsed / 60)) $((elapsed % 60))
+}
+
+# Indeterminate spinner — wraps a background pid, shows elapsed
+spinner() {
+  local pid=$1 label="$2" rc
+  local spin='⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏'
+  local start=$(date +%s) i=0
+  while kill -0 "$pid" 2>/dev/null; do
+    local now=$(date +%s) elapsed=$((now - start))
+    printf "\r  ${YELLOW}%s${NC} %s  ${BLUE}[%02d:%02d]${NC}" "${spin:$i:1}" "$label" $((elapsed / 60)) $((elapsed % 60))
+    i=$(( (i + 1) % ${#spin} ))
+    sleep 0.15
+  done
+  wait "$pid"; rc=$?
+  local now=$(date +%s) elapsed=$((now - start))
+  if [ $rc -eq 0 ]; then
+    printf "\r  ${GREEN}✓${NC} %s  ${BLUE}[%02d:%02d]${NC}\n" "$label" $((elapsed / 60)) $((elapsed % 60))
+  else
+    printf "\r  ${RED}✗${NC} %s  ${BLUE}[%02d:%02d]${NC}\n" "$label" $((elapsed / 60)) $((elapsed % 60))
+  fi
+  return $rc
+}
+
+# Determinate progress bar — used inside a known-length loop
+progress_bar() {
+  local cur=$1 total=$2 label="$3"
+  local pct=$(( cur * 100 / total ))
+  local fill=$(( cur * BAR_WIDTH / total ))
+  local bar=""
+  for ((j=0; j<fill; j++)); do bar="${bar}█"; done
+  for ((j=fill; j<BAR_WIDTH; j++)); do bar="${bar}░"; done
+  printf "\r  ${CYAN}%3d%%${NC} ${BLUE}%s${NC} [%s]" "$pct" "$label" "$bar"
+}
 
 show_help() {
   cat <<EOF
@@ -175,28 +220,39 @@ else
   fi
 fi
 
-echo -e "\n${YELLOW}[4/5]${NC} Starting Docker stack..."
+echo -e "\\n${YELLOW}[4/5]${NC} Starting Docker stack..."
 cp .env infrastructure/.env 2>/dev/null || true
 
 # Pull pre-built images (fast!) — fall back to local build if pull fails
-docker compose -f infrastructure/docker-compose.yml pull 2>&1 || \
+timer_start
+docker compose -f infrastructure/docker-compose.yml pull > /tmp/rag-pull.log 2>&1 &
+spinner $! "Pulling pre-built images..." || \
   echo -e "  ${YELLOW}Image pull failed — will build locally (takes 5-15 min)${NC}"
 
-docker compose -f infrastructure/docker-compose.yml up -d --wait --wait-timeout 180 2>&1
+# Start the stack
+timer_start
+docker compose -f infrastructure/docker-compose.yml up -d --wait --wait-timeout 180 > /tmp/rag-up.log 2>&1 &
+spinner $! "Starting containers (waiting for healthy)..."
 
 echo -e "  ${GREEN}Y${NC} Stack started"
 
-echo -e "\n${YELLOW}[5/5]${NC} Verifying..."
+echo -e "\\n${YELLOW}[5/5]${NC} Verifying..."
 
 MAX_RETRIES=30
 BACKEND_OK=false
+timer_start
 for i in $(seq 1 "$MAX_RETRIES"); do
+  elapsed=$(timer_elapsed)
+  progress_bar "$i" "$MAX_RETRIES" "Waiting for backend  [${elapsed}]"
   if curl -sf http://localhost:8000/health/ready >/dev/null 2>&1; then
     BACKEND_OK=true
+    progress_bar "$MAX_RETRIES" "$MAX_RETRIES" "Backend ready!       [$(timer_elapsed)]"
+    echo ""
     break
   fi
   sleep 2
 done
+echo ""
 
 echo -e "\n${CYAN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
 echo -e "${GREEN}  Y Setup complete!${NC}"

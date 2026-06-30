@@ -39,7 +39,7 @@ def render() -> None:
         label_visibility="collapsed",
     )
 
-    col_search, _ = st.columns([1, 4])
+    col_search, __ = st.columns([1, 4])
     with col_search:
         search_clicked = st.button(
             _("search.btn"),

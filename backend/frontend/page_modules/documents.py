@@ -110,7 +110,7 @@ def render() -> None:
     st.subheader(_("documents.all_docs"))
 
     # Refresh button
-    col_refresh, _ = st.columns([1, 4])
+    col_refresh, __ = st.columns([1, 4])
     with col_refresh:
         if st.button(_("documents.refresh"), key="refresh_docs"):
             state.invalidate_caches()

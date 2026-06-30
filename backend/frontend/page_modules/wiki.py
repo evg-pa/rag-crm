@@ -22,7 +22,7 @@ def render() -> None:
     )
 
     # ── Refresh button ──────────────────────────────────────────────────
-    col_refresh, _ = st.columns([1, 4])
+    col_refresh, __ = st.columns([1, 4])
     with col_refresh:
         if st.button(_("wiki.refresh"), key="refresh_wiki"):
             state.invalidate_caches()

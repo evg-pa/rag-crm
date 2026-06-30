@@ -136,7 +136,7 @@ def render() -> None:
     # ── Utility Buttons ─────────────────────────────────────────────────
     if st.session_state.messages:
         st.divider()
-        col_clear, _ = st.columns(2)
+        col_clear, __ = st.columns(2)
         with col_clear:
             if st.button(_("qa.clear_btn"), use_container_width=True):
                 state.clear_chat()

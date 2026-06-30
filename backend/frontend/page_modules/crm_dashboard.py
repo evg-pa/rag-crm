@@ -160,7 +160,7 @@ def _render_pipeline_chart(by_stage: dict) -> None:
         st.bar_chart(chart_data, use_container_width=True)
 
     with col_table:
-        for _, row in df.iterrows():
+        for __, row in df.iterrows():
             stage_label = row["Stage"]
             count = int(row["Count"])
             value = row["Value"]
@@ -307,7 +307,7 @@ def render() -> None:
 
     # ── Sync action ──────────────────────────────────────────────────────
     st.divider()
-    col_sync, _ = st.columns([1, 3])
+    col_sync, __ = st.columns([1, 3])
     with col_sync:
         if st.button(_('crm_dash.sync_btn'), help=_('crm_dash.sync_help')):
             with st.spinner(_('crm_status.syncing')):

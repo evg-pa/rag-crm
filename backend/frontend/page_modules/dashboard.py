@@ -179,7 +179,7 @@ def render() -> None:
 
     # ── Auto-refresh toggle ──────────────────────────────────────────────
     st.divider()
-    col_refresh, _ = st.columns([1, 3])
+    col_refresh, __ = st.columns([1, 3])
     with col_refresh:
         auto = st.checkbox(_("dashboard.auto_refresh"), value=False, key="dashboard_auto_refresh")
         if auto:

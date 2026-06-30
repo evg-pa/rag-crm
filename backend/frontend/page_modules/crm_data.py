@@ -162,7 +162,7 @@ def _render_deals_tab() -> None:
             close_date_from = (now - timedelta(days=90)).isoformat()
             close_date_to = now.isoformat()
 
-    col_apply, _ = st.columns([1, 4])
+    col_apply, __ = st.columns([1, 4])
     with col_apply:
         apply_clicked = st.button(_('crm_data.apply_btn'), type="primary", key="crm_deals_apply", use_container_width=True)
 
@@ -278,7 +278,7 @@ def _render_activities_tab() -> None:
     with col_f:
         selected_name = st.selectbox(
             _('crm_data.filter_contact'),
-            options=[name for _, name in contact_options],
+            options=[name for __, name in contact_options],
             key="crm_activities_contact",
         )
     contact_id: str | None = None

@@ -113,7 +113,7 @@ def _render_sync_card() -> None:
         st.error(_('crm_status.sync_error', msg=error_msg))
 
     # ── Manual trigger button ──────────────────────────────────────────
-    col_btn, _ = st.columns([1, 3])
+    col_btn, __ = st.columns([1, 3])
     with col_btn:
         if st.button(
             _('crm_status.sync_now'),

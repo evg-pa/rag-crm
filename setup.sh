@@ -226,12 +226,17 @@ cp .env infrastructure/.env 2>/dev/null || true
 # Pull pre-built images (fast!) — fall back to local build if pull fails
 timer_start
 docker compose -f infrastructure/docker-compose.yml pull > /tmp/rag-pull.log 2>&1 &
-spinner $! "Pulling pre-built images..." || \
-  echo -e "  ${YELLOW}Image pull failed — will build locally (takes 5-15 min)${NC}"
+spinner $! "Pulling pre-built images..." || {
+  echo -e "  ${YELLOW}Pull failed — building images locally (5-15 min)...${NC}"
+  timer_start
+  docker compose -f infrastructure/docker-compose.yml -f infrastructure/docker-compose.dev.yml build > /tmp/rag-build.log 2>&1 &
+  spinner $! "Building images locally..."
+  COMPOSE_OVERRIDE="-f infrastructure/docker-compose.dev.yml"
+}
 
 # Start the stack
 timer_start
-docker compose -f infrastructure/docker-compose.yml up -d --wait --wait-timeout 180 > /tmp/rag-up.log 2>&1 &
+docker compose -f infrastructure/docker-compose.yml ${COMPOSE_OVERRIDE:-} up -d --wait --wait-timeout 300 > /tmp/rag-up.log 2>&1 &
 spinner $! "Starting containers (waiting for healthy)..."
 
 echo -e "  ${GREEN}Y${NC} Stack started"

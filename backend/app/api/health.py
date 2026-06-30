@@ -14,7 +14,7 @@ router = APIRouter()
 async def health_check(
     settings: Settings = Depends(get_settings),
     db: AsyncSession = Depends(get_db_session),
-) -> dict[str, str]:
+) -> dict[str, object]:
     """Health check with database connectivity verification."""
     db_status = "connected"
     try:
@@ -26,6 +26,9 @@ async def health_check(
         "status": "ok",
         "version": settings.APP_VERSION,
         "database": db_status,
+        "llm_model": settings.LLM_MODEL or settings.DEEPSEEK_BASE_URL.split("//")[-1].split(".")[0].capitalize() or "deepseek-chat",
+        "llm_base_url": settings.LLM_BASE_URL or settings.DEEPSEEK_BASE_URL,
+        "llm_configured": bool(settings.LLM_API_KEY or settings.DEEPSEEK_API_KEY),
     }
 
 

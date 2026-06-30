@@ -92,6 +92,14 @@ def render_sidebar() -> str:
             status_color = "🟢" if db_status == "connected" else "🔴"
             st.caption(f"{status_color} {_('backend.status')}: {health.get('status', '?')}")
             st.caption(f"{'🟢' if db_status == 'connected' else '🔴'} {_('db.status')}: {db_status}")
+            # LLM info
+            llm_model = health.get("llm_model", "?")
+            llm_url = health.get("llm_base_url", "?")
+            llm_configured = health.get("llm_configured", False)
+            llm_icon = "🟢" if llm_configured else "🟡"
+            # Show short provider name from URL
+            provider = llm_url.split("//")[-1].split(".")[0].capitalize() if llm_url and llm_url != "?" else "?"
+            st.caption(f"{llm_icon} LLM: {llm_model} · {provider}")
 
         st.caption(f"v{st.session_state.get('app_version', '0.1.0')}")
 

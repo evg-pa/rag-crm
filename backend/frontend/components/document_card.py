@@ -5,6 +5,7 @@ from __future__ import annotations
 import streamlit as st
 
 from components.search_result import content_type_icon
+from utils.i18n import _
 
 
 def document_card(doc: dict, on_view: bool = False) -> None:
@@ -29,20 +30,20 @@ def document_card(doc: dict, on_view: bool = False) -> None:
     if on_view:
         # Full detail view
         st.markdown(f"### {icon} {filename}")
-        st.caption(f"ID: `{doc_id}` · Type: `{content_type}` · Size: {size_str}")
+        st.caption(_('doc_card.id_type_size', id=doc_id, type=content_type, size=size_str))
 
         metadata = doc.get("metadata") or {}
         if metadata:
-            with st.expander("📋 Metadata", expanded=False):
+            with st.expander(_('documents.metadata'), expanded=False):
                 st.json(metadata)
 
         chunks = doc.get("chunks", [])
         if chunks:
-            st.markdown(f"**🧩 Chunks** ({len(chunks)})")
+            st.markdown(f"**{_('documents.chunks')}** ({len(chunks)})")
             for chunk in chunks:
                 idx = chunk.get("chunk_index", "?")
                 content = chunk.get("content", "")
-                with st.expander(f"Chunk #{idx} — {content[:60]}…", expanded=False):
+                with st.expander(f"{_('documents.chunk_n', n=idx)} — {content[:60]}…", expanded=False):
                     st.text(content)
     else:
         # Compact card
@@ -69,7 +70,7 @@ def document_grid(docs: list[dict], cols: int = 3) -> str | None:
         The ID of the selected document, or None.
     """
     if not docs:
-        st.info("No documents found.")
+        st.info(_('documents.no_docs'))
         return None
 
     selected_id: str | None = None
@@ -102,10 +103,10 @@ def document_grid(docs: list[dict], cols: int = 3) -> str | None:
 
             c1, c2 = st.columns(2)
             with c1:
-                if st.button("🔍 View", key=f"view_{doc_id}", use_container_width=True):
+                if st.button(_('documents.view'), key=f"view_{doc_id}", use_container_width=True):
                     selected_id = doc_id
             with c2:
-                if st.button("🗑️ Del", key=f"del_{doc_id}", use_container_width=True):
+                if st.button(_('documents.delete'), key=f"del_{doc_id}", use_container_width=True):
                     st.session_state.delete_confirm_id = doc_id
 
     return selected_id
@@ -122,15 +123,15 @@ def delete_confirm_dialog() -> str | None:
         return None
 
     # Show confirmation
-    st.warning(f"⚠️ Are you sure you want to delete document `{doc_id[:12]}…`?")
+    st.warning(_('documents.confirm_del', id=doc_id[:12]))
 
     col_yes, col_no = st.columns(2)
     with col_yes:
-        if st.button("✅ Yes, delete", key="confirm_del", type="primary", use_container_width=True):
+        if st.button(_('documents.confirm_yes'), key="confirm_del", type="primary", use_container_width=True):
             st.session_state.delete_confirm_id = None
             return doc_id
     with col_no:
-        if st.button("❌ Cancel", key="cancel_del", use_container_width=True):
+        if st.button(_('documents.cancel'), key="cancel_del", use_container_width=True):
             st.session_state.delete_confirm_id = None
             return None
 

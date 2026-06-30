@@ -7,6 +7,7 @@ from datetime import datetime, timezone
 import streamlit as st
 
 from utils import api
+from utils.i18n import _
 
 
 def _format_time_ago(iso_str: str | None) -> str:
@@ -43,11 +44,11 @@ def _status_icon(status: str) -> str:
         "never": "⏸️",
     }
     labels = {
-        "success": "Synced",
-        "running": "Syncing…",
-        "pending": "Queued",
-        "error": "Failed",
-        "never": "No syncs",
+        "success": _('crm_status.synced'),
+        "running": _('crm_status.syncing'),
+        "pending": _('crm_status.queued'),
+        "error": _('crm_status.failed'),
+        "never": _('crm_status.no_syncs'),
     }
     return f"{icons.get(status, '❓')} {labels.get(status, status)}"
 
@@ -57,7 +58,7 @@ def _render_sync_card() -> None:
     try:
         status_data = api.get_sync_status()
     except Exception:
-        st.warning("⚠️ Unable to fetch sync status from backend.")
+        st.warning(_('crm_status.fetch_err'))
         return
 
     status = status_data.get("status", "never")
@@ -74,7 +75,7 @@ def _render_sync_card() -> None:
             <div style="display:flex; align-items:center; justify-content:space-between;">
                 <div>
                     <span style="font-size:1.1rem; font-weight:600; color:var(--text-primary);">
-                        🔗 CRM Sync
+                        {_('crm_status.title')}
                     </span>
                     <span style="margin-left:10px; font-size:0.9rem; color:var(--text-secondary);">
                         {_status_icon(status)}
@@ -101,21 +102,21 @@ def _render_sync_card() -> None:
     # ── Synced counts (if a sync has run) ──────────────────────────────
     if status not in ("never",) and status_data.get("contacts_synced", 0) > 0:
         st.caption(
-            f"Last sync ingested: "
-            f"{status_data.get('contacts_synced', 0)} contacts, "
-            f"{status_data.get('deals_synced', 0)} deals, "
-            f"{status_data.get('activities_synced', 0)} activities"
+            _('crm_status.last_ingested',
+              c=status_data.get('contacts_synced', 0),
+              d=status_data.get('deals_synced', 0),
+              a=status_data.get('activities_synced', 0))
         )
 
     # ── Error display ──────────────────────────────────────────────────
     if status == "error" and error_msg:
-        st.error(f"**Sync error:** {error_msg}")
+        st.error(_('crm_status.sync_error', msg=error_msg))
 
     # ── Manual trigger button ──────────────────────────────────────────
     col_btn, _ = st.columns([1, 3])
     with col_btn:
         if st.button(
-            "🔄 Sync Now",
+            _('crm_status.sync_now'),
             key="crm_sync_trigger",
             type="primary",
             disabled=(status == "running"),
@@ -123,11 +124,11 @@ def _render_sync_card() -> None:
         ):
             try:
                 api.trigger_sync()
-                st.toast("✅ Sync triggered! Refresh to see progress.", icon="🔄")
+                st.toast(_('crm_status.toast'), icon="🔄")
                 st.cache_data.clear()
                 st.rerun()
             except Exception as exc:
-                st.error(f"Failed to trigger sync: {exc}")
+                st.error(_('crm_status.err_trigger', err=exc))
 
 
 def crm_sync_status() -> None:

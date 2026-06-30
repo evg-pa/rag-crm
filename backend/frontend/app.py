@@ -10,6 +10,7 @@ import streamlit as st
 from components.sidebar import render_sidebar
 from utils.state import init_session_state
 from utils.theme import init_theme
+from utils.i18n import _
 
 # ── Page configuration (must be first Streamlit call) ───────────────────────
 
@@ -80,4 +81,3 @@ elif current_page == "pipeline":
     from page_modules.pipeline import render as render_pipeline
 
     render_pipeline()
-

@@ -6,24 +6,25 @@ import streamlit as st
 
 from components.search_result import search_results_list
 from utils import api
+from utils.i18n import _
 
 
 def render() -> None:
     """Render the Search page."""
-    st.title("🔍 Search")
+    st.title(_("search.title"))
 
     # ── Search mode selector ────────────────────────────────────────────
     col_mode, col_topk = st.columns([2, 1])
     with col_mode:
         search_mode = st.radio(
-            "Search mode",
-            options=["Semantic (embedding)", "Hybrid (semantic + BM25 + reranker)"],
+            _("search.mode"),
+            options=[_("search.semantic"), _("search.hybrid")],
             horizontal=True,
             key="search_mode",
         )
     with col_topk:
         top_k = st.slider(
-            "Top-K",
+            _("search.top_k"),
             min_value=1,
             max_value=50,
             value=10,
@@ -33,7 +34,7 @@ def render() -> None:
     # ── Search bar ──────────────────────────────────────────────────────
     query = st.text_input(
         "Search your documents",
-        placeholder="Enter your search query...",
+        placeholder=_("search.input_placeholder"),
         key="search_query_input",
         label_visibility="collapsed",
     )
@@ -41,7 +42,7 @@ def render() -> None:
     col_search, _ = st.columns([1, 4])
     with col_search:
         search_clicked = st.button(
-            "🔍 Search",
+            _("search.btn"),
             type="primary",
             use_container_width=True,
             key="search_btn",
@@ -53,23 +54,23 @@ def render() -> None:
         col_sem, col_bm25 = st.columns(2)
         with col_sem:
             semantic_weight = st.slider(
-                "Semantic weight",
+                _("search.sem_weight"),
                 min_value=0.0,
                 max_value=1.0,
                 value=0.5,
                 step=0.1,
                 key="sem_weight",
-                help="Weight for semantic (embedding) score in fusion",
+                help=_("search.sem_weight_help"),
             )
         with col_bm25:
             bm25_weight = st.slider(
-                "BM25 weight",
+                _("search.bm25_weight"),
                 min_value=0.0,
                 max_value=1.0,
                 value=0.5,
                 step=0.1,
                 key="bm25_weight",
-                help="Weight for BM25 keyword score in fusion",
+                help=_("search.bm25_weight_help"),
             )
 
     # ── Execute Search ──────────────────────────────────────────────────
@@ -77,18 +78,18 @@ def render() -> None:
     if not query and not search_clicked:
         if has_searched:
             st.session_state.has_searched = False
-        st.info("Enter a query above and click Search.")
+        st.info(_("search.enter_query"))
         return
 
     if not query.strip():
-        st.warning("Please enter a search query.")
+        st.warning(_("search.enter_query_warn"))
         return
 
     if query and (query != st.session_state.get("last_search_query") or search_clicked):
         st.session_state.last_search_query = query
         st.session_state.search_page = 1  # Reset to page 1 on new search
 
-        with st.spinner(f"🔍 Searching: **{query}**"):
+        with st.spinner(_("search.searching", q=query)):
             try:
                 if use_hybrid:
                     results_data = api.hybrid_search(
@@ -104,7 +105,7 @@ def render() -> None:
                 st.session_state.search_results = results
                 st.session_state.has_searched = True
             except Exception as exc:
-                st.error(f"❌ Search failed: {exc}")
+                st.error(_("search.failed", err=exc))
                 st.session_state.search_results = []
 
     # ── Render Results with Pagination ──────────────────────────────────
@@ -112,12 +113,12 @@ def render() -> None:
     has_searched = st.session_state.get("has_searched", False)
     if not results:
         if has_searched:
-            st.warning("🔍 No matching documents found. Try a different query or upload relevant documents first.")
+            st.warning(_("search.no_results"))
         return
 
     st.divider()
-    mode_label = "Hybrid search" if use_hybrid else "Semantic search"
-    st.caption(f"Results for **{query}** — {mode_label} ({len(results)} total)")
+    mode_label = _("search.hybrid_label") if use_hybrid else _("search.semantic_label")
+    st.caption(_("search.results_for", q=query, mode=mode_label, n=len(results)))
 
     # Pagination
     page_size = 10
@@ -126,7 +127,7 @@ def render() -> None:
 
     if total_pages > 1:
         page = st.number_input(
-            "Page",
+            _("search.page"),
             min_value=1,
             max_value=total_pages,
             value=page,

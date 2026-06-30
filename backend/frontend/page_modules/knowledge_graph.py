@@ -13,6 +13,7 @@ from __future__ import annotations
 import streamlit as st
 
 from utils import api, state
+from utils.i18n import _
 
 
 def _format_count(n: int) -> str:
@@ -39,28 +40,28 @@ def _entity_type_color(entity_type: str) -> str:
 
 def _render_graph_stats() -> None:
     """Render the knowledge graph stats overview section."""
-    st.subheader("📊 Graph Overview")
+    st.subheader(_("kg.overview_title"))
 
     try:
         stats = api.get_graph_stats()
     except Exception:
-        st.warning("Neo4j is not available. Start the service to see graph data.")
+        st.warning(_("kg.neo4j_unavail"))
         return
 
     connected = stats.get("connected", False)
     if not connected:
-        st.info("No entities extracted yet. Upload documents to populate the knowledge graph.")
+        st.info(_("kg.no_entities"))
         return
 
     col1, col2, col3 = st.columns(3)
-    col1.metric("Entities", _format_count(stats.get("entities", 0)))
-    col2.metric("Relationships", _format_count(stats.get("relationships", 0)))
-    col3.metric("Entity Types", _format_count(len(stats.get("entity_types", {}))))
+    col1.metric(_("kg.entities"), _format_count(stats.get("entities", 0)))
+    col2.metric(_("kg.relationships"), _format_count(stats.get("relationships", 0)))
+    col3.metric(_("kg.entity_types"), _format_count(len(stats.get("entity_types", {}))))
 
     # Entity type breakdown
     entity_types = stats.get("entity_types", {})
     if entity_types:
-        st.subheader("Entity Type Breakdown")
+        st.subheader(_("kg.entity_breakdown"))
         cols = st.columns(len(entity_types))
         for i, (etype, count) in enumerate(entity_types.items()):
             with cols[i]:
@@ -73,18 +74,18 @@ def _render_graph_stats() -> None:
 
 def _render_entity_search() -> None:
     """Render entity search with type filter."""
-    st.subheader("🔍 Search Entities")
+    st.subheader(_("kg.search_title"))
 
     col1, col2 = st.columns([3, 1])
     with col1:
         search_term = st.text_input(
-            "Entity name",
-            placeholder="e.g., Google, John Smith, New York...",
+            _("kg.entity_name"),
+            placeholder=_("kg.entity_placeholder"),
             key="kg_entity_search",
         )
     with col2:
         entity_type = st.selectbox(
-            "Type filter",
+            _("kg.type_filter"),
             options=["All", "PERSON", "ORGANIZATION", "LOCATION", "CONCEPT", "PRODUCT", "EVENT", "DATE", "OTHER"],
             index=0,
             key="kg_entity_type",
@@ -95,13 +96,13 @@ def _render_entity_search() -> None:
             type_filter = None if entity_type == "All" else entity_type
             result = api.search_graph_entities(search_term, entity_type=type_filter, limit=20)
         except Exception:
-            st.warning("Neo4j is not available.")
+            st.warning(_("kg.neo4j_unavail"))
             return
 
         entities = result.get("results", [])
         count = result.get("count", 0)
 
-        st.caption(f"Found {count} matching entit{'y' if count == 1 else 'ies'}")
+        st.caption(_("kg.found_entities", n=count))
 
         for ent in entities:
             ent_id = ent.get("entity_id", "")
@@ -118,7 +119,7 @@ def _render_entity_search() -> None:
                     )
                     st.caption(f"ID: `{ent_id}`")
                 with c2:
-                    if st.button("🔗 Explore", key=f"explore_{ent_id}"):
+                    if st.button(_("kg.explore_btn"), key=f"explore_{ent_id}"):
                         st.session_state.kg_selected_entity = ent_id
                         st.session_state.kg_selected_name = name
                         st.rerun()
@@ -130,30 +131,27 @@ def _render_subgraph() -> None:
     selected_name = st.session_state.get("kg_selected_name", "")
 
     if not selected_id:
-        st.info("Search for an entity and click **Explore** to see its subgraph.")
+        st.info(_("kg.select_entity"))
         return
 
-    st.subheader(f"🔗 Subgraph: {selected_name}")
+    st.subheader(_("kg.subgraph_title", name=selected_name))
 
-    depth = st.slider("Depth", 1, 4, 2, key="kg_subgraph_depth")
+    depth = st.slider(_("kg.depth"), 1, 4, 2, key="kg_subgraph_depth")
 
     try:
         subgraph = api.get_graph_entity_subgraph(selected_id, depth=depth)
     except Exception:
-        st.warning("Neo4j is not available.")
+        st.warning(_("kg.neo4j_unavail"))
         return
 
     nodes = subgraph.get("nodes", [])
     edges_list = subgraph.get("edges", [])
 
-    st.caption(
-        f"Showing {len(nodes)} nodes and {len(edges_list)} edges "
-        f"within depth {depth}"
-    )
+    st.caption(_("kg.subgraph_info", n=len(nodes), e=len(edges_list), d=depth))
 
     if nodes:
         # Build HTML table for nodes
-        st.markdown("#### Nodes")
+        st.markdown(f"#### {_('kg.nodes')}")
         node_rows = []
         for n in nodes:
             color = _entity_type_color(n.get("type", "OTHER"))
@@ -170,7 +168,7 @@ def _render_subgraph() -> None:
 
         # Build HTML for edges
         if edges_list:
-            st.markdown("#### Relationships")
+            st.markdown(f"#### {_('kg.relationships_heading')}")
             edge_rows = []
             for e in edges_list:
                 source = e.get("source", "?")
@@ -188,26 +186,26 @@ def _render_subgraph() -> None:
                 unsafe_allow_html=True,
             )
     else:
-        st.info("No subgraph data available for this entity.")
+        st.info(_("kg.no_subgraph"))
 
 
 def _render_document_entities() -> None:
     """Render entity list for a selected document."""
-    st.subheader("📄 Document Entities")
+    st.subheader(_("kg.doc_entities_title"))
 
     try:
         docs = api.list_documents()
     except Exception:
-        st.warning("Backend not available.")
+        st.warning(_("kg.backend_unavail"))
         return
 
     if not docs:
-        st.info("No documents ingested yet.")
+        st.info(_("kg.no_docs"))
         return
 
     doc_options = {d["filename"]: d["id"] for d in docs if isinstance(d, dict)}
     selected_doc = st.selectbox(
-        "Select document",
+        _("kg.select_doc"),
         options=list(doc_options.keys()),
         key="kg_doc_select",
     )
@@ -217,13 +215,13 @@ def _render_document_entities() -> None:
         try:
             result = api.get_document_entities(doc_id)
         except Exception:
-            st.warning("Neo4j is not available.")
+            st.warning(_("kg.neo4j_unavail"))
             return
 
         entities = result.get("entities", [])
         count = result.get("total", 0)
 
-        st.caption(f"Extracted {count} entities from this document")
+        st.caption(_("kg.entities_found", n=count))
 
         if entities:
             for ent in entities:
@@ -235,16 +233,16 @@ def _render_document_entities() -> None:
                     unsafe_allow_html=True,
                 )
         else:
-            st.info("No entities extracted for this document. Knowledge graph extraction runs after document upload.")
+            st.info(_("kg.no_doc_entities"))
 
 
 def _render_query_expansion() -> None:
     """Render query expansion demo."""
-    st.subheader("🔮 Query Expansion")
+    st.subheader(_("kg.expansion_title"))
 
     query = st.text_input(
-        "Enter a query to expand with related entities",
-        placeholder="e.g., artificial intelligence...",
+     _("kg.expansion_input"),
+     placeholder=_("kg.expansion_placeholder"),
         key="kg_query_expand",
     )
 
@@ -252,14 +250,14 @@ def _render_query_expansion() -> None:
         try:
             result = api.expand_graph_query(query)
         except Exception:
-            st.warning("Neo4j is not available.")
+            st.warning(_("kg.neo4j_unavail"))
             return
 
         expanded = result.get("expanded_entities", [])
         count = result.get("total", 0)
 
         if count > 0:
-            st.success(f"Query expanded with {count} related entities")
+            st.success(_("kg.expansion_success", n=count))
 
             for ent in expanded:
                 name = ent.get("matched_entity", "?")
@@ -277,21 +275,21 @@ def _render_query_expansion() -> None:
                             rrel = rel.get("relationship_type", "?")
                             st.markdown(f"  - {rname} [{rtype}] — *{rrel}*")
         else:
-            st.info("No related entities found in the knowledge graph.")
+            st.info(_("kg.expansion_empty"))
 
 
 def render() -> None:
     """Render the knowledge graph page."""
-    st.title("🧠 Knowledge Graph")
-    st.caption("Explore entities and relationships extracted from your documents")
+    st.title(_("kg.title"))
+    st.caption(_("kg.caption"))
 
     # Tabs for different views
     tab1, tab2, tab3, tab4, tab5 = st.tabs([
-        "📊 Overview",
-        "🔍 Search Entities",
-        "🔗 Subgraph Explorer",
-        "📄 Document Entities",
-        "🔮 Query Expansion",
+        _("kg.tab_overview"),
+        _("kg.tab_search"),
+        _("kg.tab_subgraph"),
+        _("kg.tab_doc_entities"),
+        _("kg.tab_expansion"),
     ])
 
     with tab1:

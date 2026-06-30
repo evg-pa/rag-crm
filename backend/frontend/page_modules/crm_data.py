@@ -13,6 +13,7 @@ import pandas as pd
 import streamlit as st
 
 from utils import api
+from utils.i18n import _
 
 
 def _format_date(iso_str: str | None) -> str:

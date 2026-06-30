@@ -6,6 +6,7 @@ import streamlit as st
 
 from components.document_card import delete_confirm_dialog, document_card, document_grid
 from utils import api, state
+from utils.i18n import _
 
 
 def _handle_upload(uploaded_files) -> None:
@@ -23,13 +24,12 @@ def _handle_upload(uploaded_files) -> None:
             chunk_count = result.get("chunk_count", 0)
             success_count += 1
             st.toast(
-                f"✅ Uploaded **{uploaded_file.name}** "
-                f"({chunk_count} chunks)",
+                _("documents.uploaded_ok", name=uploaded_file.name, n=chunk_count),
                 icon="✅",
             )
         except Exception as exc:
             fail_count += 1
-            st.toast(f"❌ Failed to upload **{uploaded_file.name}**: {exc}", icon="❌")
+            st.toast(_("documents.upload_fail", name=uploaded_file.name, err=exc), icon="❌")
 
     if success_count > 0:
         state.invalidate_caches()
@@ -41,7 +41,7 @@ def _handle_upload(uploaded_files) -> None:
 def _handle_scrape(url: str) -> None:
     """Scrape a URL and ingest its content."""
     if not url.strip():
-        st.warning("Please enter a URL.")
+        st.warning(_("documents.url_hint"))
         return
 
     try:
@@ -49,70 +49,70 @@ def _handle_scrape(url: str) -> None:
         chunk_count = result.get("chunk_count", 0)
         title = result.get("page_title", "Untitled")
         st.toast(
-            f"✅ Scraped **{title}** ({chunk_count} chunks)",
+            _("documents.scraped_ok", title=title, n=chunk_count),
             icon="🌐",
         )
         state.invalidate_caches()
     except Exception as exc:
-        st.error(f"❌ Failed to scrape URL: {exc}")
+        st.error(_("documents.scrape_fail", err=exc))
 
 
 def _handle_delete(document_id: str) -> None:
     """Delete a document via the backend API."""
     try:
         result = api.delete_document(document_id)
-        st.toast(f"✅ Document deleted: {result.get('status', 'ok')}", icon="🗑️")
+        st.toast(_("documents.del_ok", status=result.get("status", "ok")), icon="🗑️")
         state.invalidate_caches()
     except Exception as exc:
-        st.error(f"❌ Failed to delete document: {exc}")
+        st.error(_("documents.del_fail", err=exc))
     st.session_state.delete_confirm_id = None
 
 
 def render() -> None:
     """Render the Documents page."""
-    st.title("📄 Documents")
+    st.title(_("documents.title"))
 
     # ── Upload Section ──────────────────────────────────────────────────
     with st.container(border=True):
-        st.subheader("📤 Upload Documents")
+        st.subheader(_("documents.upload"))
 
         uploaded_files = st.file_uploader(
-            "Choose files or drag & drop",
+            _("documents.choose_files"),
             type=["pdf", "docx", "html", "htm", "md", "txt"],
             accept_multiple_files=True,
             key="doc_uploader",
         )
 
         if uploaded_files:
-            if st.button("📤 Upload selected files", type="primary", use_container_width=True):
+            if st.button(_("documents.upload_btn"), type="primary", use_container_width=True):
                 _handle_upload(uploaded_files)
 
-        st.caption("Supported: `.pdf` · `.docx` · `.html` · `.md` · `.txt`")
+        st.caption(_("documents.supported"))
 
     # ── URL Scrape Section ──────────────────────────────────────────────
     with st.container(border=True):
-        st.subheader("🌐 Scrape URL")
+        st.subheader(_("documents.scrape"))
 
         col_url, col_btn = st.columns([3, 1])
         with col_url:
             url_input = st.text_input(
-                "URL to scrape",
+                _("documents.url"),
                 placeholder="https://example.com/page",
                 key="scrape_url_input",
             )
         with col_btn:
-            if st.button("🌐 Scrape", use_container_width=True, key="scrape_btn"):
-                with st.spinner("Scraping and ingesting..."):
+            if st.button(_("documents.scrape_btn"), use_container_width=True, key="scrape_btn"):
+                with st.spinner(_("documents.scraping")):
                     _handle_scrape(url_input)
 
     # ── Document List ───────────────────────────────────────────────────
     st.divider()
-    st.subheader("📁 All Documents")
+    st.subheader(_("documents.all_docs"))
 
     # Refresh button
     col_refresh, _ = st.columns([1, 4])
     with col_refresh:
-        if st.button("🔄 Refresh", key="refresh_docs"):
+        if st.button(_("documents.refresh"), key="refresh_docs"):
             state.invalidate_caches()
             st.rerun()
 

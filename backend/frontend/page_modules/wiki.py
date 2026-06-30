@@ -5,17 +5,18 @@ from __future__ import annotations
 import streamlit as st
 
 from utils import api, state
+from utils.i18n import _
 
 
 def render() -> None:
     """Render the Knowledge Base (Wiki) page."""
-    st.title("📚 Knowledge Base")
-    st.caption("Auto-generated summaries from your documents via the LLM Knowledge Agent.")
+    st.title(_("wiki.title"))
+    st.caption(_("wiki.caption"))
 
     # ── Search bar ──────────────────────────────────────────────────────
     wiki_search = st.text_input(
-        "Search wiki entries",
-        placeholder="Search by keyword or topic...",
+        _("wiki.search_label"),
+        placeholder=_("wiki.search_placeholder"),
         key="wiki_search_input",
         label_visibility="collapsed",
     )
@@ -23,7 +24,7 @@ def render() -> None:
     # ── Refresh button ──────────────────────────────────────────────────
     col_refresh, _ = st.columns([1, 4])
     with col_refresh:
-        if st.button("🔄 Refresh", key="refresh_wiki"):
+        if st.button(_("wiki.refresh"), key="refresh_wiki"):
             state.invalidate_caches()
             st.rerun()
 
@@ -31,22 +32,19 @@ def render() -> None:
     try:
         if wiki_search.strip():
             entries = api.search_wiki(wiki_search.strip())
-            st.caption(f"Search results for **{wiki_search}**: {len(entries)} found")
+            st.caption(_("wiki.results_for", q=wiki_search, n=len(entries)))
         else:
             wiki_data = api.list_wiki_entries(page=1, page_size=50)
             entries = wiki_data.get("entries", [])
             total = wiki_data.get("total", 0)
-            st.caption(f"{total} entries")
+            st.caption(_("wiki.n_entries", n=total))
     except Exception as exc:
-        st.error(f"❌ Failed to load wiki entries: {exc}")
+        st.error(_("wiki.load_failed", err=exc))
         entries = []
 
     # ── Display entries ─────────────────────────────────────────────────
     if not entries:
-        st.info(
-            "No wiki entries yet. Upload documents and the Knowledge Agent "
-            "will auto-generate summaries. Click 🔄 Refresh to check again."
-        )
+        st.info(_("wiki.empty"))
         return
 
     for entry in entries:
@@ -63,19 +61,19 @@ def render() -> None:
             # Header row
             col_info, col_btn = st.columns([3, 1])
             with col_info:
-                st.markdown(f"**📋 Document Summary**")
-                st.caption(f"Document: `{doc_id[:12]}...` · Updated: {updated[:10]}")
+                st.markdown(_("wiki.doc_summary"))
+                st.caption(_("wiki.doc_info", id=doc_id[:12], date=updated[:10]))
 
             with col_btn:
-                if st.button("🔄 Regenerate", key=f"regen_{doc_id}", use_container_width=True):
-                    with st.spinner("Regenerating wiki entry..."):
+                if st.button(_("wiki.regenerate"), key=f"regen_{doc_id}", use_container_width=True):
+                    with st.spinner(_("wiki.regenerating")):
                         try:
                             api.refresh_wiki_entry(doc_id)
-                            st.toast("✅ Regenerated!", icon="✅")
+                            st.toast(_("wiki.regenerated"), icon="✅")
                             state.invalidate_caches()
                             st.rerun()
                         except Exception as exc:
-                            st.error(f"Failed to regenerate: {exc}")
+                            st.error(_("wiki.regenerate_fail", err=exc))
 
             # Topics as tags
             if topics:
@@ -89,5 +87,5 @@ def render() -> None:
                 )
 
             # Summary preview + expand
-            with st.expander("📄 View full summary", expanded=False):
+            with st.expander(_("wiki.view_full"), expanded=False):
                 st.markdown(summary)

@@ -4,6 +4,8 @@ from __future__ import annotations
 
 import streamlit as st
 
+from utils.i18n import _
+
 AGENT_DISPLAY_ORDER = [
     "router",
     "retriever",
@@ -82,10 +84,10 @@ def pipeline_table(agent_stats: list[dict]) -> None:
         label = AGENT_LABELS.get(name, name)
 
         rows.append({
-            "Agent": label,
-            "Status": f"{dot} {status}",
-            "Avg. Latency": str(latency),
-            "Total Calls": str(calls),
+            _('pipe.agent'): label,
+            _('pipe.status'): f"{dot} {status}",
+            _('pipe.avg_latency'): str(latency),
+            _('pipe.total_calls'): str(calls),
         })
 
     st.dataframe(
@@ -93,9 +95,9 @@ def pipeline_table(agent_stats: list[dict]) -> None:
         use_container_width=True,
         hide_index=True,
         column_config={
-            "Agent": st.column_config.TextColumn("Agent", width="medium"),
-            "Status": st.column_config.TextColumn("Status", width="small"),
-            "Avg. Latency": st.column_config.TextColumn("Avg. Latency", width="small"),
-            "Total Calls": st.column_config.TextColumn("Total Calls", width="small"),
+            _('pipe.agent'): st.column_config.TextColumn(_('pipe.agent'), width="medium"),
+            _('pipe.status'): st.column_config.TextColumn(_('pipe.status'), width="small"),
+            _('pipe.avg_latency'): st.column_config.TextColumn(_('pipe.avg_latency'), width="small"),
+            _('pipe.total_calls'): st.column_config.TextColumn(_('pipe.total_calls'), width="small"),
         },
     )

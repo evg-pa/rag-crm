@@ -7,25 +7,26 @@ from streamlit_autorefresh import st_autorefresh
 
 from components.pipeline_diagram import pipeline_diagram, pipeline_table
 from utils import api
+from utils.i18n import _
 
 
 def render() -> None:
     """Render the Pipeline Dashboard page."""
-    st.title("⚙️ Pipeline Dashboard")
-    st.caption("Monitor the 7-agent LangGraph pipeline status.")
+    st.title(_("pipeline.title"))
+    st.caption(_("pipeline.caption"))
 
     # ── Auto-refresh controls ───────────────────────────────────────────
     col_auto, col_refresh = st.columns(2)
     with col_auto:
         auto_refresh = st.checkbox(
-            "Auto-refresh (10s)",
+            _("pipeline.auto_refresh"),
             value=False,
             key="pipeline_auto_refresh",
         )
         if auto_refresh:
             st_autorefresh(interval=10000, key="pipeline_autorefresh")
     with col_refresh:
-        if st.button("🔄 Refresh now", key="pipeline_refresh_btn", use_container_width=True):
+        if st.button(_("pipeline.refresh"), key="pipeline_refresh_btn", use_container_width=True):
             pass  # Will refresh below
 
     # ── Fetch pipeline status ───────────────────────────────────────────
@@ -34,17 +35,17 @@ def render() -> None:
         agents = status.get("agents", {})
         pipeline_state = status.get("pipeline", "unknown")
     except Exception as exc:
-        st.error(f"❌ Cannot connect to backend: {exc}")
+        st.error(_("pipeline.connect_err", err=exc))
         return
 
     # ── Flow Diagram ────────────────────────────────────────────────────
-    st.subheader("Agent Flow")
+    st.subheader(_("pipeline.agent_flow"))
     pipeline_diagram(agents)
 
     st.divider()
 
     # ── Agent Stats Table ───────────────────────────────────────────────
-    st.subheader("Agent Details")
+    st.subheader(_("pipeline.agent_details"))
 
     agent_stats = [
         {
@@ -71,17 +72,17 @@ def render() -> None:
         db_status = health.get("database", "?") if health else "offline"
         app_version = health.get("version", "?") if health else "?"
         st.metric(
-            "Pipeline State",
+            _("pipeline.pipeline_state"),
             pipeline_state.capitalize(),
             delta=None,
         )
     with col2:
-        st.metric("Database", db_status.capitalize())
+        st.metric(_("pipeline.database"), db_status.capitalize())
     with col3:
-        st.metric("Backend Version", app_version)
+        st.metric(_("pipeline.backend_ver"), app_version)
 
     # ── Notes ───────────────────────────────────────────────────────────
-    with st.expander("ℹ️ About the Pipeline", expanded=False):
+    with st.expander(_("pipeline.about"), expanded=False):
         st.markdown("""
         **LangGraph 7-Agent Pipeline:**
         

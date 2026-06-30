@@ -4,6 +4,8 @@ from __future__ import annotations
 
 import streamlit as st
 
+from utils.i18n import _
+
 CONTENT_TYPE_ICONS: dict[str, str] = {
     "application/pdf": "📄",
     "application/vnd.openxmlformats-officedocument.wordprocessingml.document": "📝",
@@ -53,7 +55,7 @@ def search_result_card(result: dict, index: int, query: str = "") -> None:
         st.markdown(
             f"""
             <div class="rag-card rag-result-card" style="border-left-color: {color};">
-                <strong>📄 Chunk #{chunk_idx}</strong>
+                <strong>{_('search_res.chunk', n=chunk_idx)}</strong>
                 &nbsp;
                 <span class="result-score" style="color: {color};">{similarity:.3f}</span>
                 <small style="color: var(--text-secondary);">{extra_scores}</small>
@@ -64,7 +66,7 @@ def search_result_card(result: dict, index: int, query: str = "") -> None:
             """,
             unsafe_allow_html=True,
         )
-        with st.expander("Show full excerpt", expanded=False):
+        with st.expander(_('search_res.full_excerpt'), expanded=False):
             st.text(content)
 
 
@@ -93,12 +95,12 @@ def search_results_list(
     page_results = results[start:end]
 
     if not page_results:
-        st.info("No results found.")
+        st.info(_('search_res.no_results'))
         return total_pages, []
 
     for i, result in enumerate(page_results):
         search_result_card(result, start + i + 1, query=query)
 
-    st.caption(f"Showing {start + 1}–{end} of {total} results · Page {page} of {total_pages}")
+    st.caption(_('search_res.showing', a=start + 1, b=end, t=total, p=page, tp=total_pages))
 
     return total_pages, page_results

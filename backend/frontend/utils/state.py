@@ -28,6 +28,8 @@ def init_session_state() -> None:
         "last_search_query": "",
         "search_results": [],
         "search_page": 1,
+        # — Language / i18n —
+        "language": "en",
         # — Navigation —
         "current_page": "dashboard",
         # — Documents / Upload —

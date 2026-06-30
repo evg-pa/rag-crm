@@ -9,6 +9,7 @@ import streamlit as st
 
 from components.kpi_card import kpi_row
 from utils import api
+from utils.i18n import _
 
 
 # ── Colour map for deal stages ────────────────────────────────────────────
@@ -126,7 +127,7 @@ def _render_kpi_cards(contact_count: int, deal_stats: dict) -> None:
 def _render_pipeline_chart(by_stage: dict) -> None:
     """Render a horizontal bar chart of deals by stage."""
     if not by_stage:
-        st.info("No deals in pipeline yet.")
+        st.info(_('crm_dash.no_deals'))
         return
 
     stage_order = ["lead", "qualified", "proposal", "negotiation", "closed_won", "closed_lost"]
@@ -146,10 +147,10 @@ def _render_pipeline_chart(by_stage: dict) -> None:
     df = df[df["Count"] > 0]
 
     if df.empty:
-        st.info("No deals in pipeline yet.")
+        st.info(_('crm_dash.no_deals'))
         return
 
-    st.subheader("📈 Pipeline by Stage")
+    st.subheader(_('crm_dash.by_stage'))
 
     # Render as two columns: bar chart + summary table
     col_chart, col_table = st.columns([3, 2])
@@ -174,7 +175,7 @@ def _render_pipeline_chart(by_stage: dict) -> None:
 def _render_deals_table(deals: list) -> None:
     """Render a sortable table of deals."""
     if not deals:
-        st.info("No deals to display.")
+        st.info(_('crm_dash.no_deals'))
         return
 
     rows = []
@@ -197,7 +198,7 @@ def _render_contacts_table(contacts_data: dict) -> None:
     total = contacts_data.get("total", 0)
 
     if not items:
-        st.info("No contacts to display.")
+        st.info(_('crm_dash.no_contacts'))
         return
 
     rows = []
@@ -217,7 +218,7 @@ def _render_contacts_table(contacts_data: dict) -> None:
 def _render_recent_activities(activities: list) -> None:
     """Render a feed of recent activities."""
     if not activities:
-        st.info("No recent activity.")
+        st.info(_('crm_dash.no_activity'))
         return
 
     activity_icons: dict[str, str] = {

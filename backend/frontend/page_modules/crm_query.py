@@ -5,6 +5,7 @@ from __future__ import annotations
 import streamlit as st
 
 from utils import api
+from utils.i18n import _
 
 
 def _load_presets() -> list[dict]:

@@ -12,6 +12,7 @@ from components.kpi_card import kpi_row
 from components.crm_sync_status import crm_sync_status
 from components.pipeline_diagram import pipeline_diagram
 from utils import api, state
+from utils.i18n import _
 
 
 def _refresh_health() -> dict | None:
@@ -71,7 +72,7 @@ def _refresh_documents() -> list:
 
 def render() -> None:
     """Render the Dashboard page."""
-    st.title("📊 Dashboard")
+    st.title(_("dashboard.title"))
 
     # ── Auto-refresh ────────────────────────────────────────────────────
     auto = st.session_state.get("dashboard_auto_refresh", False)
@@ -79,17 +80,17 @@ def render() -> None:
         st_autorefresh(interval=30000, key="dashboard_autorefresh")
 
     # Refresh data
-    with st.spinner("Loading dashboard..."):
+    with st.spinner(_("dashboard.loading")):
         health = _refresh_health()
         pipeline = _refresh_pipeline()
         docs = _refresh_documents()
 
     if not health and not docs:
-        st.error("❌ Cannot connect to backend. Is the server running at `localhost:8000`?")
+        st.error(_("dashboard.no_backend"))
         return
 
     # ── KPI Row ──────────────────────────────────────────────────────────
-    st.subheader("Overview")
+    st.subheader(_("dashboard.overview"))
 
     doc_count = len(docs)
     chunk_count = sum(
@@ -98,24 +99,24 @@ def render() -> None:
 
     app_version = health.get("version", "?") if health else "?"
     db_status = health.get("database", "?") if health else "?"
-    backend_status = "🟢 Online" if health else "🔴 Offline"
+    backend_status = _("dashboard.online") if health else _("dashboard.offline")
 
     kpi_row([
-        ("Documents", doc_count, "📄"),
-        ("Chunks", chunk_count, "🧩"),
-        ("Backend", backend_status, ""),
-        ("Version", app_version, "📦"),
+        (_("dashboard.documents"), doc_count, "📄"),
+        (_("dashboard.chunks"), chunk_count, "🧩"),
+        (_("dashboard.backend"), backend_status, ""),
+        (_("dashboard.version"), app_version, "📦"),
     ])
 
     # ── CRM Sync Status ──────────────────────────────────────────────────
-    st.subheader("CRM Sync")
+    st.subheader(_("dashboard.crm_sync"))
     crm_sync_status()
 
     # ── Two-column layout ────────────────────────────────────────────────
     col_left, col_right = st.columns(2)
 
     with col_left:
-        st.subheader("Recent Documents")
+        st.subheader(_("dashboard.recent_docs"))
         if docs:
             recent = sorted(
                 docs,
@@ -134,29 +135,29 @@ def render() -> None:
                     now = datetime.now(timezone.utc)
                     diff = int((now - dt).total_seconds())
                     if diff < 60:
-                        ago = "just now"
+                        ago = _("dashboard.just_now")
                     elif diff < 3600:
-                        ago = f"{diff // 60}m ago"
+                        ago = f"{diff // 60}{_('dashboard.min_ago')}"
                     elif diff < 86400:
-                        ago = f"{diff // 3600}h ago"
+                        ago = f"{diff // 3600}{_('dashboard.hr_ago')}"
                     else:
-                        ago = f"{diff // 86400}d ago"
+                        ago = f"{diff // 86400}{_('dashboard.day_ago')}"
                 except (ValueError, TypeError):
                     ago = "—"
 
                 size_str = (
-                    f"{size / 1024:.1f} KB" if size < 1024 * 1024
-                    else f"{size / (1024*1024):.1f} MB"
+                    f"{size / 1024:.1f} {_('dashboard.kb')}" if size < 1024 * 1024
+                    else f"{size / (1024*1024):.1f} {_('dashboard.mb')}"
                 )
 
                 st.caption(
                     f"📄 **{filename}** · {size_str} · `{content_type}` · {ago}"
                 )
         else:
-            st.info("No documents yet. Go to 📄 Documents to upload.")
+            st.info(_("dashboard.no_docs"))
 
     with col_right:
-        st.subheader("Pipeline Status")
+        st.subheader(_("dashboard.pipeline"))
         if pipeline and "agents" in pipeline:
             agents = pipeline["agents"]
             pipeline_diagram(agents)
@@ -174,12 +175,12 @@ def render() -> None:
             from components.pipeline_diagram import pipeline_table
             pipeline_table(agent_stats)
         else:
-            st.warning("Pipeline status unavailable.")
+            st.warning(_("dashboard.pipeline_unavail"))
 
     # ── Auto-refresh toggle ──────────────────────────────────────────────
     st.divider()
     col_refresh, _ = st.columns([1, 3])
     with col_refresh:
-        auto = st.checkbox("Auto-refresh (30s)", value=False, key="dashboard_auto_refresh")
+        auto = st.checkbox(_("dashboard.auto_refresh"), value=False, key="dashboard_auto_refresh")
         if auto:
             st_autorefresh(interval=30000, key="dashboard_autorefresh")

@@ -6,6 +6,7 @@ import streamlit as st
 
 from components.chat_message import render_chat_history
 from utils import api, state
+from utils.i18n import _
 
 
 def _run_qa(prompt: str) -> None:
@@ -16,7 +17,7 @@ def _run_qa(prompt: str) -> None:
         "sources": None,
     })
 
-    with st.spinner("🔍 Searching documents and generating answer..."):
+    with st.spinner(_("qa.searching")):
         try:
             top_k = st.session_state.get("qa_top_k", 5)
             session_id = st.session_state.get("qa_session_id", "default")
@@ -46,16 +47,14 @@ def _run_qa(prompt: str) -> None:
             content_parts = []
             if is_no_answer:
                 content_parts.append(
-                    "**🤷 I don't know** — no relevant information was found in "
-                    "the knowledge base for your question.\n\n"
-                    "Try uploading documents about this topic first, or rephrase your query."
+                    _("qa.no_answer")
                 )
             else:
                 content_parts.append(answer_text)
                 if confidence > 0:
-                    content_parts.append(f"\n\n*Confidence: {confidence * 100:.0f}%*")
+                    content_parts.append(f"\n\n{_('qa.confidence', pct=confidence * 100)}")
                 if query_type:
-                    content_parts.append(f"*Query type: {query_type}*")
+                    content_parts.append(_("qa.query_type", type=query_type))
 
             st.session_state.messages.append({
                 "role": "assistant",
@@ -72,29 +71,29 @@ def _run_qa(prompt: str) -> None:
 
 def render() -> None:
     """Render the Q&A Chat page."""
-    st.title("💬 Q&A Chat")
-    st.caption("Ask questions about your documents. Responses include source citations.")
+    st.title(_("qa.title"))
+    st.caption(_("qa.caption"))
 
     # ── Settings (collapsible) ──────────────────────────────────────────
-    with st.expander("⚙️ Settings", expanded=False):
+    with st.expander(_("qa.settings"), expanded=False):
         col1, col2 = st.columns(2)
         with col1:
             top_k = st.slider(
-                "Top-K chunks",
+                _("qa.top_k"),
                 min_value=1,
                 max_value=50,
                 value=st.session_state.get("qa_top_k", 5),
                 step=1,
                 key="qa_top_k_slider",
-                help="Number of chunks to retrieve per query",
+                help=_("qa.top_k_help"),
             )
             st.session_state.qa_top_k = top_k
         with col2:
             session_id = st.text_input(
-                "Session ID",
+                _("qa.session_id"),
                 value=st.session_state.get("qa_session_id", "default"),
                 key="qa_session_id_input",
-                help="Session identifier for conversation memory",
+                help=_("qa.session_help"),
             )
             st.session_state.qa_session_id = session_id
 
@@ -104,12 +103,12 @@ def render() -> None:
     # ── Suggested Questions ─────────────────────────────────────────────
     if not st.session_state.messages:
         st.divider()
-        st.caption("💡 Try asking:")
+        st.caption(_("qa.try_asking"))
         suggestions = [
-            "What is this project about?",
-            "What technologies are used?",
-            "What are the key features?",
-            "Summarize the main architecture decisions.",
+            _("qa.suggest_about"),
+            _("qa.suggest_tech"),
+            _("qa.suggest_features"),
+            _("qa.suggest_arch"),
         ]
         cols = st.columns(len(suggestions))
         for col, suggestion in zip(cols, suggestions, strict=True):
@@ -123,7 +122,7 @@ def render() -> None:
                     st.rerun()
 
     # ── Chat Input ──────────────────────────────────────────────────────
-    if prompt := st.chat_input("Ask a question about your documents..."):
+    if prompt := st.chat_input(_("qa.chat_input")):
         _run_qa(prompt)
         st.rerun()
 
@@ -139,6 +138,6 @@ def render() -> None:
         st.divider()
         col_clear, _ = st.columns(2)
         with col_clear:
-            if st.button("🗑️ Clear conversation", use_container_width=True):
+            if st.button(_("qa.clear_btn"), use_container_width=True):
                 state.clear_chat()
                 st.rerun()

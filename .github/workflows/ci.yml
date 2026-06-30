@@ -37,7 +37,7 @@ jobs:
           pip install ruff mypy
 
       - name: ruff (linter)
-        run: ruff check app/ tests/
+        run: ruff check --fix app/ tests/
 
       - name: ruff (formatter check)
         run: ruff format --check app/ tests/

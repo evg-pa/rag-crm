@@ -7,6 +7,10 @@ on:
     branches: [master]
   workflow_dispatch:  # manual trigger
 
+permissions:
+  contents: read
+  packages: write
+
 env:
   COMPOSE_FILE: infrastructure/docker-compose.yml
   COMPOSE_FILE_CI: infrastructure/docker-compose.yml -f infrastructure/docker-compose.dev.yml

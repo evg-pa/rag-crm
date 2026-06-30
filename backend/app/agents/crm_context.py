@@ -62,32 +62,62 @@ _ENTITY_PATTERNS = [
     # "deal Acme Project"
     (r"(?:deal|opportunity|project)\s+([A-Z][a-zA-Z0-9]+(?:\s+[A-Za-z0-9]+)*)", "deal"),
     # "company Acme Corp"
-    (r"(?:company|account|org|organisation|organization)\s+([A-Z][a-zA-Z0-9]+(?:\s+[A-Za-z0-9]+)*)", "company"),
+    (
+        r"(?:company|account|org|organisation|organization)\s+([A-Z][a-zA-Z0-9]+(?:\s+[A-Za-z0-9]+)*)",
+        "company",
+    ),
     # "email john@example.com"
     (r"(?:email|e-mail)\s+([a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,})", "contact"),
     # "phone +1-555-1234"
     (r"(?:phone|call|dial)\s+([+\d][\d\s\-().]{5,})", "contact"),
     # Quoted entity names
-    (r"(?:about|regarding|related to|for)\s+['\"]?(.+?)['\"]?(?:\s*(?:document|file|PDF|agreement|contract))?", "generic"),
+    (
+        r"(?:about|regarding|related to|for)\s+['\"]?(.+?)['\"]?(?:\s*(?:document|file|PDF|agreement|contract))?",
+        "generic",
+    ),
 ]
 
 # CRM intent classification
 _CRM_INTENT_PATTERNS = {
-    "cross_reference": [r"\brelat", r"\breferenc", r"\bconnect", r"\blink(?:ed|s)?\b", r"\bassociat", r"\babout\b.*\b(doc|PDF|file|contract|agreement)"],
+    "cross_reference": [
+        r"\brelat",
+        r"\breferenc",
+        r"\bconnect",
+        r"\blink(?:ed|s)?\b",
+        r"\bassociat",
+        r"\babout\b.*\b(doc|PDF|file|contract|agreement)",
+    ],
     "contact": [r"\bcontacts?\b", r"\bperson\b", r"\bwho\b", r"\bemail\b", r"\bphone\b"],
-    "activity": [r"\bactivity", r"\bmeeting\b", r"\bcalls?\b.*\b(yesterday|today|week|recent)", r"\bemail\b.*\b(recent|last|sent)"],
-    "deal": [r"\bdeals?\b", r"\bopportunit", r"\bpipeline\b", r"\bstages?\b", r"\bvalue\b", r"\brevenue\b", r"\bclose\b"],
-    "quick_query": [r"\btop\b", r"\brecent\b", r"\blist\b", r"\bshow me\b", r"\bsummary\b", r"\bcount\b"],
+    "activity": [
+        r"\bactivity",
+        r"\bmeeting\b",
+        r"\bcalls?\b.*\b(yesterday|today|week|recent)",
+        r"\bemail\b.*\b(recent|last|sent)",
+    ],
+    "deal": [
+        r"\bdeals?\b",
+        r"\bopportunit",
+        r"\bpipeline\b",
+        r"\bstages?\b",
+        r"\bvalue\b",
+        r"\brevenue\b",
+        r"\bclose\b",
+    ],
+    "quick_query": [
+        r"\btop\b",
+        r"\brecent\b",
+        r"\blist\b",
+        r"\bshow me\b",
+        r"\bsummary\b",
+        r"\bcount\b",
+    ],
 }
 
 
 def is_crm_query(query: str) -> bool:
     """Return True if the query appears to be CRM-related."""
     q = query.lower().strip()
-    for pat in _CRM_QUERY_PATTERNS:
-        if re.search(pat, q):
-            return True
-    return False
+    return any(re.search(pat, q) for pat in _CRM_QUERY_PATTERNS)
 
 
 def classify_crm_intent(query: str) -> str:
@@ -121,7 +151,9 @@ def extract_entity_names(query: str, db_names: list[str]) -> list[dict[str, Any]
             name = match.group(1).strip()
             name_clean = re.sub(r"\s+", " ", name)
             if name_clean.lower() not in seen and len(name_clean) > 2:
-                entities.append({"name": name_clean, "type": entity_type, "confidence": 0.9, "method": "regex"})
+                entities.append(
+                    {"name": name_clean, "type": entity_type, "confidence": 0.9, "method": "regex"}
+                )
                 seen.add(name_clean.lower())
 
     # 2. Fuzzy matching against known DB names
@@ -136,7 +168,14 @@ def extract_entity_names(query: str, db_names: list[str]) -> list[dict[str, Any]
         query_ratio = difflib.SequenceMatcher(None, q.lower(), db_name.lower()).ratio()
 
         if query_ratio > 0.6 and db_name.lower() not in seen:
-            entities.append({"name": db_name, "type": "fuzzy_db", "confidence": round(query_ratio, 2), "method": "fuzzy"})
+            entities.append(
+                {
+                    "name": db_name,
+                    "type": "fuzzy_db",
+                    "confidence": round(query_ratio, 2),
+                    "method": "fuzzy",
+                }
+            )
             seen.add(db_name.lower())
 
         # If we have a high fuzzy match to an existing entity, boost its confidence
@@ -183,9 +222,7 @@ def build_crm_context(
     if intent in ("activity", "contact", "cross_reference") and activities:
         parts.append("### CRM Activities")
         for a in activities[:10]:  # limit to 10 most recent
-            parts.append(
-                f"- **{a.type}** on {a.date.strftime('%Y-%m-%d')}: {a.description[:200]}"
-            )
+            parts.append(f"- **{a.type}** on {a.date.strftime('%Y-%m-%d')}: {a.description[:200]}")
 
     # Summary when no specific entities found
     if not parts:
@@ -236,13 +273,15 @@ def build_cross_references(
             if entity_name in content.lower():
                 key = (entity_name, str(chunk_id))
                 if key not in seen_refs:
-                    refs.append({
-                        "entity": entity.get("name", entity_name),
-                        "chunk_id": str(chunk_id),
-                        "document_id": str(document_id),
-                        "content_snippet": content[:200],
-                        "match_type": "direct",
-                    })
+                    refs.append(
+                        {
+                            "entity": entity.get("name", entity_name),
+                            "chunk_id": str(chunk_id),
+                            "document_id": str(document_id),
+                            "content_snippet": content[:200],
+                            "match_type": "direct",
+                        }
+                    )
                     seen_refs.add(key)
 
             # Company name match
@@ -250,13 +289,15 @@ def build_cross_references(
             if company and company.lower() in content.lower():
                 key = (company.lower(), str(chunk_id))
                 if key not in seen_refs:
-                    refs.append({
-                        "entity": entity.get("name", entity_name),
-                        "chunk_id": str(chunk_id),
-                        "document_id": str(document_id),
-                        "content_snippet": content[:200],
-                        "match_type": "company",
-                    })
+                    refs.append(
+                        {
+                            "entity": entity.get("name", entity_name),
+                            "chunk_id": str(chunk_id),
+                            "document_id": str(document_id),
+                            "content_snippet": content[:200],
+                            "match_type": "company",
+                        }
+                    )
                     seen_refs.add(key)
 
     return refs
@@ -324,7 +365,9 @@ async def crm_context_agent(state: AgentState) -> dict:
             # Filter entities based on intent
             if intent == "contact":
                 deals = []
-                activities = [a for a in activities if a.type.lower() in ("call", "email", "meeting")]
+                activities = [
+                    a for a in activities if a.type.lower() in ("call", "email", "meeting")
+                ]
             elif intent == "deal":
                 contacts = []
             elif intent == "activity":

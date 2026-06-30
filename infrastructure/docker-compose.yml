@@ -114,7 +114,6 @@ services:
     build:
       context: ./prometheus
       dockerfile: Dockerfile
-    image: rag-prometheus:latest
     container_name: rag-prometheus
     volumes:
       - prometheus_data:/prometheus

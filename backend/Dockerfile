@@ -23,6 +23,7 @@ COPY --from=builder /usr/local/lib/python3.12/site-packages /usr/local/lib/pytho
 COPY --from=builder /usr/local/bin /usr/local/bin
 
 # Copy application code
+COPY pyproject.toml ./
 COPY app/ ./app/
 COPY tests/ ./tests/
 

@@ -11,8 +11,8 @@ Seven specialised agents orchestrated through LangGraph:
 7. SynthesizerAgent — produces final polished response
 """
 
-from app.agents.state_graph import build_qa_graph
 from app.agents.state import AgentState
+from app.agents.state_graph import build_qa_graph
 from app.memory.service import WorkingMemoryService
 
-__all__ = ["AgentState", "build_qa_graph"]
+__all__ = ["AgentState", "build_qa_graph", "WorkingMemoryService"]

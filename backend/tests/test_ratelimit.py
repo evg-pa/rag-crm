@@ -9,10 +9,10 @@ from httpx import ASGITransport, AsyncClient
 
 from app.core.ratelimit import RateLimitMiddleware
 
-
 # ---------------------------------------------------------------------------
 # Redis mock helpers
 # ---------------------------------------------------------------------------
+
 
 def _build_mock_redis(zcard_cb=None, zadd_cb=None, expire_cb=None, zrem_cb=None, zrange_cb=None):
     """Create a mock Redis client with optional side-effect callbacks."""
@@ -29,6 +29,7 @@ def _build_mock_redis(zcard_cb=None, zadd_cb=None, expire_cb=None, zrem_cb=None,
 # ---------------------------------------------------------------------------
 # In-memory rate limiter for fast deterministic testing without Redis
 # ---------------------------------------------------------------------------
+
 
 class _InMemoryRateLimiter:
     """A self-contained in-memory sliding-window rate limiter.
@@ -64,10 +65,12 @@ class _InMemoryRateLimiter:
 # Tests against the full app (mock Redis pool)
 # ---------------------------------------------------------------------------
 
+
 @pytest_asyncio.fixture
 async def app_with_ratelimit():
     """Create a fresh app with rate limiting middleware that uses a mock Redis."""
     from app.main import app
+
     # Re-use the app but patch the middleware's Redis pool
     # Find the rate limit middleware
     for mw in app.user_middleware:
@@ -116,8 +119,10 @@ class TestRateLimitingWithMockRedis:
         """Requests under the limit should pass through to the endpoint."""
         mock_redis = _build_mock_redis(zcard_cb=lambda *a, **kw: 0)
 
-        with patch("redis.asyncio.ConnectionPool.from_url"), \
-             patch("redis.asyncio.Redis", return_value=mock_redis):
+        with (
+            patch("redis.asyncio.ConnectionPool.from_url"),
+            patch("redis.asyncio.Redis", return_value=mock_redis),
+        ):
             client = app_with_ratelimit
             resp = await client.get(self._URL)
             assert resp.status_code == 200
@@ -127,8 +132,10 @@ class TestRateLimitingWithMockRedis:
         """When Redis reports the limit is exceeded, middleware returns 429."""
         mock_redis = _build_mock_redis(zcard_cb=lambda *a, **kw: 999)
 
-        with patch("redis.asyncio.ConnectionPool.from_url"), \
-             patch("redis.asyncio.Redis", return_value=mock_redis):
+        with (
+            patch("redis.asyncio.ConnectionPool.from_url"),
+            patch("redis.asyncio.Redis", return_value=mock_redis),
+        ):
             client = app_with_ratelimit
             resp = await client.get(self._URL)
             assert resp.status_code == 429
@@ -146,8 +153,10 @@ class TestRateLimitingWithMockRedis:
             zrange_cb=lambda *a, **kw: [("ts:oldest", oldest)],
         )
 
-        with patch("redis.asyncio.ConnectionPool.from_url"), \
-             patch("redis.asyncio.Redis", return_value=mock_redis):
+        with (
+            patch("redis.asyncio.ConnectionPool.from_url"),
+            patch("redis.asyncio.Redis", return_value=mock_redis),
+        ):
             client = app_with_ratelimit
             resp = await client.get(self._URL)
             assert resp.status_code == 429
@@ -161,8 +170,10 @@ class TestRateLimitingWithMockRedis:
         mock_redis = _build_mock_redis()
         mock_redis.zremrangebyscore = AsyncMock(side_effect=ConnectionError("boom"))
 
-        with patch("redis.asyncio.ConnectionPool.from_url"), \
-             patch("redis.asyncio.Redis", return_value=mock_redis):
+        with (
+            patch("redis.asyncio.ConnectionPool.from_url"),
+            patch("redis.asyncio.Redis", return_value=mock_redis),
+        ):
             client = app_with_ratelimit
             resp = await client.get(self._URL)
             # Should not be 429 — fail-open means traffic passes
@@ -181,8 +192,10 @@ class TestRateLimitingWithMockRedis:
 
         mock_redis = _build_mock_redis(zcard_cb=_zcard_side)
 
-        with patch("redis.asyncio.ConnectionPool.from_url"), \
-             patch("redis.asyncio.Redis", return_value=mock_redis):
+        with (
+            patch("redis.asyncio.ConnectionPool.from_url"),
+            patch("redis.asyncio.Redis", return_value=mock_redis),
+        ):
             client = app_with_ratelimit
 
             # The ASGI transport always uses ("testclient", 50000) as
@@ -233,7 +246,7 @@ class TestInMemoryRateLimiting:
         # First 10 requests should be allowed
         for i in range(10):
             allowed, retry = await limiter.check("192.168.1.1", "/api/test")
-            assert allowed, f"Request {i+1} should be allowed"
+            assert allowed, f"Request {i + 1} should be allowed"
 
         # 11th request should be blocked
         allowed, retry = await limiter.check("192.168.1.1", "/api/test")
@@ -252,7 +265,7 @@ class TestInMemoryRateLimiting:
         limiter = FakeTimeRateLimiter(limit=5, window=60)
 
         # Fire 6 rapid requests — 6th is blocked
-        for i in range(5):
+        for _i in range(5):
             allowed, _ = await limiter.check("10.0.0.1", "/api/qa")
             assert allowed
         allowed, _ = await limiter.check("10.0.0.1", "/api/qa")
@@ -275,7 +288,7 @@ class TestInMemoryRateLimiting:
         limiter = FakeTimeRateLimiter(limit=3, window=60)
 
         # Exhaust IP A
-        for i in range(3):
+        for _i in range(3):
             allowed, _ = await limiter.check("10.0.0.1", "/api/qa")
             assert allowed
         allowed, _ = await limiter.check("10.0.0.1", "/api/qa")
@@ -297,7 +310,7 @@ class TestInMemoryRateLimiting:
         limiter = FakeTimeRateLimiter(limit=3, window=60)
 
         # Exhaust /api/qa for one IP
-        for i in range(3):
+        for _i in range(3):
             allowed, _ = await limiter.check("10.0.0.1", "/api/qa")
             assert allowed
         allowed, _ = await limiter.check("10.0.0.1", "/api/qa")
@@ -357,8 +370,9 @@ class TestClientIPExtraction:
 
     def test_uses_client_host_directly(self):
         """Direct client IP is always used, ignoring proxy headers."""
-        from app.core.ratelimit import _client_ip
         from starlette.requests import Request
+
+        from app.core.ratelimit import _client_ip
 
         scope = {
             "type": "http",
@@ -374,8 +388,9 @@ class TestClientIPExtraction:
 
     def test_uses_client_host_when_no_proxy_headers(self):
         """When no proxy headers are set, use the direct client IP."""
-        from app.core.ratelimit import _client_ip
         from starlette.requests import Request
+
+        from app.core.ratelimit import _client_ip
 
         scope = {
             "type": "http",
@@ -387,8 +402,9 @@ class TestClientIPExtraction:
 
     def test_unknown_when_no_client(self):
         """When there's no client info at all, return 'unknown'."""
-        from app.core.ratelimit import _client_ip
         from starlette.requests import Request
+
+        from app.core.ratelimit import _client_ip
 
         scope = {
             "type": "http",
@@ -445,7 +461,7 @@ class TestPerRouteTiers:
 
     def test_unknown_path_gets_default(self):
         """Unmatched paths should get the default limit with no burst."""
-        from app.core.ratelimit import _get_tier, DEFAULT_LIMIT, DEFAULT_WINDOW
+        from app.core.ratelimit import DEFAULT_LIMIT, DEFAULT_WINDOW, _get_tier
 
         limit, window, burst = _get_tier("/some/random/path")
         assert limit == DEFAULT_LIMIT
@@ -503,7 +519,7 @@ class TestBurstAllowance:
         # 8 requests should all pass (5 base + 3 burst)
         for i in range(8):
             allowed, _ = await limiter.check("10.0.0.1", "/qa")
-            assert allowed, f"Request {i+1}/8 with burst should be allowed"
+            assert allowed, f"Request {i + 1}/8 with burst should be allowed"
 
         # 9th should be blocked
         allowed, _ = await limiter.check("10.0.0.1", "/qa")
@@ -521,7 +537,7 @@ class TestBurstAllowance:
         limiter = FakeTimeRateLimiter(limit=4, window=60)
 
         # Use all 4 + 1 more to prove limit works
-        for i in range(4):
+        for _ in range(4):
             await limiter.check("10.0.0.1", "/search")
         allowed, _ = await limiter.check("10.0.0.1", "/search")
         assert not allowed
@@ -531,7 +547,7 @@ class TestBurstAllowance:
         # Now should have 4 fresh slots
         for i in range(4):
             allowed, _ = await limiter.check("10.0.0.1", "/search")
-            assert allowed, f"After window refresh, request {i+1} should pass"
+            assert allowed, f"After window refresh, request {i + 1} should pass"
 
 
 class TestRateLimitPrometheusMetrics:
@@ -540,6 +556,7 @@ class TestRateLimitPrometheusMetrics:
     def test_ratelimit_hits_counter_registered(self):
         """The ratelimit_hits_total counter should be registered in Prometheus."""
         from prometheus_client import REGISTRY
+
         from app.core.ratelimit import ratelimit_hits_total
 
         # Counter should exist and have the right name
@@ -557,6 +574,7 @@ class TestRateLimitPrometheusMetrics:
     def test_ratelimit_active_buckets_gauge_registered(self):
         """The ratelimit_active_buckets gauge should be registered."""
         from prometheus_client import REGISTRY
+
         from app.core.ratelimit import ratelimit_active_buckets
 
         assert ratelimit_active_buckets._name == "ratelimit_active_buckets"

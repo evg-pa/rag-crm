@@ -42,7 +42,7 @@ def _render_contacts_tab() -> None:
     with col_btn:
         st.write("")  # spacer
         st.write("")
-        search_clicked = st.button("🔍 Search", key="crm_contacts_search_btn", use_container_width=True)
+        search_clicked = st.button(_('search.btn'), key="crm_contacts_search_btn", use_container_width=True)
 
     # Track last search to avoid re-fetching on every rerun
     last_search = st.session_state.get("crm_contacts_last_search", "")
@@ -107,20 +107,20 @@ def _render_contacts_tab() -> None:
 
 def _render_deals_tab() -> None:
     """Render the Deals tab with stage/value/date filters."""
-    st.subheader("💰 Deals")
+    st.subheader(_('crm_data.deals'))
 
     # ── Filters ─────────────────────────────────────────────────────────
     col1, col2, col3 = st.columns(3)
     with col1:
         stage = st.selectbox(
-            "Stage",
+            _('crm_data.stage'),
             options=["", "lead", "qualified", "proposal", "negotiation", "closed_won", "closed_lost"],
-            format_func=lambda x: x.replace("_", " ").title() if x else "All stages",
+            format_func=lambda x: _('crm_data.all_stages') if not x else x.replace("_", " ").title(),
             key="crm_deals_stage",
         )
     with col2:
         min_value = st.number_input(
-            "Min value ($)",
+            _('crm_data.min_value'),
             min_value=0,
             value=0,
             step=10000,
@@ -128,8 +128,8 @@ def _render_deals_tab() -> None:
         )
     with col3:
         date_range_option = st.selectbox(
-            "Close date range",
-            options=["All time", "Next 30 days", "Next 90 days", "Past 30 days", "Past 90 days", "Custom"],
+            _('crm_data.date_range'),
+            options=[_('crm_data.all_time'), _('crm_data.next_30'), _('crm_data.next_90'), _('crm_data.past_30'), _('crm_data.past_90'), _('crm_data.custom')],
             key="crm_deals_date_range",
         )
 
@@ -139,11 +139,11 @@ def _render_deals_tab() -> None:
     if date_range_option == "Custom":
         col_d1, col_d2 = st.columns(2)
         with col_d1:
-            from_date = st.date_input("From", key="crm_deals_from_date", value=None)
+            from_date = st.date_input(_('crm_data.custom'), key="crm_deals_from_date", value=None)
             if from_date:
                 close_date_from = from_date.isoformat()
         with col_d2:
-            to_date = st.date_input("To", key="crm_deals_to_date", value=None)
+            to_date = st.date_input("", key="crm_deals_to_date", value=None)
             if to_date:
                 close_date_to = to_date.isoformat()
     else:
@@ -164,7 +164,7 @@ def _render_deals_tab() -> None:
 
     col_apply, _ = st.columns([1, 4])
     with col_apply:
-        apply_clicked = st.button("Apply Filters", type="primary", key="crm_deals_apply", use_container_width=True)
+        apply_clicked = st.button(_('crm_data.apply_btn'), type="primary", key="crm_deals_apply", use_container_width=True)
 
     # Track filter state for cache-busting
     filter_key = f"{stage}|{min_value}|{close_date_from}|{close_date_to}"
@@ -177,7 +177,8 @@ def _render_deals_tab() -> None:
         page = 1
         st.session_state.crm_deals_page = 1
 
-    with st.spinner("Loading deals..."):
+    with st.spinner(_("Loading deals...")):
+        offset = (page - 1) * page_size
         offset = (page - 1) * page_size
         try:
             data = api.list_crm_deals(
@@ -189,16 +190,16 @@ def _render_deals_tab() -> None:
                 close_date_to=close_date_to,
             )
         except Exception as exc:
-            st.error(f"❌ Failed to load deals: {exc}")
+            st.error(_('crm_query.failed', err=exc))
             return
 
     items = data.get("items", [])
     total = data.get("total", 0)
 
-    st.caption(f"**{total}** deal(s) found · Page {page} of {max(1, (total + page_size - 1) // page_size)}")
+    st.caption(_('crm_data.found_deals', n=total, p=page, t=max(1, (total + page_size - 1) // page_size)))
 
     if not items:
-        st.info("No deals found matching the current filters.")
+        st.info(_('crm_data.no_deals'))
         return
 
     # ── Build dataframe ─────────────────────────────────────────────────
@@ -236,20 +237,20 @@ def _render_deals_tab() -> None:
     if total_pages > 1:
         col_prev, col_page, col_next = st.columns([1, 2, 1])
         with col_prev:
-            if st.button("← Previous", disabled=(page <= 1), key="crm_deals_prev"):
+            if st.button(_('crm_data.prev'), disabled=(page <= 1), key="crm_deals_prev"):
                 st.session_state.crm_deals_page = page - 1
                 st.rerun()
         with col_page:
-            st.write(f"Page **{page}** of {total_pages}")
+            st.write(_('crm_data.page_of', p=page, t=total_pages))
         with col_next:
-            if st.button("Next →", disabled=(page >= total_pages), key="crm_deals_next"):
+            if st.button(_('crm_data.next'), disabled=(page >= total_pages), key="crm_deals_next"):
                 st.session_state.crm_deals_page = page + 1
                 st.rerun()
 
 
 def _render_activities_tab() -> None:
     """Render the Activities tab with contact filter."""
-    st.subheader("📝 Activities")
+    st.subheader(_('crm_data.activities'))
 
     # ── Contact filter (load contacts for dropdown) ─────────────────────
     contacts_cache = st.session_state.get("crm_contacts_cache")
@@ -276,18 +277,18 @@ def _render_activities_tab() -> None:
     col_f, col_btn = st.columns([3, 1])
     with col_f:
         selected_name = st.selectbox(
-            "Filter by contact",
+            _('crm_data.filter_contact'),
             options=[name for _, name in contact_options],
             key="crm_activities_contact",
         )
     contact_id: str | None = None
-    if selected_name and selected_name != "All contacts":
+    if selected_name and selected_name != _('crm_data.all_contacts'):
         contact_id = contact_id_map.get(selected_name)
 
     with col_btn:
         st.write("")
         st.write("")
-        apply_clicked = st.button("Apply", key="crm_activities_apply", use_container_width=True)
+        apply_clicked = st.button(_('crm_data.apply_btn'), key="crm_activities_apply", use_container_width=True)
 
     last_contact = st.session_state.get("crm_activities_last_contact", "")
     page = st.session_state.get("crm_activities_page", 1)
@@ -298,7 +299,7 @@ def _render_activities_tab() -> None:
         page = 1
         st.session_state.crm_activities_page = 1
 
-    with st.spinner("Loading activities..."):
+    with st.spinner(_("Loading activities...")):
         offset = (page - 1) * page_size
         try:
             data = api.list_crm_activities(
@@ -307,16 +308,16 @@ def _render_activities_tab() -> None:
                 contact_id=contact_id,
             )
         except Exception as exc:
-            st.error(f"❌ Failed to load activities: {exc}")
+            st.error(_('crm_query.failed', err=exc))
             return
 
     items = data.get("items", [])
     total = data.get("total", 0)
 
-    st.caption(f"**{total}** activit(ies) found · Page {page} of {max(1, (total + page_size - 1) // page_size)}")
+    st.caption(_('crm_data.found_activities', n=total, p=page, t=max(1, (total + page_size - 1) // page_size)))
 
     if not items:
-        st.info("No activities found. Run a CRM sync first.")
+        st.info(_('crm_data.no_activities'))
         return
 
     # ── Build dataframe ─────────────────────────────────────────────────
@@ -350,31 +351,28 @@ def _render_activities_tab() -> None:
     if total_pages > 1:
         col_prev, col_page, col_next = st.columns([1, 2, 1])
         with col_prev:
-            if st.button("← Previous", disabled=(page <= 1), key="crm_activities_prev"):
+            if st.button(_('crm_data.prev'), disabled=(page <= 1), key="crm_activities_prev"):
                 st.session_state.crm_activities_page = page - 1
                 st.rerun()
         with col_page:
-            st.write(f"Page **{page}** of {total_pages}")
+            st.write(_('crm_data.page_of', p=page, t=total_pages))
         with col_next:
-            if st.button("Next →", disabled=(page >= total_pages), key="crm_activities_next"):
+            if st.button(_('crm_data.next'), disabled=(page >= total_pages), key="crm_activities_next"):
                 st.session_state.crm_activities_page = page + 1
                 st.rerun()
 
 
 def render() -> None:
     """Render the CRM Data Browser page with tabbed entity views."""
-    st.title("🔍 CRM Data Browser")
+    st.title(_('crm_data.title'))
 
-    st.markdown(
-        "Browse and filter CRM entities synced from your connected CRM. "
-        "Use the tabs below to switch between contacts, deals, and activities."
-    )
+    st.markdown(_('crm_data.description'))
 
     # ── Tabs ────────────────────────────────────────────────────────────
     tab_contacts, tab_deals, tab_activities = st.tabs([
-        "👤 Contacts",
-        "💰 Deals",
-        "📝 Activities",
+        _('crm_data.contacts'),
+        _('crm_data.deals'),
+        _('crm_data.activities'),
     ])
 
     with tab_contacts:

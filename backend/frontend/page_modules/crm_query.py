@@ -23,7 +23,7 @@ def _render_preset_buttons(presets: list[dict]) -> str | None:
     Returns the selected preset key, or None if no preset was clicked.
     """
     if not presets:
-        st.info("No CRM presets available. Check backend connectivity.")
+        st.info(_("crm_query.no_presets"))
         return None
 
     selected: str | None = None
@@ -60,16 +60,16 @@ def _render_results(response: dict) -> None:
     data = response.get("data", {})
 
     if intent:
-        st.caption(f"**Intent:** `{intent}`")
+        st.caption(_("crm_query.intent", i=intent))
 
     # Summary
     if summary:
-        st.markdown("### Summary")
+        st.markdown(f"### {_('crm_query.summary')}")
         st.markdown(f"> {summary}")
 
     # Data
     if data:
-        st.markdown("### Results")
+        st.markdown(f"### {_('crm_query.results')}")
 
         # Deal lists
         if "deals" in data:
@@ -140,39 +140,36 @@ def _render_results(response: dict) -> None:
 
     # Formatted text (full markdown answer)
     if formatted:
-        st.markdown("### Full Answer")
+        st.markdown(f"### {_('crm_query.full_answer')}")
         st.markdown(formatted)
 
 
 def render() -> None:
     """Render the CRM Quick Query page."""
-    st.title("💬 CRM Quick Query")
+    st.title(_("crm_query.title"))
 
-    st.markdown(
-        "Ask natural-language questions about your CRM data. "
-        "Use preset queries below or type a free-form question."
-    )
+    st.markdown(_("crm_query.description"))
 
     # ── Presets ──────────────────────────────────────────────────────────
-    st.subheader("📋 Preset Queries")
+    st.subheader(_("crm_query.presets"))
 
     presets = _load_presets()
     selected_preset = _render_preset_buttons(presets)
 
     # ── Free-form query ──────────────────────────────────────────────────
-    st.subheader("✏️ Free-Form Query")
-    st.caption("Ask anything about your CRM: \"Show top 5 deals by value\", \"Which contacts are in Acme Corp?\", etc.")
+    st.subheader(_("crm_query.freeform"))
+    st.caption(_("crm_query.freeform_hint"))
 
     col_input, col_btn = st.columns([4, 1])
     with col_input:
         query = st.text_input(
-            "Your CRM question",
+            _("crm_query.input_label"),
             key="crm_query_input",
-            placeholder="e.g. Show deals closing this month",
+            placeholder=_("crm_query.input_placeholder"),
             label_visibility="collapsed",
         )
     with col_btn:
-        send_clicked = st.button("🔍 Query", type="primary", use_container_width=True, key="crm_query_send")
+        send_clicked = st.button(_("crm_query.send_btn"), type="primary", use_container_width=True, key="crm_query_send")
 
     # ── Determine what to send ───────────────────────────────────────────
     effective_query: str | None = None
@@ -192,7 +189,7 @@ def render() -> None:
 
     # ── Execute query ────────────────────────────────────────────────────
     if effective_query:
-        with st.spinner("Running CRM query..."):
+        with st.spinner(_("crm_query.running")):
             try:
                 response = api.crm_quick_query(
                     query=effective_query,
@@ -202,7 +199,7 @@ def render() -> None:
                 # Store in session for reuse across reruns
                 st.session_state.crm_query_response = response
             except Exception as exc:
-                st.error(f"❌ Query failed: {exc}")
+                st.error(_("crm_query.failed", err=exc))
                 st.session_state.crm_query_response = None
 
     # ── Display results ──────────────────────────────────────────────────
@@ -214,9 +211,9 @@ def render() -> None:
     # ── Limit slider ─────────────────────────────────────────────────────
     with st.sidebar:
         st.divider()
-        st.caption("⚙️ CRM Query Settings")
+        st.caption(_("crm_query.settings"))
         limit = st.slider(
-            "Result limit",
+            _("crm_query.result_limit"),
             min_value=1,
             max_value=100,
             value=st.session_state.get("crm_query_limit", 10),

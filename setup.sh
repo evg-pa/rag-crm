@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-set -euo pipefail
+set -eo pipefail
 
 RED='\033[0;31m'
 GREEN='\033[0;32m'
@@ -8,68 +8,22 @@ YELLOW='\033[1;33m'
 BLUE='\033[0;34m'
 NC='\033[0m'
 
-# ── Progress helpers ──────────────────────────────────────────
-BAR_WIDTH=30
-
-timer_start() {
-  __RAG_TIMER=$(date +%s)
-}
-
+# Simple elapsed timer
+timer_start() { __T0=$(date +%s); }
 timer_elapsed() {
-  local rag_now
-  rag_now=$(date +%s)
-  printf "%02d:%02d" $(( (rag_now - __RAG_TIMER) / 60 )) $(( (rag_now - __RAG_TIMER) % 60 ))
-}
-
-# Indeterminate spinner — wraps a background pid, shows elapsed
-spinner() {
-  local pid rag_pid rag_label rag_start rag_now rag_elapsed rag_i rag_rc
-  rag_pid="$1"
-  rag_label="$2"
-  local spin='⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏'
-  rag_start=$(date +%s)
-  rag_i=0
-  while kill -0 "$rag_pid" 2>/dev/null; do
-    rag_now=$(date +%s)
-    rag_elapsed=$(( rag_now - rag_start ))
-    printf "\r  ${YELLOW}%s${NC} %s  ${BLUE}[%02d:%02d]${NC}" "${spin:rag_i:1}" "$rag_label" $((rag_elapsed / 60)) $((rag_elapsed % 60))
-    rag_i=$(( (rag_i + 1) % ${#spin} ))
-    sleep 0.15
-  done
-  wait "$rag_pid"
-  rag_rc=$?
-  rag_now=$(date +%s)
-  rag_elapsed=$(( rag_now - rag_start ))
-  if [ "$rag_rc" -eq 0 ]; then
-    printf "\r  ${GREEN}✓${NC} %s  ${BLUE}[%02d:%02d]${NC}\n" "$rag_label" $((rag_elapsed / 60)) $((rag_elapsed % 60))
-  else
-    printf "\r  ${RED}✗${NC} %s  ${BLUE}[%02d:%02d]${NC}\n" "$rag_label" $((rag_elapsed / 60)) $((rag_elapsed % 60))
-  fi
-  return "$rag_rc"
-}
-
-# Determinate progress bar — used inside a known-length loop
-progress_bar() {
-  local rag_cur rag_total rag_label rag_pct rag_fill rag_j rag_bar
-  rag_cur="$1"
-  rag_total="$2"
-  rag_label="$3"
-  rag_bar=""
-  rag_pct=$(( rag_cur * 100 / rag_total ))
-  rag_fill=$(( rag_cur * BAR_WIDTH / rag_total ))
-  for ((rag_j=0; rag_j<rag_fill; rag_j++)); do rag_bar="${rag_bar}█"; done
-  for ((rag_j=rag_fill; rag_j<BAR_WIDTH; rag_j++)); do rag_bar="${rag_bar}░"; done
-  printf "\r  ${CYAN}%3d%%${NC} ${BLUE}%s${NC} [%s]" "$rag_pct" "$rag_label" "$rag_bar"
+  local d=$(( $(date +%s) - __T0 ))
+  printf "%02d:%02d" $((d/60)) $((d%60))
 }
 
 show_help() {
   cat <<EOF
-Usage:  ./setup.sh [options]
+Usage: ./setup.sh [options]
 
 Options:
   -k <key>    API key for your LLM provider
   -u <url>    Base URL (defaults to provider preset)
   -m <model>  Model name (defaults to provider preset)
+  -f          Fast mode: skip fancy output, print timestamps only
   -h          Show this help
 
 Examples:
@@ -98,40 +52,46 @@ PROVIDER_URL["openmodel"]="https://api.openmodel.ai"
 PROVIDER_MODEL["openmodel"]="openai/gpt-4o"
 
 # Parse flags
-API_KEY=''
-while getopts "k:u:m:h" opt; do
+API_KEY=""
+while getopts "k:u:m:fh" opt; do
   case "$opt" in
     k) API_KEY="$OPTARG" ;;
     u) BASE_URL="$OPTARG" ;;
     m) MODEL="$OPTARG" ;;
+    f) FAST=1 ;;
     *) show_help ;;
   esac
 done
 
-echo -e "${CYAN}"
-echo -e "${CYAN}  RAG-CRM -- One-command Setup${NC}"
-echo -e "${CYAN}"
+info()  { echo -e "  ${CYAN}i${NC} $1"; }
+good()  { echo -e "  ${GREEN}✓${NC} $1"; }
+warn()  { echo -e "  ${YELLOW}w${NC} $1"; }
+fail()  { echo -e "  ${RED}✗${NC} $1"; exit 1; }
 
-echo -e "\n${YELLOW}[1/5]${NC} Checking prerequisites..."
+echo ""
+echo -e "${CYAN}  RAG-CRM — One-command Setup${NC}"
+echo ""
+
+# ── Step 1: Prerequisites ─────────────────────────────────────
+
+echo -e "${YELLOW}[1/5]${NC} Checking prerequisites..."
 
 if ! command -v docker &>/dev/null; then
-  echo -e "${RED}X Docker is not installed.${NC}"
-  echo "  Install: https://docs.docker.com/engine/install/"
-  exit 1
+  fail "Docker is not installed. See https://docs.docker.com/engine/install/"
 fi
-echo -e "  ${GREEN}Y${NC} Docker $(docker --version)"
+good "$(docker --version)"
 
 if ! docker compose version &>/dev/null; then
-  echo -e "${RED}X Docker Compose is not available.${NC}"
-  echo "  Install: https://docs.docker.com/compose/install/"
-  exit 1
+  fail "Docker Compose is not available. See https://docs.docker.com/compose/install/"
 fi
-echo -e "  ${GREEN}Y${NC} Docker Compose $(docker compose version)"
+good "$(docker compose version)"
+
+# ── Step 2: Environment ───────────────────────────────────────
 
 echo -e "\n${YELLOW}[2/5]${NC} Setting up environment..."
 
 if [ ! -f .env ]; then
-  cp .env.example .env 2>/dev/null || cat > .env <<-ENVEOF
+  cp .env.example .env 2>/dev/null || cat > .env <<-EOF
 LLM_API_KEY=
 LLM_BASE_URL=https://api.deepseek.com
 LLM_MODEL=deepseek-chat
@@ -140,96 +100,79 @@ REDIS_URL=redis://localhost:6379/0
 APP_NAME=RAG-CRM
 APP_VERSION=0.1.0
 LOG_LEVEL=INFO
-ENVEOF
-  echo -e "  ${GREEN}Y${NC} Created .env"
+EOF
+  good "Created .env"
 else
-  echo -e "  ${GREEN}Y${NC} .env already exists"
+  good ".env already exists"
 fi
+
+# ── Step 3: LLM configuration ─────────────────────────────────
 
 echo -e "\n${YELLOW}[3/5]${NC} Connecting a neural network (LLM)..."
 
-has_key_value() {
-  local rag_key_name rag_v
-  rag_key_name="$1"
-  rag_v=$(grep -E "^${rag_key_name}=.+" .env 2>/dev/null | cut -d= -f2- || true)
-  [ -n "${rag_v:-}" ]
+has_key() {
+  local v
+  v=$(grep -E "^${1}=.+" .env 2>/dev/null | cut -d= -f2- || true)
+  [ -n "$v" ]
 }
 
-write_env() {
-  local rag_key rag_url rag_model
-  rag_key="$1"
-  rag_url="$2"
-  rag_model="$3"
-
-  if [[ "${OSTYPE}" == "darwin"* ]]; then
-    sed -i '' "s|^LLM_API_KEY=.*|LLM_API_KEY=$rag_key|" .env
-    sed -i '' "s|^LLM_BASE_URL=.*|LLM_BASE_URL=$rag_url|" .env
-    sed -i '' "s|^LLM_MODEL=.*|LLM_MODEL=$rag_model|" .env
-    sed -i '' "s|^DEEPSEEK_API_KEY=.*|DEEPSEEK_API_KEY=$rag_key|" .env 2>/dev/null || true
-  else
-    sed -i "s|^LLM_API_KEY=.*|LLM_API_KEY=$rag_key|" .env
-    sed -i "s|^LLM_BASE_URL=.*|LLM_BASE_URL=$rag_url|" .env
-    sed -i "s|^LLM_MODEL=.*|LLM_MODEL=$rag_model|" .env
-    sed -i "s|^DEEPSEEK_API_KEY=.*|DEEPSEEK_API_KEY=$rag_key|" .env 2>/dev/null || true
-  fi
+write_key() {
+  local k="$1" u="$2" m="$3"
+  sed -i "s|^LLM_API_KEY=.*|LLM_API_KEY=$k|" .env
+  sed -i "s|^LLM_BASE_URL=.*|LLM_BASE_URL=$u|" .env
+  sed -i "s|^LLM_MODEL=.*|LLM_MODEL=$m|" .env
+  sed -i "s|^DEEPSEEK_API_KEY=.*|DEEPSEEK_API_KEY=$k|" .env 2>/dev/null || true
 }
 
 if [ -n "$API_KEY" ]; then
-  [ -z "${BASE_URL:-}" ] && BASE_URL="https://api.deepseek.com"
-  [ -z "${MODEL:-}" ] && MODEL="deepseek-chat"
-  write_env "$API_KEY" "$BASE_URL" "$MODEL"
-  echo -e "  ${GREEN}Y${NC} API key saved (base: $BASE_URL, model: $MODEL)"
+  : "${BASE_URL:=https://api.deepseek.com}"
+  : "${MODEL:=deepseek-chat}"
+  write_key "$API_KEY" "$BASE_URL" "$MODEL"
+  good "API key saved (base: $BASE_URL, model: $MODEL)"
 
-elif has_key_value "LLM_API_KEY" || has_key_value "DEEPSEEK_API_KEY"; then
-  echo -e "  ${GREEN}Y${NC} API key found in .env"
+elif has_key "LLM_API_KEY" || has_key "DEEPSEEK_API_KEY"; then
+  good "API key found in .env"
 
 else
-  # Interactive: choose provider
   echo "  RAG needs an LLM to understand your documents."
   echo "  Pick a provider or enter a custom endpoint:"
   echo ""
-  echo -e "  ${CYAN}1${NC}) DeepSeek      -- https://api.deepseek.com (deepseek-chat)"
-  echo -e "  ${CYAN}2${NC}) DeepSeek V4  -- https://api.deepseek.com/v1 (deepseek-v4-flash)"
-  echo -e "  ${CYAN}3${NC}) OpenAI       -- https://api.openai.com"
-  echo -e "  ${CYAN}4${NC}) Together AI  -- https://api.together.xyz"
-  echo -e "  ${CYAN}5${NC}) Groq         -- https://api.groq.com/openai"
-  echo -e "  ${CYAN}6${NC}) OpenRouter   -- https://openrouter.ai/api/v1"
-  echo -e "  ${CYAN}7${NC}) OpenModel    -- https://api.openmodel.ai (unified gateway)"
-  echo -e "  ${CYAN}8${NC}) Custom URL   -- enter your own"
+  echo -e "  ${CYAN}1${NC}) DeepSeek      — https://api.deepseek.com (deepseek-chat)"
+  echo -e "  ${CYAN}2${NC}) DeepSeek V4  — https://api.deepseek.com/v1 (deepseek-v4-flash)"
+  echo -e "  ${CYAN}3${NC}) OpenAI       — https://api.openai.com"
+  echo -e "  ${CYAN}4${NC}) Together AI  — https://api.together.xyz"
+  echo -e "  ${CYAN}5${NC}) Groq         — https://api.groq.com/openai"
+  echo -e "  ${CYAN}6${NC}) OpenRouter   — https://openrouter.ai/api/v1"
+  echo -e "  ${CYAN}7${NC}) OpenModel    — https://api.openmodel.ai (unified gateway)"
+  echo -e "  ${CYAN}8${NC}) Custom URL   — enter your own"
   echo ""
-  read -r -p "  Choose [1-8] (default: 1): " rag_provider_choice
+  read -r -p "  Choose [1-8] (default: 1): " CHOICE
 
-  case "${rag_provider_choice:-1}" in
-    1) PROVIDER="deepseek"    ;;
-    2) PROVIDER="deepseekv4"  ;;
-    3) PROVIDER="openai"      ;;
-    4) PROVIDER="together"    ;;
-    5) PROVIDER="groq"        ;;
-    6) PROVIDER="openrouter"  ;;
-    7) PROVIDER="openmodel"   ;;
-    8) PROVIDER="custom"      ;;
-    *) PROVIDER="deepseek"    ;;
+  case "${CHOICE:-1}" in
+    1) P=deepseek;; 2) P=deepseekv4;; 3) P=openai;;
+    4) P=together;; 5) P=groq;; 6) P=openrouter;;
+    7) P=openmodel;; 8) P=custom;;
+    *) P=deepseek;;
   esac
 
-  if [ "$PROVIDER" = "custom" ]; then
-    read -r -p "  Enter Base URL (e.g. https://api.openai.com): " BASE_URL
-    read -r -p "  Enter Model name (e.g. gpt-4o-mini): " MODEL
+  if [ "$P" = custom ]; then
+    read -r -p "  Enter Base URL: " BASE_URL
+    read -r -p "  Enter Model name: " MODEL
   else
-    BASE_URL="${PROVIDER_URL[$PROVIDER]}"
-    MODEL="${PROVIDER_MODEL[$PROVIDER]}"
-    echo "  Provider: ${PROVIDER^}"
+    BASE_URL="${PROVIDER_URL[$P]}"
+    MODEL="${PROVIDER_MODEL[$P]}"
+    echo "  Provider: ${P^}"
     echo "  URL:      $BASE_URL"
     echo "  Model:    $MODEL"
   fi
 
   echo ""
-  read -r -p "  Paste your API key (or press Enter to skip): " rag_user_key
-
-  if [ -n "$rag_user_key" ]; then
-    write_env "$rag_user_key" "$BASE_URL" "$MODEL"
-    echo -e "  ${GREEN}Y${NC} API key saved"
+  read -r -p "  Enter API key (or press Enter to skip): " USER_KEY
+  if [ -n "$USER_KEY" ]; then
+    write_key "$USER_KEY" "$BASE_URL" "$MODEL"
+    good "API key saved"
   else
-    echo -e "  ${YELLOW}W${NC} Skipped -- RAG will run without AI answers (document search only)"
+    warn "Skipped — RAG runs without AI answers (document search only)"
   fi
 fi
 
@@ -238,65 +181,61 @@ fi
 echo -e "\n${YELLOW}[4/5]${NC} Starting Docker stack..."
 cp .env infrastructure/.env 2>/dev/null || true
 
-COMPOSE_FILES="-f infrastructure/docker-compose.yml"
+COMPOSE="docker compose -f infrastructure/docker-compose.yml"
+COMPOSE_FILES="$COMPOSE"
 
-# Try to pull pre-built images (fast). On failure → build locally.
-echo -e "  ${CYAN}i${NC} Checking for pre-built images..."
 timer_start
-if timeout 45 docker compose -f infrastructure/docker-compose.yml pull > /tmp/rag-pull.log 2>&1; then
-  echo -e "  ${GREEN}✓${NC} Pre-built images pulled  ${BLUE}[$(timer_elapsed)]${NC}"
+info "Pulling pre-built images..."
+if timeout 45 $COMPOSE pull > /tmp/rag-pull.log 2>&1; then
+  good "Images pulled [$(timer_elapsed)]"
 else
-  echo -e "  ${YELLOW}⌛${NC} Pre-built pull failed  ${BLUE}[$(timer_elapsed)]${NC}"
-  echo -e "  ${CYAN}i${NC} Building images from source (5-15 min first time)..."
+  warn "Pull failed, building from source [$(timer_elapsed)]"
   timer_start
-  if timeout 600 docker compose -f infrastructure/docker-compose.yml -f infrastructure/docker-compose.dev.yml build > /tmp/rag-build.log 2>&1; then
-    echo -e "  ${GREEN}✓${NC} Images built from source  ${BLUE}[$(timer_elapsed)]${NC}"
-    COMPOSE_FILES="-f infrastructure/docker-compose.yml -f infrastructure/docker-compose.dev.yml"
+  info "Building images (may take 5-15 min first time)..."
+  if timeout 600 $COMPOSE -f infrastructure/docker-compose.dev.yml build > /tmp/rag-build.log 2>&1; then
+    good "Images built [$(timer_elapsed)]"
+    COMPOSE_FILES="$COMPOSE -f infrastructure/docker-compose.dev.yml"
   else
-    echo -e "  ${RED}✗${NC} Build failed! Check /tmp/rag-build.log"
-    exit 1
+    fail "Build failed! Check /tmp/rag-build.log"
   fi
 fi
 
-echo -e "  ${CYAN}i${NC} Starting containers..."
 timer_start
-if docker compose $COMPOSE_FILES up -d --wait --wait-timeout 300 > /tmp/rag-up.log 2>&1; then
-  echo -e "  ${GREEN}✓${NC} Containers started  ${BLUE}[$(timer_elapsed)]${NC}"
+info "Starting containers..."
+if $COMPOSE_FILES up -d --wait --wait-timeout 300 > /tmp/rag-up.log 2>&1; then
+  good "Containers started [$(timer_elapsed)]"
 else
-  echo -e "  ${RED}✗${NC} Failed to start containers! Check: docker compose $COMPOSE_FILES logs"
-  exit 1
+  fail "Containers failed! Check: $COMPOSE_FILES logs"
 fi
-
-echo -e "  ${GREEN}Y${NC} Stack started"
 
 # ── Step 5: Verify ────────────────────────────────────────────
 
 echo -e "\n${YELLOW}[5/5]${NC} Verifying..."
 
-MAX_RETRIES=30
-BACKEND_OK=false
+echo -n "  Waiting for backend "
 timer_start
-for rag_i in $(seq 1 "$MAX_RETRIES"); do
-  progress_bar "$rag_i" "$MAX_RETRIES" "Waiting for backend  [$(timer_elapsed)]"
+OK=false
+for i in $(seq 1 30); do
   if curl -sf http://localhost:8000/health/ready >/dev/null 2>&1; then
-    BACKEND_OK=true
-    progress_bar "$MAX_RETRIES" "$MAX_RETRIES" "Backend ready!       [$(timer_elapsed)]"
-    echo ""
+    OK=true
+    echo -e "\r  ${GREEN}✓${NC} Backend ready! [$(timer_elapsed)]"
     break
   fi
+  echo -n "."
   sleep 2
 done
 echo ""
 
-echo -e "\n${CYAN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
-echo -e "${GREEN}  Y Setup complete!${NC}"
+if [ "$OK" = false ]; then
+  warn "Backend not healthy after 60s — check: $COMPOSE_FILES logs backend"
+fi
+
+echo ""
+echo -e "${CYAN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+echo -e "${GREEN}  ✓ Setup complete!${NC}"
 echo -e "${CYAN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
 echo ""
 echo -e "  Dashboard:  ${CYAN}http://localhost:8501${NC}"
 echo -e "  API docs:   ${CYAN}http://localhost:8000/docs${NC}"
 echo -e "  Metrics:    ${CYAN}http://localhost:9090${NC}"
 echo ""
-
-if [ "$BACKEND_OK" = false ]; then
-  echo -e "  ${YELLOW}W${NC} Backend not yet healthy -- check: docker compose $COMPOSE_FILES logs backend"
-fi

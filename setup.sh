@@ -26,13 +26,13 @@ spinner() {
   local spin='⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏'
   local start=$(date +%s) i=0
   while kill -0 "$pid" 2>/dev/null; do
-    local now=$(date +%s) elapsed=$((now - start))
+    local elapsed elapsed=$(( $(date +%s) - start ))
     printf "\r  ${YELLOW}%s${NC} %s  ${BLUE}[%02d:%02d]${NC}" "${spin:$i:1}" "$label" $((elapsed / 60)) $((elapsed % 60))
     i=$(( (i + 1) % ${#spin} ))
     sleep 0.15
   done
   wait "$pid"; rc=$?
-  local now=$(date +%s) elapsed=$((now - start))
+  local elapsed=$(( $(date +%s) - start ))
   if [ $rc -eq 0 ]; then
     printf "\r  ${GREEN}✓${NC} %s  ${BLUE}[%02d:%02d]${NC}\n" "$label" $((elapsed / 60)) $((elapsed % 60))
   else

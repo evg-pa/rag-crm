@@ -12,44 +12,52 @@ NC='\033[0m'
 BAR_WIDTH=30
 
 timer_start() {
-  __timer_start=$(date +%s)
+  __RAG_TIMER=$(date +%s)
 }
 
 timer_elapsed() {
-  local elapsed=$(( $(date +%s) - __timer_start ))
-  printf "%02d:%02d" $((elapsed / 60)) $((elapsed % 60))
+  local _rag_now _rag_elapsed
+  _rag_now=$(date +%s)
+  _rag_elapsed=$(( _rag_now - __RAG_TIMER ))
+  printf "%02d:%02d" $((_rag_elapsed / 60)) $((_rag_elapsed % 60))
 }
 
 # Indeterminate spinner — wraps a background pid, shows elapsed
 spinner() {
-  local pid=$1 label="$2" rc
+  local pid="$1" label="$2"
   local spin='⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏'
-  local start=$(date +%s) i=0
+  local _start _now _elapsed _i _rc
+  _start=$(date +%s)
+  _i=0
   while kill -0 "$pid" 2>/dev/null; do
-    local elapsed elapsed=$(( $(date +%s) - start ))
-    printf "\r  ${YELLOW}%s${NC} %s  ${BLUE}[%02d:%02d]${NC}" "${spin:$i:1}" "$label" $((elapsed / 60)) $((elapsed % 60))
-    i=$(( (i + 1) % ${#spin} ))
+    _now=$(date +%s)
+    _elapsed=$(( _now - _start ))
+    printf "\r  ${YELLOW}%s${NC} %s  ${BLUE}[%02d:%02d]${NC}" "${spin:_i:1}" "$label" $((_elapsed / 60)) $((_elapsed % 60))
+    _i=$(( (_i + 1) % ${#spin} ))
     sleep 0.15
   done
-  wait "$pid"; rc=$?
-  local elapsed=$(( $(date +%s) - start ))
-  if [ $rc -eq 0 ]; then
-    printf "\r  ${GREEN}✓${NC} %s  ${BLUE}[%02d:%02d]${NC}\n" "$label" $((elapsed / 60)) $((elapsed % 60))
+  wait "$pid"
+  _rc=$?
+  _now=$(date +%s)
+  _elapsed=$(( _now - _start ))
+  if [ "$_rc" -eq 0 ]; then
+    printf "\r  ${GREEN}✓${NC} %s  ${BLUE}[%02d:%02d]${NC}\n" "$label" $((_elapsed / 60)) $((_elapsed % 60))
   else
-    printf "\r  ${RED}✗${NC} %s  ${BLUE}[%02d:%02d]${NC}\n" "$label" $((elapsed / 60)) $((elapsed % 60))
+    printf "\r  ${RED}✗${NC} %s  ${BLUE}[%02d:%02d]${NC}\n" "$label" $((_elapsed / 60)) $((_elapsed % 60))
   fi
-  return $rc
+  return "$_rc"
 }
 
 # Determinate progress bar — used inside a known-length loop
 progress_bar() {
-  local cur=$1 total=$2 label="$3"
-  local pct=$(( cur * 100 / total ))
-  local fill=$(( cur * BAR_WIDTH / total ))
-  local bar=""
-  for ((j=0; j<fill; j++)); do bar="${bar}█"; done
-  for ((j=fill; j<BAR_WIDTH; j++)); do bar="${bar}░"; done
-  printf "\r  ${CYAN}%3d%%${NC} ${BLUE}%s${NC} [%s]" "$pct" "$label" "$bar"
+  local cur="$1" total="$2" label="$3"
+  local _pct _fill _j
+  local _bar=""
+  _pct=$(( cur * 100 / total ))
+  _fill=$(( cur * BAR_WIDTH / total ))
+  for ((_j=0; _j<_fill; _j++)); do _bar="${_bar}█"; done
+  for ((_j=_fill; _j<BAR_WIDTH; _j++)); do _bar="${_bar}░"; done
+  printf "\r  ${CYAN}%3d%%${NC} ${BLUE}%s${NC} [%s]" "$_pct" "$label" "$_bar"
 }
 
 show_help() {
@@ -98,9 +106,9 @@ while getopts "k:u:m:h" opt; do
   esac
 done
 
-echo -e "${CYAN}
+echo -e "${CYAN}"
 echo -e "${CYAN}  RAG-CRM -- One-command Setup${NC}"
-echo -e "${CYAN}
+echo -e "${CYAN}"
 
 echo -e "\n${YELLOW}[1/5]${NC} Checking prerequisites..."
 
@@ -141,6 +149,7 @@ echo -e "\n${YELLOW}[3/5]${NC} Connecting a neural network (LLM)..."
 has_key_value() {
   local key_name="$1"
   # shellcheck disable=SC2016
+  local v
   v=$(grep -E "^${key_name}=.+" .env 2>/dev/null | cut -d= -f2-)
   [ -n "$v" ]
 }
@@ -148,16 +157,16 @@ has_key_value() {
 write_env() {
   local key="$1" url="$2" model="$3"
 
-  if [[ "$${OSTYPE}" == "darwin"* ]]; then
-    sed -i '' 's|^LLM_API_KEY=.*|LLM_API_KEY=$key|' .env
-    sed -i "s|^LLM_BASE_URL=.*|LLM_BASE_URL=$url|" .env
-    sed -i "s|^LLM_MODEL=.*|LLM_MODEL=$model|" .env
-    sed -i ' s|^DEEPSEEK_API_KEY=.*|DEEPSEEK_API_KEY=$key| ' .env 2>/dev/null || true
+  if [[ "${OSTYPE}" == "darwin"* ]]; then
+    sed -i '' "s|^LLM_API_KEY=.*|LLM_API_KEY=$key|" .env
+    sed -i '' "s|^LLM_BASE_URL=.*|LLM_BASE_URL=$url|" .env
+    sed -i '' "s|^LLM_MODEL=.*|LLM_MODEL=$model|" .env
+    sed -i '' "s|^DEEPSEEK_API_KEY=.*|DEEPSEEK_API_KEY=$key|" .env 2>/dev/null || true
   else
-    sed -i 's|^LLM_API_KEY=.*|LLM_API_KEY=$key|' .env
+    sed -i "s|^LLM_API_KEY=.*|LLM_API_KEY=$key|" .env
     sed -i "s|^LLM_BASE_URL=.*|LLM_BASE_URL=$url|" .env
     sed -i "s|^LLM_MODEL=.*|LLM_MODEL=$model|" .env
-    sed -i ' s|^DEEPSEEK_API_KEY=.*|DEEPSEEK_API_KEY=$key| ' .env 2>/dev/null || true
+    sed -i "s|^DEEPSEEK_API_KEY=.*|DEEPSEEK_API_KEY=$key|" .env 2>/dev/null || true
   fi
 }
 
@@ -220,8 +229,12 @@ else
   fi
 fi
 
-echo -e "\\n${YELLOW}[4/5]${NC} Starting Docker stack..."
+# ── Step 4: Docker ────────────────────────────────────────────
+
+echo -e "\n${YELLOW}[4/5]${NC} Starting Docker stack..."
 cp .env infrastructure/.env 2>/dev/null || true
+
+COMPOSE_OVERRIDE=""
 
 # Pull pre-built images (fast!) — fall back to local build if pull fails
 timer_start
@@ -236,19 +249,20 @@ spinner $! "Pulling pre-built images..." || {
 
 # Start the stack
 timer_start
-docker compose -f infrastructure/docker-compose.yml ${COMPOSE_OVERRIDE:-} up -d --wait --wait-timeout 300 > /tmp/rag-up.log 2>&1 &
+docker compose -f infrastructure/docker-compose.yml ${COMPOSE_OVERRIDE:+"-f infrastructure/docker-compose.dev.yml"} up -d --wait --wait-timeout 300 > /tmp/rag-up.log 2>&1 &
 spinner $! "Starting containers (waiting for healthy)..."
 
 echo -e "  ${GREEN}Y${NC} Stack started"
 
-echo -e "\\n${YELLOW}[5/5]${NC} Verifying..."
+# ── Step 5: Verify ────────────────────────────────────────────
+
+echo -e "\n${YELLOW}[5/5]${NC} Verifying..."
 
 MAX_RETRIES=30
 BACKEND_OK=false
 timer_start
 for i in $(seq 1 "$MAX_RETRIES"); do
-  elapsed=$(timer_elapsed)
-  progress_bar "$i" "$MAX_RETRIES" "Waiting for backend  [${elapsed}]"
+  progress_bar "$i" "$MAX_RETRIES" "Waiting for backend  [$(timer_elapsed)]"
   if curl -sf http://localhost:8000/health/ready >/dev/null 2>&1; then
     BACKEND_OK=true
     progress_bar "$MAX_RETRIES" "$MAX_RETRIES" "Backend ready!       [$(timer_elapsed)]"

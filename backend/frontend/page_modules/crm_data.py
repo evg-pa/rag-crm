@@ -29,13 +29,13 @@ def _format_date(iso_str: str | None) -> str:
 
 def _render_contacts_tab() -> None:
     """Render the Contacts tab with search and pagination."""
-    st.subheader("👤 Contacts")
+    st.subheader(_('crm_data.contacts'))
 
     # ── Filters ─────────────────────────────────────────────────────────
     col_s, col_btn, col_p = st.columns([3, 1, 1])
     with col_s:
         search = st.text_input(
-            "Search by name, email, or company",
+            _('crm_data.search_hint'),
             key="crm_contacts_search",
             placeholder="e.g. Acme, john@...",
         )
@@ -69,10 +69,10 @@ def _render_contacts_tab() -> None:
     items = data.get("items", [])
     total = data.get("total", 0)
 
-    st.caption(f"**{total}** contact(s) found · Page {page} of {max(1, (total + page_size - 1) // page_size)}")
+    st.caption(_('crm_data.found', n=total, p=page, t=max(1, (total + page_size - 1) // page_size)))
 
     if not items:
-        st.info("No contacts found. Run a CRM sync first.")
+        st.info(_('crm_data.no_contacts'))
         return
 
     # ── Build dataframe ─────────────────────────────────────────────────
@@ -94,13 +94,13 @@ def _render_contacts_tab() -> None:
     if total_pages > 1:
         col_prev, col_page, col_next = st.columns([1, 2, 1])
         with col_prev:
-            if st.button("← Previous", disabled=(page <= 1), key="crm_contacts_prev"):
+            if st.button(_('crm_data.prev'), disabled=(page <= 1), key="crm_contacts_prev"):
                 st.session_state.crm_contacts_page = page - 1
                 st.rerun()
         with col_page:
-            st.write(f"Page **{page}** of {total_pages}")
+            st.write(_('crm_data.page_of', p=page, t=total_pages))
         with col_next:
-            if st.button("Next →", disabled=(page >= total_pages), key="crm_contacts_next"):
+            if st.button(_('crm_data.next'), disabled=(page >= total_pages), key="crm_contacts_next"):
                 st.session_state.crm_contacts_page = page + 1
                 st.rerun()
 

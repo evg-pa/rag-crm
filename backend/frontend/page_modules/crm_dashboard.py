@@ -248,13 +248,13 @@ def _fmt_date(date_str: str | None) -> str:
         now = datetime.now(timezone.utc)
         diff = int((now - dt).total_seconds())
         if diff < 60:
-            return "just now"
+            return _('dashboard.just_now')
         if diff < 3600:
-            return f"{diff // 60}m ago"
+            return f"{diff // 60}{_('dashboard.min_ago')}"
         if diff < 86400:
-            return f"{diff // 3600}h ago"
+            return f"{diff // 3600}{_('dashboard.hr_ago')}"
         if diff < 604800:
-            return f"{diff // 86400}d ago"
+            return f"{diff // 86400}{_('dashboard.day_ago')}"
         return dt.strftime("%b %d, %Y")
     except (ValueError, TypeError):
         return date_str[:10]
@@ -264,16 +264,16 @@ def _fmt_date(date_str: str | None) -> str:
 
 def render() -> None:
     """Render the CRM Dashboard page."""
-    st.title("💼 CRM Dashboard")
+    st.title(_('crm_dash.title'))
 
     # ── Load data ────────────────────────────────────────────────────────
-    with st.spinner("Loading CRM data..."):
+    with st.spinner(_('crm_dash.loading')):
         contact_count = _fetch_contact_count()
         deal_stats = _fetch_deal_stats()
         activities = _fetch_recent_activities()
 
     # ── KPI cards ────────────────────────────────────────────────────────
-    st.subheader("Overview")
+    st.subheader(_('crm_dash.overview'))
     _render_kpi_cards(contact_count, deal_stats)
 
     st.divider()
@@ -285,15 +285,15 @@ def render() -> None:
         _render_pipeline_chart(deal_stats.get("by_stage", {}))
 
         st.divider()
-        st.subheader("📋 All Deals")
+        st.subheader(_('crm_dash.all_deals'))
         _render_deals_table(deal_stats.get("deals", []))
 
     with col_right:
         # ── Contacts search ──────────────────────────────────────────────
-        st.subheader("👤 Contacts")
+        st.subheader(_('crm_dash.contacts_title'))
         contact_search = st.text_input(
-            "Search contacts",
-            placeholder="Name, email, or company...",
+            _('crm_dash.search_contacts'),
+            placeholder=_('crm_dash.search_placeholder'),
             key="crm_contact_search",
         )
         contacts_data = _fetch_contacts(search=contact_search)
@@ -302,17 +302,17 @@ def render() -> None:
         st.divider()
 
         # ── Recent activities ────────────────────────────────────────────
-        st.subheader("📋 Recent Activity")
+        st.subheader(_('crm_dash.recent_activity'))
         _render_recent_activities(activities)
 
     # ── Sync action ──────────────────────────────────────────────────────
     st.divider()
     col_sync, _ = st.columns([1, 3])
     with col_sync:
-        if st.button("🔄 Sync CRM Data", help="Trigger a full sync from the CRM adapter"):
-            with st.spinner("Syncing..."):
+        if st.button(_('crm_dash.sync_btn'), help=_('crm_dash.sync_help')):
+            with st.spinner(_('crm_status.syncing')):
                 try:
                     result = api.trigger_sync()
-                    st.success(f"Sync triggered — status: {result.get('status', 'unknown')}")
+                    st.success(_('crm_dash.synced', s=result.get('status', 'unknown')))
                 except Exception as exc:
-                    st.error(f"Sync failed: {exc}")
+                    st.error(_('crm_dash.sync_failed', err=exc))

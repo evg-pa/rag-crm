@@ -5,6 +5,7 @@ from typing import Any
 
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.orm import DeclarativeBase
+from sqlalchemy import text
 
 from app.core.config import Settings
 
@@ -58,6 +59,9 @@ async def init_db(settings: Settings) -> None:
     """Create all tables (dev/auto-migrate mode)."""
     engine = create_engine(settings)
     async with engine.begin() as conn:
+        # Enable pgvector extension (safe to call even if already enabled)
+        await conn.execute(text("CREATE EXTENSION IF NOT EXISTS vector"))
+        await conn.execute(text("CREATE EXTENSION IF NOT EXISTS pg_trgm"))
         from app.knowledge.models import WikiEntry  # noqa: F401
         from app.memory.models import (  # noqa: F401
             EpisodicMemory,

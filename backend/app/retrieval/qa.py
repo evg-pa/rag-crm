@@ -114,7 +114,7 @@ class AnswerAgent:
     def http_client(self) -> httpx.AsyncClient:
         """Return (and lazily create) the httpx async client with short timeout."""
         if self._http_client is None:
-            self._http_client = httpx.AsyncClient(timeout=httpx.Timeout(8.0, connect=3.0))
+            self._http_client = httpx.AsyncClient(timeout=httpx.Timeout(30.0, connect=10.0))
         return self._http_client
 
     async def answer(
@@ -313,21 +313,55 @@ class AnswerAgent:
         )
 
     async def _call_llm_api(self, messages: list[dict[str, str]]) -> str:
-        """Call any OpenAI-compatible chat completions API.
+        """Call any OpenAI- or Anthropic-compatible chat API.
 
         Uses LLM_API_KEY / LLM_BASE_URL / LLM_MODEL when set,
         falls back to DEEPSEEK_API_KEY / DEEPSEEK_BASE_URL / "deepseek-chat".
+
+        Auto-detects OpenModel (``api.openmodel.ai``) and uses the Anthropic
+        Messages API format (``/v1/messages``, ``x-api-key`` header) instead of
+        the OpenAI ``/v1/chat/completions`` format.
         """
         api_key = resolve_runtime("LLM_API_KEY") or self._settings.LLM_API_KEY or self._settings.DEEPSEEK_API_KEY
         base_url = resolve_runtime("LLM_BASE_URL") or self._settings.LLM_BASE_URL or self._settings.DEEPSEEK_BASE_URL
         model = resolve_runtime("LLM_MODEL") or self._settings.LLM_MODEL or "deepseek-chat"
 
+        is_openmodel = "openmodel.ai" in base_url.lower()
+
+        if is_openmodel:
+            # ── Anthropic Messages API (OpenModel) ────────────────────────
+            url = f"{base_url.rstrip('/')}/v1/messages"
+            headers = {
+                "x-api-key": api_key,
+                "content-type": "application/json",
+                "anthropic-version": "2023-06-01",
+            }
+            # Convert OpenAI message format → Anthropic format
+            system_msgs = [m["content"] for m in messages if m["role"] == "system"]
+            chat_msgs = [m for m in messages if m["role"] != "system"]
+            payload: dict[str, Any] = {
+                "model": model,
+                "max_tokens": 1024,
+                "messages": chat_msgs,
+            }
+            if system_msgs:
+                payload["system"] = system_msgs[0]
+
+            response = await self.http_client.post(url, json=payload, headers=headers)
+            response.raise_for_status()
+            data = response.json()
+            # Anthropic response: data["content"] is list of blocks
+            content_blocks = data.get("content", [])
+            texts = [b["text"] for b in content_blocks if b.get("type") == "text"]
+            return texts[0] if texts else ""
+
+        # ── OpenAI-compatible chat completions ────────────────────────────
         url = f"{base_url.rstrip('/')}/v1/chat/completions"
         headers = {
             "Authorization": f"Bearer {api_key}",
             "Content-Type": "application/json",
         }
-        payload: dict[str, Any] = {
+        payload = {
             "model": model,
             "messages": messages,
             "temperature": self._settings.LLM_TEMPERATURE,

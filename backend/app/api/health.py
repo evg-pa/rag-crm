@@ -26,8 +26,8 @@ async def health_check(
         "status": "ok",
         "version": settings.APP_VERSION,
         "database": db_status,
-        "llm_model": settings.LLM_MODEL or settings.DEEPSEEK_BASE_URL.split("//")[-1].split(".")[0].capitalize() or "deepseek-chat",
-        "llm_base_url": settings.LLM_BASE_URL or settings.DEEPSEEK_BASE_URL,
+        "llm_model": settings.LLM_MODEL or "deepseek-chat",
+        "llm_base_url": settings.LLM_BASE_URL or settings.DEEPSEEK_BASE_URL or "https://api.deepseek.com",
         "llm_configured": bool(settings.LLM_API_KEY or settings.DEEPSEEK_API_KEY),
     }
 

@@ -97,8 +97,14 @@ def render_sidebar() -> str:
             llm_url = health.get("llm_base_url", "?")
             llm_configured = health.get("llm_configured", False)
             llm_icon = "🟢" if llm_configured else "🟡"
-            # Show short provider name from URL
-            provider = llm_url.split("//")[-1].split(".")[0].capitalize() if llm_url and llm_url != "?" else "?"
+            # Provider name from URL or model
+            if llm_url and llm_url != "?":
+                try:
+                    provider = llm_url.split("//")[-1].split(".")[0].capitalize()
+                except Exception:
+                    provider = "?"
+            else:
+                provider = "?"
             st.caption(f"{llm_icon} LLM: {llm_model} · {provider}")
 
         st.caption(f"v{st.session_state.get('app_version', '0.1.0')}")

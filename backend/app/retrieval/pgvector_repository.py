@@ -58,11 +58,12 @@ class PgVectorRepository(VectorRepository):
 
         async with self._session_factory() as db:
             for chunk_id, embedding in zip(chunk_ids, embeddings, strict=True):
-                # Use raw SQL for efficient, targeted update without
-                # loading the full object into the session.
+                # Convert list[float] to pgvector-compatible string format.
+                # Use cast() to avoid ::vector clash with asyncpg parameter binding.
+                emb_str = "[" + ",".join(str(v) for v in embedding) + "]"
                 await db.execute(
-                    text("UPDATE chunks SET embedding = :emb WHERE id = :cid"),
-                    {"emb": embedding, "cid": chunk_id},
+                    text("UPDATE chunks SET embedding = cast(:emb AS vector) WHERE id = :cid"),
+                    {"emb": emb_str, "cid": chunk_id},
                 )
             await db.commit()
 

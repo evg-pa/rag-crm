@@ -23,13 +23,15 @@ Options:
   -k <key>    API key for your LLM provider
   -u <url>    Base URL (defaults to provider preset)
   -m <model>  Model name (defaults to provider preset)
+  -c          Re-configure LLM only (interactive) — skip Docker steps
   -f          Fast mode: skip fancy output, print timestamps only
   -h          Show this help
 
 Examples:
-  ./setup.sh                                              # interactive
+  ./setup.sh                                              # full setup
   ./setup.sh -k sk-xxx                                    # DeepSeek (default)
   ./setup.sh -k sk-xxx -u https://api.openai.com -m gpt-4o-mini
+  ./setup.sh -c                                           # change LLM interactively
 EOF
   exit 0
 }
@@ -53,11 +55,13 @@ PROVIDER_MODEL["openmodel"]="openai/gpt-4o"
 
 # Parse flags
 API_KEY=""
-while getopts "k:u:m:fh" opt; do
+RECONFIGURE=0
+while getopts "k:u:m:cfh" opt; do
   case "$opt" in
     k) API_KEY="$OPTARG" ;;
     u) BASE_URL="$OPTARG" ;;
     m) MODEL="$OPTARG" ;;
+    c) RECONFIGURE=1 ;;
     f) FAST=1 ;;
     *) show_help ;;
   esac
@@ -67,6 +71,77 @@ info()  { echo -e "  ${CYAN}i${NC} $1"; }
 good()  { echo -e "  ${GREEN}✓${NC} $1"; }
 warn()  { echo -e "  ${YELLOW}w${NC} $1"; }
 fail()  { echo -e "  ${RED}✗${NC} $1"; exit 1; }
+
+# ── Interactive LLM configuration ──────────────────────────
+configure_llm() {
+  echo ""
+  echo -e "${YELLOW}  LLM Configuration${NC}"
+  echo ""
+
+  # Load existing values if any
+  local CURRENT_KEY CURRENT_URL CURRENT_MODEL
+  CURRENT_KEY=$(grep -E "^LLM_API_KEY=.*" .env 2>/dev/null | cut -d= -f2- || true)
+  CURRENT_URL=$(grep -E "^LLM_BASE_URL=.*" .env 2>/dev/null | cut -d= -f2- || true)
+  CURRENT_MODEL=$(grep -E "^LLM_MODEL=.*" .env 2>/dev/null | cut -d= -f2- || true)
+
+  if [ -n "$CURRENT_KEY" ]; then
+    echo "  Current provider: ${CURRENT_MODEL:-unknown} @ ${CURRENT_URL:-unknown}"
+    echo ""
+    read -r -p "  Change LLM? (y/N): " CHANGE
+    case "${CHANGE:-n}" in
+      y|Y|yes|Yes) ;;
+      *) good "Keeping existing LLM config"; return ;;
+    esac
+    echo ""
+  fi
+
+  echo "  RAG needs an LLM to understand your documents."
+  echo "  Pick a provider or enter a custom endpoint:"
+  echo ""
+  echo -e "  ${CYAN}1${NC}) DeepSeek      — https://api.deepseek.com (deepseek-chat)"
+  echo -e "  ${CYAN}2${NC}) DeepSeek V4  — https://api.deepseek.com/v1 (deepseek-v4-flash)"
+  echo -e "  ${CYAN}3${NC}) OpenAI       — https://api.openai.com"
+  echo -e "  ${CYAN}4${NC}) Together AI  — https://api.together.xyz"
+  echo -e "  ${CYAN}5${NC}) Groq         — https://api.groq.com/openai"
+  echo -e "  ${CYAN}6${NC}) OpenRouter   — https://openrouter.ai/api/v1"
+  echo -e "  ${CYAN}7${NC}) OpenModel    — https://api.openmodel.ai (unified gateway)"
+  echo -e "  ${CYAN}8${NC}) Custom URL   — enter your own"
+  echo ""
+  read -r -p "  Choose [1-8] (default: 1): " CHOICE
+
+  local P
+  case "${CHOICE:-1}" in
+    1) P=deepseek;; 2) P=deepseekv4;; 3) P=openai;;
+    4) P=together;; 5) P=groq;; 6) P=openrouter;;
+    7) P=openmodel;; 8) P=custom;;
+    *) P=deepseek;;
+  esac
+
+  if [ "$P" = custom ]; then
+    read -r -p "  Enter Base URL: " BASE_URL
+    read -r -p "  Enter Model name: " MODEL
+  else
+    BASE_URL="${PROVIDER_URL[$P]}"
+    MODEL="${PROVIDER_MODEL[$P]}"
+    echo "  Provider: ${P^}"
+    echo "  URL:      $BASE_URL"
+    echo "  Model:    $MODEL"
+  fi
+
+  echo ""
+  read -r -p "  Enter API key (or press Enter to skip): " USER_KEY
+
+  if [ -n "$USER_KEY" ]; then
+    write_key "$USER_KEY" "$BASE_URL" "$MODEL"
+    good "API key saved (base: $BASE_URL, model: $MODEL)"
+  elif [ -n "$CURRENT_KEY" ] && [ -z "$USER_KEY" ]; then
+    # Keep existing key, update URL/model only
+    write_key "$CURRENT_KEY" "$BASE_URL" "$MODEL"
+    good "URL and model updated (key kept unchanged)"
+  else
+    warn "No API key — RAG runs without AI answers (document search only)"
+  fi
+}
 
 echo ""
 echo -e "${CYAN}  RAG-CRM — One-command Setup${NC}"
@@ -110,6 +185,7 @@ fi
 
 echo -e "\n${YELLOW}[3/5]${NC} Connecting a neural network (LLM)..."
 
+# Reusable helpers
 has_key() {
   local v
   v=$(grep -E "^${1}=.+" .env 2>/dev/null | cut -d= -f2- || true)
@@ -124,7 +200,15 @@ write_key() {
   sed -i "s|^DEEPSEEK_API_KEY=.*|DEEPSEEK_API_KEY=$k|" .env 2>/dev/null || true
 }
 
-if [ -n "$API_KEY" ]; then
+if [ "$RECONFIGURE" = 1 ]; then
+  # -c flag: change LLM only, then exit
+  configure_llm
+  echo ""
+  echo -e "${GREEN}  LLM updated. Re-run without -c to restart the stack.${NC}"
+  echo ""
+  exit 0
+
+elif [ -n "$API_KEY" ]; then
   : "${BASE_URL:=https://api.deepseek.com}"
   : "${MODEL:=deepseek-chat}"
   write_key "$API_KEY" "$BASE_URL" "$MODEL"
@@ -134,46 +218,7 @@ elif has_key "LLM_API_KEY" || has_key "DEEPSEEK_API_KEY"; then
   good "API key found in .env"
 
 else
-  echo "  RAG needs an LLM to understand your documents."
-  echo "  Pick a provider or enter a custom endpoint:"
-  echo ""
-  echo -e "  ${CYAN}1${NC}) DeepSeek      — https://api.deepseek.com (deepseek-chat)"
-  echo -e "  ${CYAN}2${NC}) DeepSeek V4  — https://api.deepseek.com/v1 (deepseek-v4-flash)"
-  echo -e "  ${CYAN}3${NC}) OpenAI       — https://api.openai.com"
-  echo -e "  ${CYAN}4${NC}) Together AI  — https://api.together.xyz"
-  echo -e "  ${CYAN}5${NC}) Groq         — https://api.groq.com/openai"
-  echo -e "  ${CYAN}6${NC}) OpenRouter   — https://openrouter.ai/api/v1"
-  echo -e "  ${CYAN}7${NC}) OpenModel    — https://api.openmodel.ai (unified gateway)"
-  echo -e "  ${CYAN}8${NC}) Custom URL   — enter your own"
-  echo ""
-  read -r -p "  Choose [1-8] (default: 1): " CHOICE
-
-  case "${CHOICE:-1}" in
-    1) P=deepseek;; 2) P=deepseekv4;; 3) P=openai;;
-    4) P=together;; 5) P=groq;; 6) P=openrouter;;
-    7) P=openmodel;; 8) P=custom;;
-    *) P=deepseek;;
-  esac
-
-  if [ "$P" = custom ]; then
-    read -r -p "  Enter Base URL: " BASE_URL
-    read -r -p "  Enter Model name: " MODEL
-  else
-    BASE_URL="${PROVIDER_URL[$P]}"
-    MODEL="${PROVIDER_MODEL[$P]}"
-    echo "  Provider: ${P^}"
-    echo "  URL:      $BASE_URL"
-    echo "  Model:    $MODEL"
-  fi
-
-  echo ""
-  read -r -p "  Enter API key (or press Enter to skip): " USER_KEY
-  if [ -n "$USER_KEY" ]; then
-    write_key "$USER_KEY" "$BASE_URL" "$MODEL"
-    good "API key saved"
-  else
-    warn "Skipped — RAG runs without AI answers (document search only)"
-  fi
+  configure_llm
 fi
 
 # ── Step 4: Docker ────────────────────────────────────────────

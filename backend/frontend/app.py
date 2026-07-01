@@ -11,6 +11,9 @@ from components.sidebar import render_sidebar
 from utils.state import init_session_state
 from utils.theme import init_theme
 from utils.i18n import _
+from utils import api
+
+import time
 
 # ── Page configuration (must be first Streamlit call) ───────────────────────
 
@@ -30,6 +33,21 @@ st.set_page_config(
 
 init_session_state()
 init_theme()
+
+# ── Fetch health for sidebar (always, so LLM info shows on every page) ─────
+
+now = time.time()
+cached = st.session_state.get("health_cache")
+cached_time = st.session_state.get("health_cache_time", 0)
+
+if not cached or (now - cached_time) > 30:
+    try:
+        health = api.health_check()
+        st.session_state.health_cache = health
+        st.session_state.health_cache_time = now
+        st.session_state.health_status = health
+    except Exception:
+        pass  # keep stale cache, sidebar will show "?" anyway
 
 # ── Sidebar navigation ─────────────────────────────────────────────────────
 

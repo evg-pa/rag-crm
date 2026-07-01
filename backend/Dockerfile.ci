@@ -8,6 +8,8 @@ FROM python:3.12-slim AS builder
 WORKDIR /app
 
 # ---------- Layer 1: ML dependencies (fat, rarely changes) ----------
+# CPU-only torch — no GPU in CI, saves ~700MB of CUDA deps
+RUN pip install --no-cache-dir torch --extra-index-url https://download.pytorch.org/whl/cpu
 COPY requirements-ml.txt .
 RUN pip install --no-cache-dir -r requirements-ml.txt
 

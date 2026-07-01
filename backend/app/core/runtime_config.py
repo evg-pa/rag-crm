@@ -6,8 +6,6 @@ change LLM provider/model/key at runtime without restarting the container.
 """
 from __future__ import annotations
 
-from typing import Any
-
 _RUNTIME_OVERRIDES: dict[str, str] = {}
 
 
@@ -20,7 +18,7 @@ def get_llm_config() -> dict[str, str]:
     }
 
 
-def set_llm_config(**kwargs: Any) -> dict[str, str]:
+def set_llm_config(**kwargs: str) -> dict[str, str]:
     """Set runtime LLM overrides.
 
     Accepted keys: LLM_API_KEY, LLM_BASE_URL, LLM_MODEL.
@@ -36,6 +34,14 @@ def set_llm_config(**kwargs: Any) -> dict[str, str]:
     return get_llm_config()
 
 
-def resolve(key: str, fallback: str = "") -> str:
-    """Resolve a setting key: runtime override > env/fallback."""
-    return _RUNTIME_OVERRIDES.get(key) or fallback
+def resolve(key: str) -> str | None:
+    """Resolve a setting key: runtime override > env/settings.
+
+    Returns the override value if set, or *None* if no override exists.
+    Returning None (falsy) lets callers use the idiomatic fallback chain::
+
+        base_url = resolve("LLM_BASE_URL") or settings.LLM_BASE_URL or settings.DEEPSEEK_BASE_URL
+    """
+    if key in _RUNTIME_OVERRIDES:
+        return _RUNTIME_OVERRIDES[key]
+    return None

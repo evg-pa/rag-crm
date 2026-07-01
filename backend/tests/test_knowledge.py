@@ -205,6 +205,9 @@ async def test_deepseek_request_payload() -> None:
     settings_mock = MagicMock()
     settings_mock.DEEPSEEK_API_KEY = "test-key"
     settings_mock.DEEPSEEK_BASE_URL = "https://api.deepseek.com"
+    settings_mock.LLM_API_KEY = ""  # ensure empty so DEEPSEEK_* fallback works
+    settings_mock.LLM_BASE_URL = ""
+    settings_mock.LLM_MODEL = ""
     settings_mock.LLM_TEMPERATURE = 0.0
 
     mock_client = MagicMock(spec=httpx.AsyncClient)
@@ -260,6 +263,9 @@ async def test_deepseek_unreachable_uses_ollama() -> None:
     settings_mock.DEEPSEEK_API_KEY = "test-key"
     settings_mock.DEEPSEEK_BASE_URL = "https://api.deepseek.com"
     settings_mock.OLLAMA_BASE_URL = "http://localhost:11434"
+    settings_mock.LLM_API_KEY = ""
+    settings_mock.LLM_BASE_URL = ""
+    settings_mock.LLM_MODEL = ""
     settings_mock.LLM_TEMPERATURE = 0.0
 
     mock_client = MagicMock(spec=httpx.AsyncClient)

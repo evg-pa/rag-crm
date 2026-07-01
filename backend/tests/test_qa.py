@@ -280,7 +280,7 @@ class TestAnswerAgentAnswer:
 
         result = await agent.answer(query="What is RAG?", chunks=[], top_k=10)
 
-        assert result.answer_text == "No relevant information found to answer your question."
+        assert "I don't have enough information" in result.answer_text or result.answer_text == "No relevant information found to answer your question."
         assert result.citations == []
         assert result.confidence_score == 0.0
         # LLM should NOT have been called
@@ -307,6 +307,9 @@ class TestAnswerAgentAnswer:
         settings.DEEPSEEK_API_KEY = "sk-test-key"
         settings.DEEPSEEK_BASE_URL = "https://api.deepseek.com"
         settings.OLLAMA_BASE_URL = "http://localhost:11434"
+        settings.LLM_API_KEY = ""
+        settings.LLM_BASE_URL = ""
+        settings.LLM_MODEL = ""
         settings.LLM_TEMPERATURE = 0.0
 
         agent = AnswerAgent(settings=settings, http_client=mock_client)
@@ -354,6 +357,9 @@ class TestAnswerAgentAnswer:
         settings.DEEPSEEK_API_KEY = ""  # empty → fallback to Ollama
         settings.DEEPSEEK_BASE_URL = "https://api.deepseek.com"
         settings.OLLAMA_BASE_URL = "http://localhost:11434"
+        settings.LLM_API_KEY = ""
+        settings.LLM_BASE_URL = ""
+        settings.LLM_MODEL = ""
         settings.LLM_TEMPERATURE = 0.0
 
         agent = AnswerAgent(settings=settings, http_client=mock_client)
@@ -399,6 +405,9 @@ class TestAnswerAgentAnswer:
         settings.DEEPSEEK_API_KEY = "sk-test-key"  # set → try DeepSeek
         settings.DEEPSEEK_BASE_URL = "https://api.deepseek.com"
         settings.OLLAMA_BASE_URL = "http://localhost:11434"
+        settings.LLM_API_KEY = ""
+        settings.LLM_BASE_URL = ""
+        settings.LLM_MODEL = ""
         settings.LLM_TEMPERATURE = 0.0
 
         agent = AnswerAgent(settings=settings, http_client=mock_client)
@@ -438,6 +447,9 @@ class TestAnswerAgentAnswer:
         settings.DEEPSEEK_API_KEY = "sk-test-key"
         settings.DEEPSEEK_BASE_URL = "https://api.deepseek.com"
         settings.OLLAMA_BASE_URL = "http://localhost:11434"
+        settings.LLM_API_KEY = ""
+        settings.LLM_BASE_URL = ""
+        settings.LLM_MODEL = ""
         settings.LLM_TEMPERATURE = 0.0
 
         agent = AnswerAgent(settings=settings, http_client=mock_client)

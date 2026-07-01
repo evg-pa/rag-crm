@@ -202,11 +202,32 @@ class AnswerAgent:
         # don't trust anything the LLM says (it's probably hallucinating).
         if chunks:
             best_score: float = -1.0
+            score_source: str = "none"
             for c in chunks:
                 s = c.get("reranker_score") or c.get("score")
                 if s is not None:
-                    best_score = max(best_score, float(s))
-            if best_score >= 0 and best_score < 0.1:
+                    try:
+                        v = float(s)
+                        if v > best_score:
+                            best_score = v
+                            score_source = "reranker_score" if "reranker_score" in c else "score"
+                    except (ValueError, TypeError):
+                        pass
+
+            # Reranker score: range is roughly [-5, 5], threshold 0.1 means 'barely relevant'
+            if score_source == "reranker_score" and best_score >= 0 and best_score < 0.1:
+                return AnswerResult(
+                    answer_text=(
+                        "I don't have enough information in the knowledge base to "
+                        "answer your question. Try uploading relevant documents first, "
+                        "or rephrase your query."
+                    ),
+                    citations=[],
+                    confidence_score=0.0,
+                )
+
+            # Embedding score: typically cosine similarity [0, 1], threshold 0.35
+            if score_source == "score" and best_score < 0.35:
                 return AnswerResult(
                     answer_text=(
                         "I don't have enough information in the knowledge base to "
@@ -234,6 +255,7 @@ class AnswerAgent:
                 "not enough information",
                 "the context is about a different",
                 "the chunks provided",
+                "i found relevant documents",
             )
         )
 
@@ -281,13 +303,12 @@ class AnswerAgent:
         return json.dumps(
             {
                 "answer_text": (
-                    "I found relevant documents in the knowledge base, but the AI model "
-                    "was not available to generate a proper answer. "
-                    "Here are the raw search results for you to browse:\n\n"
-                    f"{context[:500]}"
+                    "I don't have enough information in the knowledge base to "
+                    "answer your question. Try uploading relevant documents first, "
+                    "or rephrase your query."
                 ),
                 "citations": [],
-                "confidence_score": 0.5,
+                "confidence_score": 0.0,
             }
         )
 

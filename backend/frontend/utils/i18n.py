@@ -43,6 +43,18 @@ T: dict[str, dict[str, str]] = {
                              "ru": "Количество фрагментов для поиска"},
     "backend.status":       {"en": "Backend",             "ru": "Сервер"},
     "db.status":            {"en": "DB",                  "ru": "БД"},
+    "llm.label":            {"en": "Change LLM",          "ru": "Сменить LLM"},
+    "llm.provider":         {"en": "Provider",            "ru": "Провайдер"},
+    "llm.base_url":         {"en": "Base URL",            "ru": "Базовый URL"},
+    "llm.model":            {"en": "Model",               "ru": "Модель"},
+    "llm.api_key":          {"en": "API Key",             "ru": "API-ключ"},
+    "llm.apply":            {"en": "✅ Apply",            "ru": "✅ Применить"},
+    "llm.test":             {"en": "🔍 Test",             "ru": "🔍 Тест"},
+    "llm.test_ok":          {"en": "Connection successful","ru": "Подключение успешно"},
+    "llm.test_fail":        {"en": "Connection failed",   "ru": "Ошибка подключения"},
+    "llm.applying":         {"en": "Applying...",         "ru": "Применение..."},
+    "llm.testing":          {"en": "Testing...",          "ru": "Тестирование..."},
+    "llm.api_key_placeholder": {"en": "sk-...",           "ru": "sk-..."},
 
     # ── Dashboard page ───────────────────────────────────────────────────
     "dashboard.title":      {"en": "📊 Dashboard",        "ru": "📊 Панель"},

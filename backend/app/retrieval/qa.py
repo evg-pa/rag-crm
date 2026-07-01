@@ -45,7 +45,15 @@ class AnswerResult(BaseModel):
 QA_SYSTEM_PROMPT = (
     "You are a helpful assistant that answers questions based ONLY on the "
     "provided context chunks. Do not use any outside knowledge. If the context "
-    "does not contain enough information to answer the question, say so clearly.\n\n"
+    "does not contain enough information to answer the question, or if the context "
+    "is clearly about a different topic than the question, say so clearly — respond "
+    'with a JSON object that has "answer_text" set to a message like '
+    '"I don\'t have enough information to answer that question." and '
+    '"confidence_score": 0.0.\n\n'
+    "Rules:\n"
+    "- NEVER make up facts or use information not present in the chunks above.\n"
+    "- If you are uncertain whether the context answers the question, say so.\n"
+    "- It is better to say 'I don't know' than to guess or hallucinate.\n\n"
     "For every factual statement in your answer, cite the relevant chunk IDs "
     "from the context.\n\n"
     "You MUST respond in valid JSON format with these exact keys:\n"
@@ -162,20 +170,22 @@ class AnswerAgent:
         # Parse LLM response
         result = self._parse_llm_response(llm_response, selected)
         # Post-processing: override low-confidence / empty answers
-        return self._enforce_honesty(result, chunks_present=bool(selected))
+        return self._enforce_honesty(result, chunks_present=bool(selected), chunks=selected)
 
     # ── Honest "not found" guard ──────────────────────────────────────
-    # If the parsed answer from the LLM is empty or the LLM explicitly says
-    # "i don't know", override to an honest refusal. Otherwise trust the LLM
-    # even with moderately low confidence — it had chunks to work with.
+    # If reranker scores are present and the top chunk scores below
+    # threshold, the context is likely irrelevant — refuse to answer.
+    # Also catches empty / LLM-rejected answers with an honest refusal.
     @staticmethod
-    def _enforce_honesty(result: AnswerResult, chunks_present: bool) -> AnswerResult:
-        """Override empty / LLM-rejected answers with an honest refusal.
+    def _enforce_honesty(result: AnswerResult, chunks_present: bool, chunks: list[dict[str, Any]] | None = None) -> AnswerResult:
+        """Override poor-quality answers with an honest refusal.
 
-        Only triggers when:
-        - No chunks were provided to the LLM (already handled elsewhere,
-          but redundant guard)
-        - The answer text is truly empty or the LLM itself said "i don't know"
+        Three safety layers:
+        1. If no chunks were provided → immediate refusal
+        2. If the top chunk's reranker_score is very low (< 0.1) → refusal
+           (the context doesn't match the question)
+        3. If the answer text is empty or the LLM itself said "i don't know"
+           → refusal
         """
         if not chunks_present:
             return AnswerResult(
@@ -188,17 +198,42 @@ class AnswerAgent:
                 confidence_score=0.0,
             )
 
+        # Layer 2: score-based guard — if the best chunk is very low relevance,
+        # don't trust anything the LLM says (it's probably hallucinating).
+        if chunks:
+            best_score: float = -1.0
+            for c in chunks:
+                s = c.get("reranker_score") or c.get("score")
+                if s is not None:
+                    best_score = max(best_score, float(s))
+            if best_score >= 0 and best_score < 0.1:
+                return AnswerResult(
+                    answer_text=(
+                        "I don't have enough information in the knowledge base to "
+                        "answer your question. Try uploading relevant documents first, "
+                        "or rephrase your query."
+                    ),
+                    citations=[],
+                    confidence_score=0.0,
+                )
+
         answer = result.answer_text.strip().lower()
 
-        # Only override if the LLM itself said it can't answer
+        # Layer 3: only override if the LLM itself said it can't answer
         is_explicit_refusal = answer in ("", ".", "...", "i don't know", "i don't know.")
         llm_says_no_info = any(
             answer.startswith(p)
             for p in (
                 "no relevant information found",
                 "the provided context does not contain",
+                "the context does not contain",
                 "i cannot answer",
                 "there is no information",
+                "i don't have enough information",
+                "i don't know enough",
+                "not enough information",
+                "the context is about a different",
+                "the chunks provided",
             )
         )
 

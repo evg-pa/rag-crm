@@ -6,6 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import Settings
 from app.core.dependencies import get_db_session, get_settings
+from app.core.runtime_config import resolve as resolve_runtime
 
 router = APIRouter()
 
@@ -26,9 +27,9 @@ async def health_check(
         "status": "ok",
         "version": settings.APP_VERSION,
         "database": db_status,
-        "llm_model": settings.LLM_MODEL or "deepseek-chat",
-        "llm_base_url": settings.LLM_BASE_URL or settings.DEEPSEEK_BASE_URL or "https://api.deepseek.com",
-        "llm_configured": bool(settings.LLM_API_KEY or settings.DEEPSEEK_API_KEY),
+        "llm_model": resolve_runtime("LLM_MODEL") or settings.LLM_MODEL or "deepseek-chat",
+        "llm_base_url": resolve_runtime("LLM_BASE_URL") or settings.LLM_BASE_URL or settings.DEEPSEEK_BASE_URL or "https://api.deepseek.com",
+        "llm_configured": bool(resolve_runtime("LLM_API_KEY") or settings.LLM_API_KEY or settings.DEEPSEEK_API_KEY),
     }
 
 

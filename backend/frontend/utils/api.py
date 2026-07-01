@@ -307,3 +307,50 @@ def get_document_entities(document_id: str) -> dict[str, Any]:
     r = _get_client().get(f"/graph/documents/{document_id}/entities")
     r.raise_for_status()
     return r.json()  # type: ignore[no-any-return]
+
+
+# ── LLM Config ──────────────────────────────────────────────────────────────
+
+
+PROVIDER_PRESETS: dict[str, dict[str, str]] = {
+    "DeepSeek": {"base_url": "https://api.deepseek.com", "model": "deepseek-chat"},
+    "DeepSeek V4": {"base_url": "https://api.deepseek.com/v1", "model": "deepseek-v4-flash"},
+    "OpenAI": {"base_url": "https://api.openai.com", "model": "gpt-4o-mini"},
+    "Together": {"base_url": "https://api.together.xyz", "model": "mistralai/Mixtral-8x7B-Instruct-v0.1"},
+    "Groq": {"base_url": "https://api.groq.com/openai", "model": "llama3-70b-8192"},
+    "OpenRouter": {"base_url": "https://openrouter.ai/api/v1", "model": "openai/gpt-4o-mini"},
+    "Ollama (local)": {"base_url": "http://host.docker.internal:11434", "model": "llama3.2"},
+    "Custom": {"base_url": "", "model": ""},
+}
+
+
+def get_llm_config() -> dict[str, Any]:
+    """GET /admin/llm-config — current LLM settings."""
+    r = _get_client().get("/admin/llm-config")
+    r.raise_for_status()
+    return r.json()  # type: ignore[no-any-return]
+
+
+def update_llm_config(
+    llm_api_key: str = "",
+    llm_base_url: str = "",
+    llm_model: str = "",
+) -> dict[str, Any]:
+    """PUT /admin/llm-config — update runtime LLM settings."""
+    r = _get_client().put(
+        "/admin/llm-config",
+        json={"llm_api_key": llm_api_key, "llm_base_url": llm_base_url, "llm_model": llm_model},
+    )
+    r.raise_for_status()
+    return r.json()  # type: ignore[no-any-return]
+
+
+def test_llm_connection(api_key: str, base_url: str, model: str) -> dict[str, Any]:
+    """POST /admin/llm-config/test — test LLM connectivity."""
+    r = _get_client().post(
+        "/admin/llm-config/test",
+        json={"api_key": api_key, "base_url": base_url, "model": model},
+        timeout=20,
+    )
+    r.raise_for_status()
+    return r.json()  # type: ignore[no-any-return]

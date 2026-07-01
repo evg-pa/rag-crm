@@ -1,16 +1,22 @@
-"""Admin endpoints — user management (admin-only)."""
+"""Admin endpoints — LLM config (unauthenticated, local dev) and user management.
 
+The LLM config endpoint lets any user change the active LLM provider/model/key
+at runtime via the frontend sidebar. Authentication is intentionally omitted
+since this runs in a local dev/self-hosted context.
+"""
 from __future__ import annotations
 
 import uuid
 
 from fastapi import APIRouter, Depends, HTTPException, status
+from httpx import AsyncClient
 from pydantic import BaseModel
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.auth import get_current_user
 from app.core.dependencies import get_db_session
+from app.core.runtime_config import get_llm_config, resolve as resolve_runtime, set_llm_config
 from app.models.user import User
 
 router = APIRouter(prefix="/admin", tags=["admin"])
@@ -58,11 +64,93 @@ class AdminUserListResponse(BaseModel):
     total: int
 
 
+# ── LLM Config schemas ───────────────────────────────────────────────────
+
+
+class LLMConfigRequest(BaseModel):
+    """Request body for updating LLM config."""
+
+    llm_api_key: str = ""
+    llm_base_url: str = ""
+    llm_model: str = ""
+
+
+class LLMConfigResponse(BaseModel):
+    """Current LLM config."""
+
+    llm_api_key: str
+    llm_base_url: str
+    llm_model: str
+    llm_configured: bool
+
+
+class LLMTestRequest(BaseModel):
+    """Request body for testing an LLM connection."""
+
+    api_key: str = ""
+    base_url: str = ""
+    model: str = ""
+
+
+# ── LLM Config endpoints ────────────────────────────────────────────────
+
+
+@router.get("/llm-config", response_model=LLMConfigResponse)
+async def get_llm_config_endpoint() -> LLMConfigResponse:
+    """Get the current runtime LLM configuration."""
+    cfg = get_llm_config()
+    from app.core.dependencies import get_settings
+
+    settings = get_settings()
+    key = cfg.get("LLM_API_KEY") or settings.LLM_API_KEY or settings.DEEPSEEK_API_KEY or ""
+    url = cfg.get("LLM_BASE_URL") or settings.LLM_BASE_URL or settings.DEEPSEEK_BASE_URL or ""
+    model = cfg.get("LLM_MODEL") or settings.LLM_MODEL or "deepseek-chat"
+    return LLMConfigResponse(
+        llm_api_key=key[:8] + "..." if len(key) > 10 else ("set" if key else ""),
+        llm_base_url=url,
+        llm_model=model,
+        llm_configured=bool(key),
+    )
+
+
+@router.put("/llm-config", response_model=LLMConfigResponse)
+async def update_llm_config(body: LLMConfigRequest) -> LLMConfigResponse:
+    """Update the runtime LLM configuration (in-memory, immediate).
+
+    Set fields to empty string to clear the override and fall back to env.
+    """
+    set_llm_config(
+        LLM_API_KEY=body.llm_api_key,
+        LLM_BASE_URL=body.llm_base_url,
+        LLM_MODEL=body.llm_model,
+    )
+    return await get_llm_config_endpoint()
+
+
+@router.post("/llm-config/test")
+async def test_llm_connection(body: LLMTestRequest) -> dict[str, object]:
+    """Test an LLM connection by making a simple chat request."""
+    url = f"{body.base_url.rstrip('/')}/v1/chat/completions"
+    headers = {"Authorization": f"Bearer {body.api_key}", "Content-Type": "application/json"}
+    payload = {
+        "model": body.model or "deepseek-chat",
+        "messages": [{"role": "user", "content": "Reply with just the word OK"}],
+        "max_tokens": 10,
+    }
+    try:
+        async with AsyncClient(timeout=15) as client:
+            resp = await client.post(url, json=payload, headers=headers)
+            resp.raise_for_status()
+            return {"status": "ok", "message": "Connection successful"}
+    except Exception as exc:
+        return {"status": "error", "message": str(exc)}
+
+
 # ── Admin guard ──────────────────────────────────────────────────────────────
 
 
 async def get_admin_user(
-    current_user: User = Depends(get_current_user),
+    current_user: "User" = Depends(get_current_user),
 ) -> User:
     """FastAPI dependency: ensure the current user is an admin.
 

@@ -14,6 +14,7 @@ from typing import Any
 
 from app.knowledge_graph.graph_service import GraphService
 from app.retrieval.qa import AnswerAgent
+from app.core.runtime_config import resolve as resolve_runtime
 
 logger = logging.getLogger(__name__)
 
@@ -75,7 +76,7 @@ async def extract_entities_from_text(
             {"role": "user", "content": user_prompt},
         ]
 
-        api_key = agent._settings.LLM_API_KEY or agent._settings.DEEPSEEK_API_KEY or ""
+        api_key = resolve_runtime("LLM_API_KEY") or agent._settings.LLM_API_KEY or agent._settings.DEEPSEEK_API_KEY or ""
         if api_key and api_key != "***":
             try:
                 response_text = await agent._call_llm_api(messages)

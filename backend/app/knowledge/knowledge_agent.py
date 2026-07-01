@@ -13,6 +13,7 @@ from typing import Any
 import httpx
 
 from app.core.config import Settings
+from app.core.runtime_config import resolve as resolve_runtime
 from app.core.dependencies import get_settings
 
 # ── Prompt template ──────────────────────────────────────────────────────────
@@ -129,9 +130,9 @@ class KnowledgeAgent:
         Uses LLM_API_KEY / LLM_BASE_URL / LLM_MODEL when set,
         falls back to DEEPSEEK_API_KEY / DEEPSEEK_BASE_URL / "deepseek-chat".
         """
-        api_key = self._settings.LLM_API_KEY or self._settings.DEEPSEEK_API_KEY
-        base_url = self._settings.LLM_BASE_URL or self._settings.DEEPSEEK_BASE_URL
-        model = self._settings.LLM_MODEL or "deepseek-chat"
+        api_key = resolve_runtime("LLM_API_KEY") or self._settings.LLM_API_KEY or self._settings.DEEPSEEK_API_KEY
+        base_url = resolve_runtime("LLM_BASE_URL") or self._settings.LLM_BASE_URL or self._settings.DEEPSEEK_BASE_URL
+        model = resolve_runtime("LLM_MODEL") or self._settings.LLM_MODEL or "deepseek-chat"
 
         url = f"{base_url.rstrip('/')}/v1/chat/completions"
         headers = {

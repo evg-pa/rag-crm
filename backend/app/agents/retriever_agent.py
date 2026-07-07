@@ -106,7 +106,20 @@ async def _run_hybrid(
             )
             bm25_only_survivors.append(r)
 
-    return bm25_only_survivors + fused
+    # ── Also promote high-BM25 chunks that ARE in the fused results    ──
+    # These are often buried below the top-30 cutoff because their
+    # semantic score is zero; prepend them so the answer agent sees them.
+    bm25_in_fused: list[dict[str, Any]] = []
+    for r in bm25_results:
+        score = r.get("bm25_score", 0.0) or 0.0
+        if score > 0 and r["id"] in fused_ids:
+            # Find the fused entry and move it to the front
+            for f in fused:
+                if f["id"] == r["id"] and f["similarity"] == 0.0:
+                    bm25_in_fused.append(f)
+                    break
+
+    return bm25_only_survivors + bm25_in_fused + [f for f in fused if f not in bm25_in_fused]
 
 
 def _min_max_normalize_single(value: float, all_results: list[dict[str, Any]]) -> float:

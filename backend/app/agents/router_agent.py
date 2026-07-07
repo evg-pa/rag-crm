@@ -96,15 +96,19 @@ def classify_query(query: str) -> str:
     if _matches_any(q, _IRRELEVANT_PATTERNS):
         return "irrelevant"
 
-    # 3. Semantic indicators (check first — "why" and "compare" are strong signals)
-    if _matches_any(q, _SEMANTIC_INDICATORS):
-        return "semantic"
+    # 3. Date/number-specific queries — force hybrid (dates need BM25)
+    if re.search(r"\b\d{2,4}[-./]\d{1,2}[-./]\d{2,4}\b", q):
+        return "hybrid"
 
-    # 4. Keyword indicators
+    # 4. Keyword indicators (check before semantic — definitions need exact match)
     if _matches_any(q, _KEYWORD_INDICATORS):
         return "keyword"
 
-    # 5. Default — hybrid
+    # 5. Semantic indicators
+    if _matches_any(q, _SEMANTIC_INDICATORS):
+        return "semantic"
+
+    # 6. Default — hybrid
     return "hybrid"
 
 

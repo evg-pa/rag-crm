@@ -261,7 +261,9 @@ class AnswerAgent:
             best_score: float = -1.0
             score_source: str = "none"
             for c in chunks:
-                s = c.get("reranker_score") or c.get("score")
+                s = c.get("reranker_score")
+                if s is None:
+                    s = c.get("score")
                 if s is not None:
                     try:
                         v = float(s)

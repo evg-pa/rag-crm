@@ -48,7 +48,6 @@ async def reranker_agent(state: AgentState) -> dict:
         reranked = chunks
 
     # ── BM25 preservation: inject BM25 winners that the reranker dropped ──
-    top_k = min(len(chunks), MAX_RERANK_CANDIDATES)
     reranked_ids = {c.get("id", "") for c in reranked}
     preserved: list[dict[str, Any]] = list(reranked)
 
@@ -59,9 +58,6 @@ async def reranker_agent(state: AgentState) -> dict:
             if "reranker_score" not in c:
                 c["reranker_score"] = 0.0
             preserved.append(c)
-
-    if len(preserved) > top_k:
-        preserved = preserved[:top_k]
 
     return {
         "reranked_chunks": preserved,

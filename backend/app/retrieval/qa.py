@@ -70,8 +70,8 @@ def build_context_prompt(chunks: list[dict[str, Any]], query: str | None = None)
     """Build a context string from retrieved chunks for the LLM prompt.
 
     If a query is provided, scans for chunks with a high BM25 score
-    and prepends a focused excerpt of the best-matching portion so the
-    LLM can't miss exact keyword hits buried inside a larger chunk.
+    and prepends a focused direct-quote from the best-matching portion
+    so the LLM can't miss exact keyword hits buried inside a larger chunk.
     """
     if not chunks:
         return "No relevant context chunks were found."
@@ -89,26 +89,41 @@ def build_context_prompt(chunks: list[dict[str, Any]], query: str | None = None)
                 best_bm25_score = s
                 best_bm25_chunk = c
 
-        # If a strong BM25 match exists, extract the part that contains query tokens
+        # If a strong BM25 match exists, extract relevant lines
         if best_bm25_chunk and best_bm25_score > 1.0:
             content = best_bm25_chunk.get("content", "")
+            doc_id = best_bm25_chunk.get("document_id", "?")
+            chunk_id = best_bm25_chunk.get("id", "?")
             import re as _re
-            # Find lines containing any query token
-            q_tokens = set(_re.split(r"[^a-zA-Z0-9]+", query.lower()))
+            # Find lines containing any query token (length > 2)
+            q_tokens = {t for t in _re.split(r"[^a-zA-Z0-9]+", query.lower()) if len(t) > 2}
             lines = content.split("\n")
             matched_lines: list[str] = []
+            found_date = False
             for line in lines:
                 line_lower = line.lower()
                 if any(tok in line_lower for tok in q_tokens if len(tok) > 2):
                     matched_lines.append(line.strip())
-                elif matched_lines and len(line.strip()) > 20:
+                    found_date = True
+                elif found_date:
+                    # Keep collecting context after the first match in this chunk
                     matched_lines.append(line.strip())
 
             if matched_lines:
+                # Only keep lines from the last date match onwards
+                date_idx = -1
+                for i, l in enumerate(matched_lines):
+                    if _re.search(r"\d{2,4}[-./]\d{1,2}[-./]\d{2,4}", l):
+                        date_idx = i
+                if date_idx >= 0:
+                    matched_lines = matched_lines[date_idx:]
+
                 bm25_excerpt = (
-                    f"--- EXACT MATCH (BM25 score: {best_bm25_score:.2f}) ---\n"
-                    + "\n".join(matched_lines[-15:])  # last 15 lines = date entries
-                    + "\n--- END EXACT MATCH ---"
+                    f"📌 **EXACT MATCH from the knowledge base (BM25 score: {best_bm25_score:.1f})**\n"
+                    f"Document: {doc_id}  Chunk: {chunk_id}\n"
+                    f"```\n" + "\n".join(matched_lines) + "\n```\n"
+                    f"--- The above lines are an EXACT KEYWORD MATCH for your query. "
+                    f"Use them as your primary source for a direct answer. ---"
                 )
 
     if bm25_excerpt:

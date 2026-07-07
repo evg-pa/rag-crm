@@ -29,7 +29,7 @@ async def answer_agent(state: AgentState) -> dict:
     feedback: str = state.get("critic_feedback", "")
     retries: int = state.get("critic_retries", 0)
 
-    top_k = min(len(chunks), 10)
+    top_k = min(len(chunks), 30)
 
     if not chunks:
         return {

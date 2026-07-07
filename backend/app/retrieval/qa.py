@@ -215,7 +215,12 @@ class AnswerAgent:
                         pass
 
             # Reranker score: range is roughly [-5, 5], threshold 0.1 means 'barely relevant'
-            if score_source == "reranker_score" and best_score >= 0 and best_score < 0.1:
+            # Bypass check if any chunk has a positive BM25 keyword score (exact match)
+            has_bm25_hit = any(
+                float(c.get("bm25_score", 0.0) or 0.0) > 0
+                for c in chunks
+            )
+            if not has_bm25_hit and score_source == "reranker_score" and best_score >= 0 and best_score < 0.1:
                 return AnswerResult(
                     answer_text=(
                         "I don't have enough information in the knowledge base to "

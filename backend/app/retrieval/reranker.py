@@ -13,7 +13,7 @@ from typing import Any
 from app.core.dependencies import get_settings
 
 # Re-rank at most this many candidates (CPU budget guard)
-MAX_RERANK_CANDIDATES: int = 50
+MAX_RERANK_CANDIDATES: int = 100
 
 
 class Reranker:

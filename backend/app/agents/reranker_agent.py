@@ -47,9 +47,9 @@ async def reranker_agent(state: AgentState) -> dict:
         # Model failed to load or inference error — keep original order
         reranked = chunks
 
-    # ── BM25 preservation: inject BM25 winners that the reranker dropped ──
+    # ── BM25 preservation: prepend BM25 winners the reranker dropped ──
     reranked_ids = {c.get("id", "") for c in reranked}
-    preserved: list[dict[str, Any]] = list(reranked)
+    bm25_survivors: list[dict[str, Any]] = []
 
     for c in chunks:
         cid = c.get("id", "")
@@ -57,7 +57,10 @@ async def reranker_agent(state: AgentState) -> dict:
         if cid not in reranked_ids and bm25 > 0:
             if "reranker_score" not in c:
                 c["reranker_score"] = 0.0
-            preserved.append(c)
+            bm25_survivors.append(c)
+
+    # Prepend BM25 winners so answer_agent's top-K picks them up
+    preserved = bm25_survivors + list(reranked)
 
     return {
         "reranked_chunks": preserved,

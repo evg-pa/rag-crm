@@ -76,7 +76,6 @@ async def _run_hybrid(
                 bm25_results.append(kr)
                 existing_ids.add(kr["id"])
             else:
-                # Update score to the higher of the two
                 for existing in bm25_results:
                     if existing["id"] == kr["id"]:
                         existing["bm25_score"] = max(
@@ -85,11 +84,40 @@ async def _run_hybrid(
                         )
                         break
 
-    return await hybrid_search(
+    fused = await hybrid_search(
         semantic_results=semantic_results,
         bm25_results=bm25_results,
         top_k=_CANDIDATE_K,
     )
+
+    # ── Preserve BM25-only winners dropped by hybrid top-K ────────────
+    # Chunks that only matched BM25 (no semantic hit) often get a low
+    # hybrid score and fall outside the top-K cutoff.  We inject any
+    # such chunk with bm25_score > 0 that wasn't already included.
+    fused_ids = {r["id"] for r in fused}
+    bm25_only_survivors: list[dict[str, Any]] = []
+    for r in bm25_results:
+        if r["id"] not in fused_ids and (r.get("bm25_score", 0.0) or 0.0) > 0:
+            r["similarity"] = 0.0
+            r["hybrid_score"] = round(
+                (0.5 * 0.0 + 0.5 * _min_max_normalize_single(r["bm25_score"], bm25_results))
+                / 1.0,
+                6,
+            )
+            bm25_only_survivors.append(r)
+
+    return bm25_only_survivors + fused
+
+
+def _min_max_normalize_single(value: float, all_results: list[dict[str, Any]]) -> float:
+    """Normalize a single BM25 score using the min-max of all results."""
+    scores = [float(r.get("bm25_score", 0.0) or 0.0) for r in all_results]
+    if not scores:
+        return 0.0
+    mn, mx = min(scores), max(scores)
+    if mx == mn:
+        return 1.0 if value > 0 else 0.0
+    return (value - mn) / (mx - mn)
 
 
 async def retriever_agent(state: AgentState) -> dict:

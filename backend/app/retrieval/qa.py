@@ -66,12 +66,54 @@ QA_SYSTEM_PROMPT = (
 )
 
 
-def build_context_prompt(chunks: list[dict[str, Any]]) -> str:
-    """Build a context string from retrieved chunks for the LLM prompt."""
+def build_context_prompt(chunks: list[dict[str, Any]], query: str | None = None) -> str:
+    """Build a context string from retrieved chunks for the LLM prompt.
+
+    If a query is provided, scans for chunks with a high BM25 score
+    and prepends a focused excerpt of the best-matching portion so the
+    LLM can't miss exact keyword hits buried inside a larger chunk.
+    """
     if not chunks:
         return "No relevant context chunks were found."
 
     parts: list[str] = []
+    bm25_excerpt: str | None = None
+
+    if query:
+        # Find the chunk with the highest BM25 score
+        best_bm25_chunk: dict[str, Any] | None = None
+        best_bm25_score: float = 0.0
+        for c in chunks:
+            s = float(c.get("bm25_score", 0.0) or 0.0)
+            if s > best_bm25_score:
+                best_bm25_score = s
+                best_bm25_chunk = c
+
+        # If a strong BM25 match exists, extract the part that contains query tokens
+        if best_bm25_chunk and best_bm25_score > 1.0:
+            content = best_bm25_chunk.get("content", "")
+            import re as _re
+            # Find lines containing any query token
+            q_tokens = set(_re.split(r"[^a-zA-Z0-9]+", query.lower()))
+            lines = content.split("\n")
+            matched_lines: list[str] = []
+            for line in lines:
+                line_lower = line.lower()
+                if any(tok in line_lower for tok in q_tokens if len(tok) > 2):
+                    matched_lines.append(line.strip())
+                elif matched_lines and len(line.strip()) > 20:
+                    matched_lines.append(line.strip())
+
+            if matched_lines:
+                bm25_excerpt = (
+                    f"--- EXACT MATCH (BM25 score: {best_bm25_score:.2f}) ---\n"
+                    + "\n".join(matched_lines[-15:])  # last 15 lines = date entries
+                    + "\n--- END EXACT MATCH ---"
+                )
+
+    if bm25_excerpt:
+        parts.append(bm25_excerpt)
+
     for i, chunk in enumerate(chunks, start=1):
         chunk_id = chunk.get("id", "unknown")
         document_id = chunk.get("document_id", "unknown")
@@ -151,7 +193,7 @@ class AnswerAgent:
             )
 
         # Build context prompt
-        context = build_context_prompt(selected)
+        context = build_context_prompt(selected, query=query)
 
         # Call LLM with overall timeout
         try:

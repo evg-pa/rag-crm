@@ -102,9 +102,16 @@ class KnowledgeAgent:
             {"role": "user", "content": user_prompt},
         ]
 
-        # Try LLM (any OpenAI-compatible provider)
-        api_key = self._settings.LLM_API_KEY or self._settings.DEEPSEEK_API_KEY
-        if api_key and api_key != "***":
+        # Resolve runtime settings
+        r_url = resolve_runtime("LLM_BASE_URL") or ""
+        r_model = resolve_runtime("LLM_MODEL") or ""
+        r_key = resolve_runtime("LLM_API_KEY") or ""
+
+        # Try API path (any OpenAI-compatible endpoint, including Ollama w/o key)
+        has_key = bool(r_key or self._settings.LLM_API_KEY or self._settings.DEEPSEEK_API_KEY)
+        has_endpoint = bool(r_url or self._settings.LLM_BASE_URL or self._settings.DEEPSEEK_BASE_URL)
+        has_model = bool(r_model or self._settings.LLM_MODEL)
+        if (has_key or r_url) and has_endpoint and has_model:
             try:
                 return await self._call_llm_api(messages)
             except Exception:
@@ -142,11 +149,28 @@ class KnowledgeAgent:
         )
         model = resolve_runtime("LLM_MODEL") or self._settings.LLM_MODEL or "deepseek-chat"
 
+        is_ollama = ":11434" in base_url or "ollama" in base_url.lower()
+
+        if is_ollama:
+            url = f"{base_url.rstrip('/')}/api/chat"
+            headers = {"Content-Type": "application/json"}
+            payload: dict[str, Any] = {
+                "model": model,
+                "messages": messages,
+                "options": {"num_ctx": 128000, "temperature": self._settings.LLM_TEMPERATURE},
+                "stream": False,
+            }
+            response = await self.http_client.post(url, json=payload, headers=headers)
+            response.raise_for_status()
+            data = response.json()
+            return data["message"]["content"]
+
         url = f"{base_url.rstrip('/')}/v1/chat/completions"
         headers = {
-            "Authorization": f"Bearer {api_key}",
             "Content-Type": "application/json",
         }
+        if api_key:
+            headers["Authorization"] = f"Bearer {api_key}"
         payload: dict[str, Any] = {
             "model": model,
             "messages": messages,
@@ -160,20 +184,31 @@ class KnowledgeAgent:
         return data["choices"][0]["message"]["content"]
 
     async def _call_ollama(self, messages: list[dict[str, str]]) -> str:
-        """Call the Ollama chat completions API (fallback)."""
-        url = f"{self._settings.OLLAMA_BASE_URL}/v1/chat/completions"
+        """Call the Ollama chat completions API (fallback).
+
+        Respects runtime-overridden LLM_BASE_URL and LLM_MODEL.
+        """
+        model = (
+            resolve_runtime("LLM_MODEL")
+            or self._settings.LLM_MODEL
+            or "llama3.2"
+        )
+        base_url = (
+            resolve_runtime("LLM_BASE_URL")
+            or self._settings.OLLAMA_BASE_URL
+        )
+        url = f"{base_url.rstrip('/')}/api/chat"
         payload: dict[str, Any] = {
-            "model": "llama3.2",
+            "model": model,
             "messages": messages,
-            "temperature": self._settings.LLM_TEMPERATURE,
-            "max_tokens": 512,
+            "options": {"num_ctx": 128000, "temperature": self._settings.LLM_TEMPERATURE},
             "stream": False,
         }
 
         response = await self.http_client.post(url, json=payload)
         response.raise_for_status()
         data = response.json()
-        return data["choices"][0]["message"]["content"]
+        return data["message"]["content"]
 
     def _parse_response(self, raw_response: str) -> dict[str, Any]:
         """Parse the LLM JSON response into a summary + topics dict.

@@ -319,7 +319,7 @@ PROVIDER_PRESETS: dict[str, dict[str, str]] = {
     "Together": {"base_url": "https://api.together.xyz", "model": "mistralai/Mixtral-8x7B-Instruct-v0.1"},
     "Groq": {"base_url": "https://api.groq.com/openai", "model": "llama3-70b-8192"},
     "OpenRouter": {"base_url": "https://openrouter.ai/api/v1", "model": "openai/gpt-4o-mini"},
-    "Ollama (local)": {"base_url": "http://host.docker.internal:11434", "model": "llama3.2"},
+    "Ollama (local)": {"base_url": "http://10.0.2.2:11434", "model": "hf.co/LiquidAI/LFM2.5-1.2B-Instruct-GGUF:latest"},
     "Custom": {"base_url": "", "model": ""},
 }
 

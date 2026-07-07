@@ -132,7 +132,9 @@ async def update_llm_config(body: LLMConfigRequest) -> LLMConfigResponse:
 async def test_llm_connection(body: LLMTestRequest) -> dict[str, object]:
     """Test an LLM connection by making a simple chat request."""
     url = f"{body.base_url.rstrip('/')}/v1/chat/completions"
-    headers = {"Authorization": f"Bearer {body.api_key}", "Content-Type": "application/json"}
+    headers = {"Content-Type": "application/json"}
+    if body.api_key:
+        headers["Authorization"] = f"Bearer {body.api_key}"
     payload = {
         "model": body.model or "deepseek-chat",
         "messages": [{"role": "user", "content": "Reply with just the word OK"}],

@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+import logging
 import re
 from typing import Any
 
@@ -20,6 +21,8 @@ from pydantic import BaseModel, Field
 from app.core.config import Settings
 from app.core.dependencies import get_settings
 from app.core.runtime_config import resolve as resolve_runtime
+
+logger = logging.getLogger(__name__)
 
 # ── Pydantic models ─────────────────────────────────────────────────────────
 
@@ -170,9 +173,9 @@ class AnswerAgent:
 
     @property
     def http_client(self) -> httpx.AsyncClient:
-        """Return (and lazily create) the httpx async client with short timeout."""
+        """Return (and lazily create) the httpx async client."""
         if self._http_client is None:
-            self._http_client = httpx.AsyncClient(timeout=httpx.Timeout(30.0, connect=10.0))
+            self._http_client = httpx.AsyncClient(timeout=httpx.Timeout(300.0, connect=15.0))
         return self._http_client
 
     async def answer(
@@ -213,7 +216,7 @@ class AnswerAgent:
 
         # Call LLM with overall timeout
         try:
-            llm_response = await asyncio.wait_for(self._call_llm(query, context), timeout=45.0)
+            llm_response = await asyncio.wait_for(self._call_llm(query, context), timeout=240.0)
         except TimeoutError:
             llm_response = json.dumps(
                 {
@@ -343,9 +346,10 @@ class AnswerAgent:
     async def _call_llm(self, query: str, context: str) -> str:
         """Call the LLM API and return the raw response text.
 
-        Tries DeepSeek first; falls back to Ollama. Returns a graceful
-        fallback if neither is reachable. Uses httpx built-in timeout
-        (8s total, 3s connect) so no nested wait_for needed.
+        Tries the API path first (accepts any OpenAI-compatible endpoint,
+        including Ollama which doesn't need a key). Falls back to the
+        legacy Ollama-only path. Returns a graceful fallback if neither
+        is reachable.
         """
         user_prompt = f"Context:\n{context}\n\nQuestion: {query}"
 
@@ -354,15 +358,23 @@ class AnswerAgent:
             {"role": "user", "content": user_prompt},
         ]
 
-        # Try LLM (any OpenAI-compatible provider)
-        api_key = self._settings.LLM_API_KEY or self._settings.DEEPSEEK_API_KEY or ""
-        if api_key and api_key != "***":
+        # Resolve runtime settings
+        r_key = resolve_runtime("LLM_API_KEY") or ""
+        r_url = resolve_runtime("LLM_BASE_URL") or ""
+        r_model = resolve_runtime("LLM_MODEL") or ""
+
+        # Try the generic API path if we have enough config
+        has_key = bool(r_key or self._settings.LLM_API_KEY or self._settings.DEEPSEEK_API_KEY)
+        has_endpoint = bool(r_url or self._settings.LLM_BASE_URL or self._settings.DEEPSEEK_BASE_URL)
+        has_model = bool(r_model or self._settings.LLM_MODEL)
+
+        if (has_key or r_url) and has_endpoint and has_model:
             try:
                 return await self._call_llm_api(messages)
             except Exception:
                 pass
 
-        # Try Ollama
+        # Try Ollama (respects runtime LLM_MODEL + LLM_BASE_URL overrides)
         try:
             return await self._call_ollama(messages)
         except Exception:
@@ -433,11 +445,34 @@ class AnswerAgent:
             return texts[0] if texts else ""
 
         # ── OpenAI-compatible chat completions ────────────────────────────
+        is_ollama = ":11434" in base_url or "ollama" in base_url.lower()
+
+        if is_ollama:
+            # Use Ollama's native /api/chat endpoint which supports
+            # `options: {num_ctx}` to expand the context window from
+            # the default 4096/32768 → model-native 128K
+            url = f"{base_url.rstrip('/')}/api/chat"
+            headers = {"Content-Type": "application/json"}
+            payload = {
+                "model": model,
+                "messages": messages,
+                "options": {"num_ctx": 128000, "temperature": self._settings.LLM_TEMPERATURE},
+                "stream": False,
+            }
+            response = await self.http_client.post(url, json=payload, headers=headers)
+            if response.status_code != 200:
+                logger.error("Ollama API returned %s: %s", response.status_code, response.text[:1000])
+            response.raise_for_status()
+            data = response.json()
+            # Ollama /api/chat returns: data["message"]["content"]
+            return data["message"]["content"]
+
         url = f"{base_url.rstrip('/')}/v1/chat/completions"
         headers = {
-            "Authorization": f"Bearer {api_key}",
             "Content-Type": "application/json",
         }
+        if api_key:
+            headers["Authorization"] = f"Bearer {api_key}"
         payload = {
             "model": model,
             "messages": messages,
@@ -446,25 +481,40 @@ class AnswerAgent:
         }
 
         response = await self.http_client.post(url, json=payload, headers=headers)
+        if response.status_code != 200:
+            logger.error("LLM API returned %s: %s", response.status_code, response.text[:1000])
         response.raise_for_status()
         data = response.json()
         return data["choices"][0]["message"]["content"]
 
     async def _call_ollama(self, messages: list[dict[str, str]]) -> str:
-        """Call the Ollama chat completions API (fallback)."""
-        url = f"{self._settings.OLLAMA_BASE_URL}/v1/chat/completions"
+        """Call the Ollama chat completions API (fallback).
+
+        Respects runtime-overridden LLM_BASE_URL and LLM_MODEL so the
+        frontend's "Ollama" provider preset applies correctly.
+        """
+        model = (
+            resolve_runtime("LLM_MODEL")
+            or self._settings.LLM_MODEL
+            or "llama3.2"
+        )
+        base_url = (
+            resolve_runtime("LLM_BASE_URL")
+            or self._settings.OLLAMA_BASE_URL
+        )
+        url = f"{base_url.rstrip('/')}/api/chat"
         payload: dict[str, Any] = {
-            "model": "llama3.2",
+            "model": model,
             "messages": messages,
-            "temperature": self._settings.LLM_TEMPERATURE,
-            "max_tokens": 1024,
+            "options": {"num_ctx": 128000, "temperature": self._settings.LLM_TEMPERATURE},
             "stream": False,
         }
 
         response = await self.http_client.post(url, json=payload)
         response.raise_for_status()
         data = response.json()
-        return data["choices"][0]["message"]["content"]
+        # Ollama /api/chat returns data["message"]["content"]
+        return data["message"]["content"]
 
     def _parse_llm_response(
         self,
@@ -473,57 +523,96 @@ class AnswerAgent:
     ) -> AnswerResult:
         """Parse the LLM JSON response into an AnswerResult.
 
-        Handles cases where the LLM wraps the JSON in markdown fences
-        or adds extra text.
+        Handles:
+        - Markdown code fences (```json ... ```)
+        - Ollama/LFM tool-call format (<|tool_call_start|>[{...}]<|tool_call_end|>)
+        - Raw JSON object (outermost { })
+        - Plain text fallback
         """
         # Try to extract JSON from markdown code fences
         json_match = re.search(r"```(?:json)?\s*([\s\S]*?)\s*```", raw_response)
         if json_match:
             json_str = json_match.group(1).strip()
-        else:
-            # Find the outermost JSON object
-            brace_start = raw_response.find("{")
-            brace_end = raw_response.rfind("}")
-            if brace_start != -1 and brace_end != -1 and brace_end > brace_start:
-                json_str = raw_response[brace_start : brace_end + 1]
-            else:
-                # Fallback: treat entire response as answer text
-                return AnswerResult(
-                    answer_text=raw_response.strip(),
-                    citations=[],
-                    confidence_score=0.5,
-                )
+            parsed = self._try_parse_json(json_str)
+            if parsed is not None:
+                return parsed
 
+        # Try tool-call format: <|tool_call_start|>[{"name":..., "arguments":{...}}]<|tool_call_end|>
+        tc_match = re.search(
+            r"<\|tool_call_start\|>\s*(\[[\s\S]*?\])\s*<\|tool_call_end\|>",
+            raw_response,
+        )
+        if tc_match:
+            try:
+                tc_array = json.loads(tc_match.group(1))
+                if isinstance(tc_array, list) and len(tc_array) > 0:
+                    args = tc_array[0].get("arguments", {})
+                    if isinstance(args, dict):
+                        return AnswerResult(
+                            answer_text=args.get("answer_text", args.get("text", "")).strip(),
+                            citations=[
+                                Citation(**c) for c in args.get("citations", [])
+                                if isinstance(c, dict)
+                            ],
+                            confidence_score=float(args.get("confidence_score", 0.5)),
+                        )
+            except (json.JSONDecodeError, TypeError, ValueError):
+                pass
+
+        # Find the outermost JSON object
+        brace_start = raw_response.find("{")
+        brace_end = raw_response.rfind("}")
+        if brace_start != -1 and brace_end != -1 and brace_end > brace_start:
+            json_str = raw_response[brace_start : brace_end + 1]
+            parsed = self._try_parse_json(json_str)
+            if parsed is not None:
+                return parsed
+
+        # Fallback: treat entire response as answer text
+        return AnswerResult(
+            answer_text=raw_response.strip(),
+            citations=[],
+            confidence_score=0.5,
+        )
+
+    def _try_parse_json(self, json_str: str) -> AnswerResult | None:
+        """Try to parse a JSON string into an AnswerResult.  Returns None on failure."""
         try:
             parsed = json.loads(json_str)
         except json.JSONDecodeError:
+            return None
+
+        if isinstance(parsed, dict):
+            answer = parsed.get("answer_text") or parsed.get("text") or ""
+            citations_raw = parsed.get("citations", [])
+            score = float(parsed.get("confidence_score", 0.5))
+            if isinstance(citations_raw, list):
+                citations = [
+                    Citation(**c) for c in citations_raw if isinstance(c, dict)
+                ]
+            else:
+                citations = []
             return AnswerResult(
-                answer_text=raw_response.strip(),
-                citations=[],
-                confidence_score=0.5,
+                answer_text=str(answer).strip(),
+                citations=citations,
+                confidence_score=score,
             )
 
-        answer_text = parsed.get("answer_text", "")
-        confidence_score = float(parsed.get("confidence_score", 0.5))
-        raw_citations = parsed.get("citations", [])
-
-        # Build Citation objects
-        citations: list[Citation] = []
-        for cit in raw_citations:
-            if isinstance(cit, dict):
-                citations.append(
-                    Citation(
-                        chunk_id=str(cit.get("chunk_id", "")),
-                        document_id=str(cit.get("document_id", "")),
-                        content_snippet=str(cit.get("content_snippet", "")),
+        if isinstance(parsed, list) and len(parsed) > 0:
+            # Maybe a tool-call arguments object that wasn't wrapped properly
+            first = parsed[0]
+            if isinstance(first, dict) and "arguments" in first:
+                args = first["arguments"]
+                if isinstance(args, dict):
+                    return AnswerResult(
+                        answer_text=str(args.get("answer_text", args.get("text", ""))).strip(),
+                        citations=[
+                            Citation(**c) for c in args.get("citations", [])
+                            if isinstance(c, dict)
+                        ],
+                        confidence_score=float(args.get("confidence_score", 0.5)),
                     )
-                )
-
-        return AnswerResult(
-            answer_text=answer_text,
-            citations=citations,
-            confidence_score=confidence_score,
-        )
+        return None
 
     async def close(self) -> None:
         """Close the internal HTTP client if it was created by this agent."""

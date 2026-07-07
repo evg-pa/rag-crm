@@ -29,7 +29,7 @@ async def answer_agent(state: AgentState) -> dict:
     feedback: str = state.get("critic_feedback", "")
     retries: int = state.get("critic_retries", 0)
 
-    top_k = min(len(chunks), 30)
+    top_k = min(len(chunks), 100)
 
     if not chunks:
         return {
@@ -56,7 +56,7 @@ async def answer_agent(state: AgentState) -> dict:
         result: AnswerResult = await agent.answer(
             query=effective_query,
             chunks=chunks,
-            top_k=top_k,
+            top_k=min(top_k, 100),
         )
 
         # Convert Citation objects to dicts for state serialisation

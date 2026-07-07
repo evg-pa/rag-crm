@@ -110,14 +110,20 @@ async def _run_hybrid(
     # These are often buried below the top-30 cutoff because their
     # semantic score is zero; prepend them so the answer agent sees them.
     bm25_in_fused: list[dict[str, Any]] = []
+    c27_count = 0
     for r in bm25_results:
         score = r.get("bm25_score", 0.0) or 0.0
         if score > 0 and r["id"] in fused_ids:
-            # Find the fused entry and move it to the front
             for f in fused:
                 if f["id"] == r["id"] and f["similarity"] == 0.0:
                     bm25_in_fused.append(f)
+                    if r.get("chunk_index") == 27:
+                        c27_count += 1
                     break
+
+    import logging as _lg
+    _lg.getLogger(__name__).info("BM25 promotion: fused_promoted=%d survivors=%d c27_in_promoted=%d",
+                                  len(bm25_in_fused), len(bm25_only_survivors), c27_count)
 
     # Sort promoted BM25 chunks descending by BM25 score (best first)
     bm25_in_fused.sort(key=lambda x: x.get("bm25_score", 0.0) or 0.0, reverse=True)

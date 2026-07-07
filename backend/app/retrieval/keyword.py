@@ -151,10 +151,13 @@ class BM25Index:
 
 
 def _tokenize(text: str) -> list[str]:
-    """Whitespace tokenization with lowercasing and punctuation stripping.
+    """Tokenize by splitting on whitespace and punctuation, lowercasing.
 
-    Strips common punctuation characters so that ``query`` and
-    ``2026.06.30:`` both tokenize to the same token.
+    Splits on any sequence of punctuation or whitespace so that date
+    formats ``2026.06.30``, ``2026-06-30``, and ``30.06.2026`` all
+    produce the same token set ``[2026, 06, 30]`` — making BM25
+    invariant to date format and the position of separators.
     """
-    _PUNCTUATION: str = "!\"#$%&'()*+,-./:;<=>?@[\\]^_`{|}~"
-    return [w.strip(_PUNCTUATION).lower() for w in text.split() if w.strip(_PUNCTUATION)]
+    import re as _re
+    # Split on one-or-more non-alphanumeric characters
+    return [t.lower() for t in _re.split(r"[^a-zA-Z0-9]+", text) if t]

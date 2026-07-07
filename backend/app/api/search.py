@@ -145,7 +145,9 @@ async def search_hybrid(
     logger = __import__("logging").getLogger(__name__)
     logger.info(
         "hybrid search for %r: semantic=%d bm25=%d loaded=%s index=%s meta=%d",
-        q, len(semantic_results), len(bm25_results),
+        q,
+        len(semantic_results),
+        len(bm25_results),
         BM25Index.is_loaded(),
         "yes" if BM25Index._index is not None else "no",
         len(BM25Index._chunk_metadata) if BM25Index._chunk_metadata else 0,

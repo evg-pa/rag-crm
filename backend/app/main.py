@@ -41,7 +41,10 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     async with _session_factory() as session:
         try:
             await BM25Index._ensure_loaded(session)
-            logger.info("BM25 index built on startup (metadata: %d entries)", len(BM25Index._chunk_metadata or []))
+            logger.info(
+                "BM25 index built on startup (metadata: %d entries)",
+                len(BM25Index._chunk_metadata or []),
+            )
         except Exception as exc:
             logger.warning("BM25 index build failed on startup: %s", exc)
 

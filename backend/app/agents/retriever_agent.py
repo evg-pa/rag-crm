@@ -6,11 +6,10 @@ hybrid.py) based on the query_type set by the RouterAgent.
 
 from __future__ import annotations
 
+import re
 from typing import Any
 
 from sqlalchemy.ext.asyncio import AsyncSession
-
-import re
 
 from app.agents.state import AgentState
 from app.retrieval.embeddings import EmbeddingModel
@@ -100,8 +99,7 @@ async def _run_hybrid(
         if r["id"] not in fused_ids and (r.get("bm25_score", 0.0) or 0.0) > 0:
             r["similarity"] = 0.0
             r["hybrid_score"] = round(
-                (0.5 * 0.0 + 0.5 * _min_max_normalize_single(r["bm25_score"], bm25_results))
-                / 1.0,
+                (0.5 * 0.0 + 0.5 * _min_max_normalize_single(r["bm25_score"], bm25_results)) / 1.0,
                 6,
             )
             bm25_only_survivors.append(r)

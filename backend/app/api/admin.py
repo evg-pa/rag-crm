@@ -4,6 +4,7 @@ The LLM config endpoint lets any user change the active LLM provider/model/key
 at runtime via the frontend sidebar. Authentication is intentionally omitted
 since this runs in a local dev/self-hosted context.
 """
+
 from __future__ import annotations
 
 import uuid
@@ -16,7 +17,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.auth import get_current_user
 from app.core.dependencies import get_db_session
-from app.core.runtime_config import get_llm_config, resolve as resolve_runtime, set_llm_config
+from app.core.runtime_config import get_llm_config, set_llm_config
 from app.models.user import User
 
 router = APIRouter(prefix="/admin", tags=["admin"])
@@ -150,7 +151,7 @@ async def test_llm_connection(body: LLMTestRequest) -> dict[str, object]:
 
 
 async def get_admin_user(
-    current_user: "User" = Depends(get_current_user),
+    current_user: User = Depends(get_current_user),
 ) -> User:
     """FastAPI dependency: ensure the current user is an admin.
 

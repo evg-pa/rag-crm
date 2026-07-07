@@ -95,6 +95,7 @@ def build_context_prompt(chunks: list[dict[str, Any]], query: str | None = None)
             doc_id = best_bm25_chunk.get("document_id", "?")
             chunk_id = best_bm25_chunk.get("id", "?")
             import re as _re
+
             # Find lines containing any query token (length > 2)
             q_tokens = {t for t in _re.split(r"[^a-zA-Z0-9]+", query.lower()) if len(t) > 2}
             lines = content.split("\n")
@@ -112,8 +113,8 @@ def build_context_prompt(chunks: list[dict[str, Any]], query: str | None = None)
             if matched_lines:
                 # Only keep lines from the last date match onwards
                 date_idx = -1
-                for i, l in enumerate(matched_lines):
-                    if _re.search(r"\d{2,4}[-./]\d{1,2}[-./]\d{2,4}", l):
+                for i, line in enumerate(matched_lines):
+                    if _re.search(r"\d{2,4}[-./]\d{1,2}[-./]\d{2,4}", line):
                         date_idx = i
                 if date_idx >= 0:
                     matched_lines = matched_lines[date_idx:]
@@ -122,8 +123,8 @@ def build_context_prompt(chunks: list[dict[str, Any]], query: str | None = None)
                     f"📌 **EXACT MATCH from the knowledge base (BM25 score: {best_bm25_score:.1f})**\n"
                     f"Document: {doc_id}  Chunk: {chunk_id}\n"
                     f"```\n" + "\n".join(matched_lines) + "\n```\n"
-                    f"--- The above lines are an EXACT KEYWORD MATCH for your query. "
-                    f"Use them as your primary source for a direct answer. ---"
+                    "--- The above lines are an EXACT KEYWORD MATCH for your query. "
+                    "Use them as your primary source for a direct answer. ---"
                 )
 
     if bm25_excerpt:
@@ -234,7 +235,9 @@ class AnswerAgent:
     # threshold, the context is likely irrelevant — refuse to answer.
     # Also catches empty / LLM-rejected answers with an honest refusal.
     @staticmethod
-    def _enforce_honesty(result: AnswerResult, chunks_present: bool, chunks: list[dict[str, Any]] | None = None) -> AnswerResult:
+    def _enforce_honesty(
+        result: AnswerResult, chunks_present: bool, chunks: list[dict[str, Any]] | None = None
+    ) -> AnswerResult:
         """Override poor-quality answers with an honest refusal.
 
         Three safety layers:
@@ -275,11 +278,13 @@ class AnswerAgent:
 
             # Reranker score: range is roughly [-5, 5], threshold 0.1 means 'barely relevant'
             # Bypass check if any chunk has a positive BM25 keyword score (exact match)
-            has_bm25_hit = any(
-                float(c.get("bm25_score", 0.0) or 0.0) > 0
-                for c in chunks
-            )
-            if not has_bm25_hit and score_source == "reranker_score" and best_score >= 0 and best_score < 0.1:
+            has_bm25_hit = any(float(c.get("bm25_score", 0.0) or 0.0) > 0 for c in chunks)
+            if (
+                not has_bm25_hit
+                and score_source == "reranker_score"
+                and best_score >= 0
+                and best_score < 0.1
+            ):
                 return AnswerResult(
                     answer_text=(
                         "I don't have enough information in the knowledge base to "
@@ -386,8 +391,16 @@ class AnswerAgent:
         Messages API format (``/v1/messages``, ``x-api-key`` header) instead of
         the OpenAI ``/v1/chat/completions`` format.
         """
-        api_key = resolve_runtime("LLM_API_KEY") or self._settings.LLM_API_KEY or self._settings.DEEPSEEK_API_KEY
-        base_url = resolve_runtime("LLM_BASE_URL") or self._settings.LLM_BASE_URL or self._settings.DEEPSEEK_BASE_URL
+        api_key = (
+            resolve_runtime("LLM_API_KEY")
+            or self._settings.LLM_API_KEY
+            or self._settings.DEEPSEEK_API_KEY
+        )
+        base_url = (
+            resolve_runtime("LLM_BASE_URL")
+            or self._settings.LLM_BASE_URL
+            or self._settings.DEEPSEEK_BASE_URL
+        )
         model = resolve_runtime("LLM_MODEL") or self._settings.LLM_MODEL or "deepseek-chat"
 
         is_openmodel = "openmodel.ai" in base_url.lower()

@@ -280,7 +280,10 @@ class TestAnswerAgentAnswer:
 
         result = await agent.answer(query="What is RAG?", chunks=[], top_k=10)
 
-        assert "I don't have enough information" in result.answer_text or result.answer_text == "No relevant information found to answer your question."
+        assert (
+            "I don't have enough information" in result.answer_text
+            or result.answer_text == "No relevant information found to answer your question."
+        )
         assert result.citations == []
         assert result.confidence_score == 0.0
         # LLM should NOT have been called

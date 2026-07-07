@@ -159,5 +159,6 @@ def _tokenize(text: str) -> list[str]:
     invariant to date format and the position of separators.
     """
     import re as _re
+
     # Split on one-or-more non-alphanumeric characters
     return [t.lower() for t in _re.split(r"[^a-zA-Z0-9]+", text) if t]

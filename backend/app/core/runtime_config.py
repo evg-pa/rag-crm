@@ -4,6 +4,7 @@ Provides a thread-safe, in-memory override dictionary that takes precedence
 over environment-variable-based Settings. Used by the frontend to let users
 change LLM provider/model/key at runtime without restarting the container.
 """
+
 from __future__ import annotations
 
 _RUNTIME_OVERRIDES: dict[str, str] = {}

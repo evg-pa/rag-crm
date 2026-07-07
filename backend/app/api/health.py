@@ -28,8 +28,13 @@ async def health_check(
         "version": settings.APP_VERSION,
         "database": db_status,
         "llm_model": resolve_runtime("LLM_MODEL") or settings.LLM_MODEL or "deepseek-chat",
-        "llm_base_url": resolve_runtime("LLM_BASE_URL") or settings.LLM_BASE_URL or settings.DEEPSEEK_BASE_URL or "https://api.deepseek.com",
-        "llm_configured": bool(resolve_runtime("LLM_API_KEY") or settings.LLM_API_KEY or settings.DEEPSEEK_API_KEY),
+        "llm_base_url": resolve_runtime("LLM_BASE_URL")
+        or settings.LLM_BASE_URL
+        or settings.DEEPSEEK_BASE_URL
+        or "https://api.deepseek.com",
+        "llm_configured": bool(
+            resolve_runtime("LLM_API_KEY") or settings.LLM_API_KEY or settings.DEEPSEEK_API_KEY
+        ),
     }
 
 

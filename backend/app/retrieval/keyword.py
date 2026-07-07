@@ -151,5 +151,10 @@ class BM25Index:
 
 
 def _tokenize(text: str) -> list[str]:
-    """Simple whitespace tokenization with lowercasing."""
-    return text.lower().split()
+    """Whitespace tokenization with lowercasing and punctuation stripping.
+
+    Strips common punctuation characters so that ``query`` and
+    ``2026.06.30:`` both tokenize to the same token.
+    """
+    _PUNCTUATION: str = "!\"#$%&'()*+,-./:;<=>?@[\\]^_`{|}~"
+    return [w.strip(_PUNCTUATION).lower() for w in text.split() if w.strip(_PUNCTUATION)]

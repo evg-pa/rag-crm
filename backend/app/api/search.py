@@ -129,7 +129,7 @@ async def search_hybrid(
         ) from None
 
     # Fetch more candidates than needed for better fusion recall
-    candidate_k = max(top_k * 3, 30)
+    candidate_k = max(top_k * 3, 100)
 
     # 1. Semantic search
     query_embedding = await model.embed(q)
@@ -142,6 +142,14 @@ async def search_hybrid(
     bm25_results = await BM25Index.search(q, top_k=candidate_k, db=db)
 
     # 3. Fusion
+    logger = __import__("logging").getLogger(__name__)
+    logger.info(
+        "hybrid search for %r: semantic=%d bm25=%d loaded=%s index=%s meta=%d",
+        q, len(semantic_results), len(bm25_results),
+        BM25Index.is_loaded(),
+        "yes" if BM25Index._index is not None else "no",
+        len(BM25Index._chunk_metadata) if BM25Index._chunk_metadata else 0,
+    )
     fused = await hybrid_search(
         semantic_results=semantic_results,
         bm25_results=bm25_results,

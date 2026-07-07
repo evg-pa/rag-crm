@@ -18,7 +18,8 @@ from app.retrieval.semantic import semantic_search
 from app.retrieval.vector_store import get_vector_store
 
 # Number of candidates to retrieve before fusion/re-ranking
-_CANDIDATE_K = 30
+# Higher = better recall for exact matches (BM25), lower = faster
+_CANDIDATE_K = 100
 
 
 async def _run_semantic(

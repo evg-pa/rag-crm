@@ -119,6 +119,9 @@ async def _run_hybrid(
                     bm25_in_fused.append(f)
                     break
 
+    # Sort promoted BM25 chunks descending by BM25 score (best first)
+    bm25_in_fused.sort(key=lambda x: x.get("bm25_score", 0.0) or 0.0, reverse=True)
+
     return bm25_only_survivors + bm25_in_fused + [f for f in fused if f not in bm25_in_fused]
 
 

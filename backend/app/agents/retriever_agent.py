@@ -10,6 +10,8 @@ from typing import Any
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
+import re
+
 from app.agents.state import AgentState
 from app.retrieval.embeddings import EmbeddingModel
 from app.retrieval.hybrid import hybrid_search
@@ -46,13 +48,43 @@ async def _run_hybrid(
     model: EmbeddingModel,
     query: str,
 ) -> list[dict[str, Any]]:
-    """Run hybrid (semantic + BM25 fusion) search."""
+    """Run hybrid (semantic + BM25 fusion) search.
+
+    Also searches extracted date/number patterns as a pure BM25 query
+    to ensure exact keyword hits (e.g., ``2026.06.30``) survive the
+    English-only semantic and reranker stages.
+    """
     query_embedding = await model.embed(query)
     vector_store = get_vector_store()
     semantic_results = await semantic_search(
         db, query_embedding, top_k=_CANDIDATE_K, vector_store=vector_store
     )
     bm25_results = await BM25Index.search(query, top_k=_CANDIDATE_K, db=db)
+
+    # ── Keyword-only BM25 pass for dates/numbers ──────────────────────
+    # Extract date-like and number-like tokens for exact-match retrieval
+    keyword_tokens: list[str] = re.findall(
+        r"\b\d{2,4}[-./]\d{1,2}[-./]\d{2,4}\b|\b\d{2,4}[-./]\d{1,2}\b", query
+    )
+    if keyword_tokens:
+        kw_query = " ".join(keyword_tokens)
+        kw_results = await BM25Index.search(kw_query, top_k=_CANDIDATE_K, db=db)
+        # Merge BM25 results: deduplicate by id, keep the one with higher score
+        existing_ids = {r["id"] for r in bm25_results}
+        for kr in kw_results:
+            if kr["id"] not in existing_ids:
+                bm25_results.append(kr)
+                existing_ids.add(kr["id"])
+            else:
+                # Update score to the higher of the two
+                for existing in bm25_results:
+                    if existing["id"] == kr["id"]:
+                        existing["bm25_score"] = max(
+                            existing.get("bm25_score", 0.0) or 0.0,
+                            kr.get("bm25_score", 0.0) or 0.0,
+                        )
+                        break
+
     return await hybrid_search(
         semantic_results=semantic_results,
         bm25_results=bm25_results,

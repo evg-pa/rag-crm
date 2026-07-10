@@ -13,7 +13,7 @@ import httpx
 import streamlit as st
 
 BACKEND_URL: str = os.environ.get("BACKEND_URL", "http://localhost:8000")
-TIMEOUT: float = float(os.environ.get("BACKEND_TIMEOUT", "120.0"))
+TIMEOUT: float = float(os.environ.get("BACKEND_TIMEOUT", "300.0"))
 
 
 def _get_client() -> httpx.Client:

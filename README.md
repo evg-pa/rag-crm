@@ -24,7 +24,7 @@ chmod +x setup.sh
 
 You'll be guided to pick an **LLM provider** and paste your API key.
 
-**Supported providers:** DeepSeek, DeepSeek V4 Flash, OpenAI, Together AI, Groq, OpenRouter, OpenModel, or any custom OpenAI-compatible endpoint.
+**Supported providers:** DeepSeek, DeepSeek V4 Flash, OpenAI, Together AI, Groq, OpenRouter, OpenModel, **Ollama (local LLM)**, or any custom OpenAI-compatible endpoint.
 
 ### Quick examples
 
@@ -120,8 +120,66 @@ docker compose -f infrastructure/docker-compose.yml restart backend
 | **Groq** | `https://api.groq.com/openai` | `llama3-70b-8192` | Fastest inference (LPU) |
 | **OpenRouter** | `https://openrouter.ai/api/v1` | `openai/gpt-4o-mini` | Gateway to 200+ models |
 | **OpenModel** | `https://api.openmodel.ai` | `openai/gpt-4o` | Unified gateway — one key for OpenAI, Anthropic, DeepSeek, Google, and more |
+| **Ollama (local)** | `http://10.0.2.2:11434` | `hf.co/LiquidAI/LFM2.5-1.2B-Instruct-GGUF:latest` | On-device, no API key — see [Local LLM section](#local-llm-on-device-via-ollama) |
 
 > **Tip:** Any OpenAI-compatible endpoint works — just set `LLM_BASE_URL` and `LLM_MODEL` in `.env`.
+
+---
+
+## Local LLM (on-device via Ollama)
+
+RAG-CRM can use a **local LLM running on the host machine** via [Ollama](https://ollama.ai), accessible inside the VirtualBox VM through the NAT gateway (`10.0.2.2`). No API key needed.
+
+### One-time host setup
+
+```bash
+# Install Ollama (host machine — outside the VM)
+curl -fsSL https://ollama.ai/install.sh | sh
+
+# Pull your model (example: Liquid Foundation 1.2B)
+ollama pull hf.co/LiquidAI/LFM2.5-1.2B-Instruct-GGUF:latest
+
+# Ensure Ollama listens on all interfaces (so VM can reach it)
+ollama serve
+# Or set: OLLAMA_HOST=0.0.0.0
+```
+
+### Select via the frontend UI
+
+1. Open the dashboard at **http://localhost:8501**
+2. In the **left sidebar**, you'll see your current LLM provider, e.g.:
+   ```
+   🟢 LLM: deepseek-v4-flash · Openmodel
+   ```
+3. Click **"⚙️ Change LLM"** to expand the provider panel
+4. Select **"Ollama (local)"** from the Provider dropdown — the fields auto-fill:
+   | Field | Value |
+   |---|---|
+   | Base URL | `http://10.0.2.2:11434` |
+   | Model | The model you pulled (e.g. `hf.co/LiquidAI/LFM2.5-1.2B-Instruct-GGUF:latest`) |
+   | API Key | *(not needed — hidden)* |
+5. Click **"🔍 Test"** — you should see ✅ **"Connection successful"**
+6. Click **"✅ Apply"** — all subsequent Q&A runs through your local model
+
+### Switch back anytime
+
+Repeat the same steps and select a cloud provider (DeepSeek, OpenAI, etc.). The setting is applied immediately — no restart needed.
+
+### Via API (no GUI)
+
+```bash
+# Test connection
+curl -X POST http://localhost:8000/admin/llm-config/test \
+  -H "Content-Type: application/json" \
+  -d '{"api_key":"","base_url":"http://10.0.2.2:11434","model":"hf.co/LiquidAI/LFM2.5-1.2B-Instruct-GGUF:latest"}'
+
+# Activate Ollama
+curl -X PUT http://localhost:8000/admin/llm-config \
+  -H "Content-Type: application/json" \
+  -d '{"llm_api_key":"","llm_base_url":"http://10.0.2.2:11434","llm_model":"hf.co/LiquidAI/LFM2.5-1.2B-Instruct-GGUF:latest"}'
+```
+
+> **Note:** Small local models (1-7B parameters) can be 5-10× slower than cloud APIs and may give lower-quality answers. The system automatically reduces context size and skips heavy pipeline steps when Ollama is active.
 
 ---
 
